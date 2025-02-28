@@ -1,0 +1,346 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+train = pd.read_csv("data/train.csv")
+test = pd.read_csv("data/test.csv")
+
+train_features = train.drop("SalePrice", axis=1)
+feature_df = pd.concat([train_features, test], axis=0, ignore_index=True)
+
+
+def missing_col(df):
+    missing_col = df.isna().sum()
+    missing_col_df = pd.DataFrame(missing_col[missing_col > 0])
+    print(missing_col_df.index.tolist())
+    return missing_col_df
+
+missing_check = missing_col(feature_df)
+missing_check
+
+
+####################### Contextual Missing Data Handling  #######################
+# Alley missing
+"""
+Alley: Type of alley access to property
+       Grvl	Gravel
+       Pave	Paved
+       NA 	No alley access
+"""
+feature_df["Alley"].fillna("NA", inplace=True) 
+
+
+# Exterior1st
+"""
+Exterior1st: Exterior covering on house
+       AsbShng	Asbestos Shingles
+       AsphShn	Asphalt Shingles
+       BrkComm	Brick Common
+       BrkFace	Brick Face
+       CBlock	Cinder Block
+       CemntBd	Cement Board
+       HdBoard	Hard Board
+       ImStucc	Imitation Stucco
+       MetalSd	Metal Siding
+       Other	Other
+       Plywood	Plywood
+       PreCast	PreCast	
+       Stone	Stone
+       Stucco	Stucco
+       VinylSd	Vinyl Siding
+       Wd Sdng	Wood Siding
+       WdShing	Wood Shingles
+"""
+feature_df["Exterior1st"].fillna("Other", inplace=True) 
+
+# Exterior2nd
+feature_df["Exterior2nd"].fillna("Other", inplace=True) 
+
+# MasVnrType Missing
+"""
+MasVnrType: Masonry veneer type
+       BrkCmn	Brick Common
+       BrkFace	Brick Face
+       CBlock	Cinder Block
+       None	None
+       Stone	Stone
+"""
+feature_df["MasVnrType"].fillna("None", inplace=True)
+
+
+# MasVnrArea Missing
+"""
+MasVnrArea: Masonry veneer area in square feet
+- may need to fill in the missing values with 0 if the MasVnrType is None
+"""
+feature_df["MasVnrArea"].fillna(0, inplace=True)
+
+
+# BsmtQual Missing
+"""
+BsmtQual: Evaluates the height of the basement
+       Ex	Excellent (100+ inches)	
+       Gd	Good (90-99 inches)
+       TA	Typical (80-89 inches)
+       Fa	Fair (70-79 inches)
+       Po	Poor (<70 inches
+       NA	No Basement
+"""
+feature_df["BsmtQual"].fillna("NA", inplace=True) 
+
+# BsmtCond Missing
+"""
+BsmtCond: Evaluates the general condition of the basement
+       Ex	Excellent
+       Gd	Good
+       TA	Typical - slight dampness allowed
+       Fa	Fair - dampness or some cracking or settling
+       Po	Poor - Severe cracking, settling, or wetness
+       NA	No Basement
+"""
+feature_df["BsmtCond"].fillna("NA", inplace=True) 
+
+
+
+# BsmtExposure Missing
+"""
+BsmtExposure: Refers to walkout or garden level walls
+       Gd	Good Exposure
+       Av	Average Exposure (split levels or foyers typically score average or above)	
+       Mn	Mimimum Exposure
+       No	No Exposure
+       NA	No Basement
+"""
+feature_df["BsmtExposure"].fillna("NA", inplace=True)
+
+
+# BsmtFinType1 Missing
+"""
+BsmtFinType1: Rating of basement finished area
+       GLQ	Good Living Quarters
+       ALQ	Average Living Quarters
+       BLQ	Below Average Living Quarters	
+       Rec	Average Rec Room
+       LwQ	Low Quality
+       Unf	Unfinshed
+       NA	No Basement
+"""
+feature_df["BsmtFinType1"].fillna("NA", inplace=True)
+
+# BsmtFinSF1 Missing
+"""
+Type 1 finished square feet
+- If BsmtFinType1 is no_basement, then BsmtFinSF1 should be 0
+"""
+feature_df["BsmtFinSF1"].fillna(0, inplace=True)
+
+
+# BsmtFinType2 Missing
+"""
+BsmtFinType2: Rating of basement finished area (if multiple types)
+       GLQ	Good Living Quarters
+       ALQ	Average Living Quarters
+       BLQ	Below Average Living Quarters	
+       Rec	Average Rec Room
+       LwQ	Low Quality
+       Unf	Unfinshed
+       NA	No Basement
+"""
+feature_df["BsmtFinType2"].fillna("NA", inplace=True)
+
+# BsmtFinSF2 Missing
+"""
+if BsmtFinType2 is no_basement, then BsmtFinSF2 should be 0
+"""
+feature_df["BsmtFinSF2"].fillna(0, inplace=True)
+
+
+
+# BsmtUnfSF
+"""
+BsmtUnfSF = TotalBsmtSF - BsmtFinSF1 - BsmtFinSF2
+If BsmtFinType1 and BsmtFinType2 are no_basement, and BsmtUnfSF is null, then BsmtUnfSF should be 0
+"""
+feature_df.loc[(feature_df["BsmtFinType1"] == "NA") & (feature_df["BsmtFinType2"] == "NA") & (feature_df["BsmtUnfSF"].isna()), "BsmtUnfSF"] = 0
+
+
+# TotalBsmtSF
+"""
+TotalBsmtSF = BsmtFinSF1 + BsmtFinSF2 + BsmtUnfSF
+If BsmtFinType1 and BsmtFinType2 are no_basement, and TotalBsmtSF is null, then TotalBsmtSF should be 0
+"""
+feature_df.loc[(feature_df["BsmtFinType1"] == "NA") & (feature_df["BsmtFinType2"] == "NA") & (feature_df["TotalBsmtSF"].isna()), "TotalBsmtSF"] = 0
+
+
+# BsmtFullBath
+"""
+If BsmtFinType1 and BsmtFinType2 are no_basement, and BsmtFullBath is null, then BsmtFullBath should be 0
+
+"""
+feature_df.loc[(feature_df["BsmtFinType1"] == "NA") & (feature_df["BsmtFinType2"] == "NA") & (feature_df["BsmtFullBath"].isna()), "BsmtFullBath"] = 0
+
+
+# BsmtHalfBath
+"""
+If BsmtFinType1 and BsmtFinType2 are no_basement, and BsmtHalfBath is null, then BsmtHalfBath should be 0
+
+"""
+feature_df.loc[(feature_df["BsmtFinType1"] == "NA") & (feature_df["BsmtFinType2"] == "NA") & (feature_df["BsmtHalfBath"].isna()), "BsmtHalfBath"] = 0
+
+
+
+
+# FireplaceQu Missing
+"""
+FireplaceQu: Fireplace quality
+       Ex	Excellent - Exceptional Masonry Fireplace
+       Gd	Good - Masonry Fireplace in main level
+       TA	Average - Prefabricated Fireplace in main living area or Masonry Fireplace in basement
+       Fa	Fair - Prefabricated Fireplace in basement
+       Po	Poor - Ben Franklin Stove
+       NA	No Fireplace
+"""
+feature_df["FireplaceQu"].fillna("NA", inplace=True)
+
+
+
+
+
+# GarageType Missing
+"""
+GarageType: Garage location
+       2Types	More than one type of garage
+       Attchd	Attached to home
+       Basment	Basement Garage
+       BuiltIn	Built-In (Garage part of house - typically has room above garage)
+       CarPort	Car Port
+       Detchd	Detached from home
+       NA	No Garage
+"""
+feature_df["GarageType"].fillna("NA", inplace=True)
+
+
+# GarageYrBlt Missing
+"""
+if GarageType is no_garage, then GarageYrBlt should be 0
+I have observed that GarageYrBlt is missing in some cases where GarageType is either 'no_garage' or 'Detchd' (detached garage). Similarly, for GarageQual and GarageCond, the NA values occur for both 'no_garage' and 'Detchd'.
+Therefore, we need to interpret all missing values in GarageYrBlt, GarageQual, and GarageCond as 'no_garage'. For instances where GarageType is 'Detchd' and GarageYrBlt, GarageQual, and GarageCond are missing, we should fill these values with 0 and treat them as 'no_garage'.
+"""
+feature_df["GarageYrBlt"].fillna(0, inplace=True)
+
+
+
+# GarageFinish Missing
+"""
+GarageFinish: Interior finish of the garage
+       Fin	Finished
+       RFn	Rough Finished	
+       Unf	Unfinished
+       NA	No Garage
+"""
+feature_df["GarageFinish"].fillna("NA", inplace=True)
+
+
+# GarageQual Missing
+"""
+GarageQual: Garage quality
+       Ex	Excellent
+       Gd	Good
+       TA	Typical/Average
+       Fa	Fair
+       Po	Poor
+       NA	No Garage
+"""
+feature_df["GarageQual"].fillna("NA", inplace=True)
+
+
+
+# GarageCond Missing
+"""
+GarageCond: Garage condition
+       Ex	Excellent
+       Gd	Good
+       TA	Typical/Average
+       Fa	Fair
+       Po	Poor
+       NA	No Garage
+"""
+feature_df["GarageCond"].fillna("NA", inplace=True)
+
+
+
+#  GarageCars Missing and GarageArea Missing by DEALING the Detached Garage Anomalies
+feature_df.loc[(feature_df["GarageType"] == "Detchd") & (feature_df["GarageYrBlt"] == 0) & (feature_df["GarageFinish"]=="NA") & (feature_df["GarageQual"]=="NA") & (feature_df["GarageCond"]=="NA"), "GarageType"] = "NA"
+feature_df.loc[(feature_df["GarageType"] == "Detchd") & (feature_df["GarageYrBlt"] == 0) & (feature_df["GarageFinish"]=="NA") & (feature_df["GarageQual"]=="NA") & (feature_df["GarageCond"]=="NA"), "GarageCars"] = 0
+feature_df.loc[(feature_df["GarageType"] == "Detchd") & (feature_df["GarageYrBlt"] == 0) & (feature_df["GarageFinish"]=="NA") & (feature_df["GarageQual"]=="NA") & (feature_df["GarageCond"]=="NA"), "GarageArea"] = 0
+
+feature_df["GarageCars"].fillna(0, inplace=True)
+feature_df["GarageArea"].fillna(0, inplace=True)
+
+
+# PoolQC Missing
+"""
+PoolQC: Pool quality
+		
+       Ex	Excellent
+       Gd	Good
+       TA	Average/Typical
+       Fa	Fair
+       NA	No Pool
+"""
+feature_df["PoolQC"].fillna("NA", inplace=True)
+
+# Fence Missing
+"""
+Fence: Fence quality
+		
+       GdPrv	Good Privacy
+       MnPrv	Minimum Privacy
+       GdWo	Good Wood
+       MnWw	Minimum Wood/Wire
+       NA	No Fence
+"""
+feature_df["Fence"].fillna("NA", inplace=True)
+
+
+
+# MiscFeature Missing
+"""
+MiscFeature: Miscellaneous feature not covered in other categories
+		
+       Elev	Elevator
+       Gar2	2nd Garage (if not described in garage section)
+       Othr	Other
+       Shed	Shed (over 100 SF)
+       TenC	Tennis Court
+       NA	None
+"""
+feature_df["MiscFeature"].fillna("NA", inplace=True)
+
+# SaleType Missing (fill the missing with other)
+"""
+SaleType: Type of sale
+		
+       WD 	Warranty Deed - Conventional
+       CWD	Warranty Deed - Cash
+       VWD	Warranty Deed - VA Loan
+       New	Home just constructed and sold
+       COD	Court Officer Deed/Estate
+       Con	Contract 15% Down payment regular terms
+       ConLw	Contract Low Down payment and low interest
+       ConLI	Contract Low Interest
+       ConLD	Contract Low Down
+       Oth	Other
+"""
+feature_df["SaleType"].fillna("Oth", inplace=True)
+
+
+train_clean = pd.concat([feature_df.iloc[:1460, :], train["SalePrice"]], axis=1)
+test_clean = feature_df.iloc[1460:, :]
+
+train_clean.to_csv("data/train_clean_01.csv", index=False)
+test_clean.to_csv("data/test_clean_01.csv", index=False)
+
+

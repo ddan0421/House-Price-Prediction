@@ -1,5 +1,5 @@
 # House Price Prediction
-
+Practicing Regression methods by predicting housing prices in Ames, Iowa.
 
 
 ## Getting started
