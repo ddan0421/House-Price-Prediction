@@ -272,7 +272,7 @@ feature_df["GarageCond"].fillna("no_garage", inplace=True)
 
 
 #  GarageCars Missing and GarageArea Missing by DEALING the Detached Garage Anomalies
-feature_df.loc[(feature_df["GarageType"] == "Detchd") & (feature_df["GarageYrBlt"] == 0) & (feature_df["GarageFinish"]=="no_garage") & (feature_df["GarageQual"]=="no_garage") & (feature_df["GarageCond"]=="no_garage"), "GarageType"] = "GarageType"
+feature_df.loc[(feature_df["GarageType"] == "Detchd") & (feature_df["GarageYrBlt"] == 0) & (feature_df["GarageFinish"]=="no_garage") & (feature_df["GarageQual"]=="no_garage") & (feature_df["GarageCond"]=="no_garage"), "GarageType"] = "no_garage"
 feature_df.loc[(feature_df["GarageType"] == "Detchd") & (feature_df["GarageYrBlt"] == 0) & (feature_df["GarageFinish"]=="no_garage") & (feature_df["GarageQual"]=="no_garage") & (feature_df["GarageCond"]=="no_garage"), "GarageCars"] = 0
 feature_df.loc[(feature_df["GarageType"] == "Detchd") & (feature_df["GarageYrBlt"] == 0) & (feature_df["GarageFinish"]=="no_garage") & (feature_df["GarageQual"]=="no_garage") & (feature_df["GarageCond"]=="no_garage"), "GarageArea"] = 0
 
