@@ -2,7 +2,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 train = pd.read_csv("data/train.csv")
 test = pd.read_csv("data/test.csv")
@@ -14,11 +15,10 @@ feature_df = pd.concat([train_features, test], axis=0, ignore_index=True)
 def missing_col(df):
     missing_col = df.isna().sum()
     missing_col_df = pd.DataFrame(missing_col[missing_col > 0])
-    print(missing_col_df.index.tolist())
+#     print(missing_col_df.index.tolist())
     return missing_col_df
 
 missing_check = missing_col(feature_df)
-missing_check
 
 
 ####################### Contextual Missing Data Handling  #######################
@@ -29,7 +29,7 @@ Alley: Type of alley access to property
        Pave	Paved
        NA 	No alley access
 """
-feature_df["Alley"].fillna("NA", inplace=True) 
+feature_df["Alley"].fillna("no_alley", inplace=True) 
 
 
 # Exterior1st
@@ -67,7 +67,7 @@ MasVnrType: Masonry veneer type
        None	None
        Stone	Stone
 """
-feature_df["MasVnrType"].fillna("None", inplace=True)
+feature_df["MasVnrType"].fillna("no_MasVnrType", inplace=True)
 
 
 # MasVnrArea Missing
@@ -88,7 +88,7 @@ BsmtQual: Evaluates the height of the basement
        Po	Poor (<70 inches
        NA	No Basement
 """
-feature_df["BsmtQual"].fillna("NA", inplace=True) 
+feature_df["BsmtQual"].fillna("no_basement", inplace=True) 
 
 # BsmtCond Missing
 """
@@ -100,7 +100,7 @@ BsmtCond: Evaluates the general condition of the basement
        Po	Poor - Severe cracking, settling, or wetness
        NA	No Basement
 """
-feature_df["BsmtCond"].fillna("NA", inplace=True) 
+feature_df["BsmtCond"].fillna("no_basement", inplace=True) 
 
 
 
@@ -113,7 +113,7 @@ BsmtExposure: Refers to walkout or garden level walls
        No	No Exposure
        NA	No Basement
 """
-feature_df["BsmtExposure"].fillna("NA", inplace=True)
+feature_df["BsmtExposure"].fillna("no_basement", inplace=True)
 
 
 # BsmtFinType1 Missing
@@ -127,7 +127,7 @@ BsmtFinType1: Rating of basement finished area
        Unf	Unfinshed
        NA	No Basement
 """
-feature_df["BsmtFinType1"].fillna("NA", inplace=True)
+feature_df["BsmtFinType1"].fillna("no_basement", inplace=True)
 
 # BsmtFinSF1 Missing
 """
@@ -148,7 +148,7 @@ BsmtFinType2: Rating of basement finished area (if multiple types)
        Unf	Unfinshed
        NA	No Basement
 """
-feature_df["BsmtFinType2"].fillna("NA", inplace=True)
+feature_df["BsmtFinType2"].fillna("no_basement", inplace=True)
 
 # BsmtFinSF2 Missing
 """
@@ -163,7 +163,7 @@ feature_df["BsmtFinSF2"].fillna(0, inplace=True)
 BsmtUnfSF = TotalBsmtSF - BsmtFinSF1 - BsmtFinSF2
 If BsmtFinType1 and BsmtFinType2 are no_basement, and BsmtUnfSF is null, then BsmtUnfSF should be 0
 """
-feature_df.loc[(feature_df["BsmtFinType1"] == "NA") & (feature_df["BsmtFinType2"] == "NA") & (feature_df["BsmtUnfSF"].isna()), "BsmtUnfSF"] = 0
+feature_df.loc[(feature_df["BsmtFinType1"] == "no_basement") & (feature_df["BsmtFinType2"] == "no_basement") & (feature_df["BsmtUnfSF"].isna()), "BsmtUnfSF"] = 0
 
 
 # TotalBsmtSF
@@ -171,7 +171,7 @@ feature_df.loc[(feature_df["BsmtFinType1"] == "NA") & (feature_df["BsmtFinType2"
 TotalBsmtSF = BsmtFinSF1 + BsmtFinSF2 + BsmtUnfSF
 If BsmtFinType1 and BsmtFinType2 are no_basement, and TotalBsmtSF is null, then TotalBsmtSF should be 0
 """
-feature_df.loc[(feature_df["BsmtFinType1"] == "NA") & (feature_df["BsmtFinType2"] == "NA") & (feature_df["TotalBsmtSF"].isna()), "TotalBsmtSF"] = 0
+feature_df.loc[(feature_df["BsmtFinType1"] == "no_basement") & (feature_df["BsmtFinType2"] == "no_basement") & (feature_df["TotalBsmtSF"].isna()), "TotalBsmtSF"] = 0
 
 
 # BsmtFullBath
@@ -179,7 +179,7 @@ feature_df.loc[(feature_df["BsmtFinType1"] == "NA") & (feature_df["BsmtFinType2"
 If BsmtFinType1 and BsmtFinType2 are no_basement, and BsmtFullBath is null, then BsmtFullBath should be 0
 
 """
-feature_df.loc[(feature_df["BsmtFinType1"] == "NA") & (feature_df["BsmtFinType2"] == "NA") & (feature_df["BsmtFullBath"].isna()), "BsmtFullBath"] = 0
+feature_df.loc[(feature_df["BsmtFinType1"] == "no_basement") & (feature_df["BsmtFinType2"] == "no_basement") & (feature_df["BsmtFullBath"].isna()), "BsmtFullBath"] = 0
 
 
 # BsmtHalfBath
@@ -187,7 +187,7 @@ feature_df.loc[(feature_df["BsmtFinType1"] == "NA") & (feature_df["BsmtFinType2"
 If BsmtFinType1 and BsmtFinType2 are no_basement, and BsmtHalfBath is null, then BsmtHalfBath should be 0
 
 """
-feature_df.loc[(feature_df["BsmtFinType1"] == "NA") & (feature_df["BsmtFinType2"] == "NA") & (feature_df["BsmtHalfBath"].isna()), "BsmtHalfBath"] = 0
+feature_df.loc[(feature_df["BsmtFinType1"] == "no_basement") & (feature_df["BsmtFinType2"] == "no_basement") & (feature_df["BsmtHalfBath"].isna()), "BsmtHalfBath"] = 0
 
 
 
@@ -202,7 +202,7 @@ FireplaceQu: Fireplace quality
        Po	Poor - Ben Franklin Stove
        NA	No Fireplace
 """
-feature_df["FireplaceQu"].fillna("NA", inplace=True)
+feature_df["FireplaceQu"].fillna("no_fireplace", inplace=True)
 
 
 
@@ -219,7 +219,7 @@ GarageType: Garage location
        Detchd	Detached from home
        NA	No Garage
 """
-feature_df["GarageType"].fillna("NA", inplace=True)
+feature_df["GarageType"].fillna("no_garage", inplace=True)
 
 
 # GarageYrBlt Missing
@@ -240,7 +240,7 @@ GarageFinish: Interior finish of the garage
        Unf	Unfinished
        NA	No Garage
 """
-feature_df["GarageFinish"].fillna("NA", inplace=True)
+feature_df["GarageFinish"].fillna("no_garage", inplace=True)
 
 
 # GarageQual Missing
@@ -253,7 +253,7 @@ GarageQual: Garage quality
        Po	Poor
        NA	No Garage
 """
-feature_df["GarageQual"].fillna("NA", inplace=True)
+feature_df["GarageQual"].fillna("no_garage", inplace=True)
 
 
 
@@ -267,14 +267,14 @@ GarageCond: Garage condition
        Po	Poor
        NA	No Garage
 """
-feature_df["GarageCond"].fillna("NA", inplace=True)
+feature_df["GarageCond"].fillna("no_garage", inplace=True)
 
 
 
 #  GarageCars Missing and GarageArea Missing by DEALING the Detached Garage Anomalies
-feature_df.loc[(feature_df["GarageType"] == "Detchd") & (feature_df["GarageYrBlt"] == 0) & (feature_df["GarageFinish"]=="NA") & (feature_df["GarageQual"]=="NA") & (feature_df["GarageCond"]=="NA"), "GarageType"] = "NA"
-feature_df.loc[(feature_df["GarageType"] == "Detchd") & (feature_df["GarageYrBlt"] == 0) & (feature_df["GarageFinish"]=="NA") & (feature_df["GarageQual"]=="NA") & (feature_df["GarageCond"]=="NA"), "GarageCars"] = 0
-feature_df.loc[(feature_df["GarageType"] == "Detchd") & (feature_df["GarageYrBlt"] == 0) & (feature_df["GarageFinish"]=="NA") & (feature_df["GarageQual"]=="NA") & (feature_df["GarageCond"]=="NA"), "GarageArea"] = 0
+feature_df.loc[(feature_df["GarageType"] == "Detchd") & (feature_df["GarageYrBlt"] == 0) & (feature_df["GarageFinish"]=="no_garage") & (feature_df["GarageQual"]=="no_garage") & (feature_df["GarageCond"]=="no_garage"), "GarageType"] = "GarageType"
+feature_df.loc[(feature_df["GarageType"] == "Detchd") & (feature_df["GarageYrBlt"] == 0) & (feature_df["GarageFinish"]=="no_garage") & (feature_df["GarageQual"]=="no_garage") & (feature_df["GarageCond"]=="no_garage"), "GarageCars"] = 0
+feature_df.loc[(feature_df["GarageType"] == "Detchd") & (feature_df["GarageYrBlt"] == 0) & (feature_df["GarageFinish"]=="no_garage") & (feature_df["GarageQual"]=="no_garage") & (feature_df["GarageCond"]=="no_garage"), "GarageArea"] = 0
 
 feature_df["GarageCars"].fillna(0, inplace=True)
 feature_df["GarageArea"].fillna(0, inplace=True)
@@ -290,7 +290,7 @@ PoolQC: Pool quality
        Fa	Fair
        NA	No Pool
 """
-feature_df["PoolQC"].fillna("NA", inplace=True)
+feature_df["PoolQC"].fillna("no_pool", inplace=True)
 
 # Fence Missing
 """
@@ -302,7 +302,7 @@ Fence: Fence quality
        MnWw	Minimum Wood/Wire
        NA	No Fence
 """
-feature_df["Fence"].fillna("NA", inplace=True)
+feature_df["Fence"].fillna("no_fence", inplace=True)
 
 
 
@@ -317,7 +317,7 @@ MiscFeature: Miscellaneous feature not covered in other categories
        TenC	Tennis Court
        NA	None
 """
-feature_df["MiscFeature"].fillna("NA", inplace=True)
+feature_df["MiscFeature"].fillna("no_MiscFeature", inplace=True)
 
 # SaleType Missing (fill the missing with other)
 """
