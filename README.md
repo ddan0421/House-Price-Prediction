@@ -2,6 +2,23 @@
 Practicing Regression methods by predicting housing prices in Ames, Iowa.
 
 
+
+Modeling Workflow:
+
+1️⃣ Train Set (80% of original train data, ~1168 records)
+✔ Train all models (OLS Linear Regression (no need to do hyperparameter tunning), ML models (hyperparameter tunning), Neural Network(hyperparameter tuning)).
+✔ Perform hyperparameter tuning for ML and NN models (Nested Cross-Validation for ML models (L1, L2 regression, tree-based, boosting), and some tunning methods for NN).
+✔ Apply early stopping for Neural Networks.
+
+2️⃣ Validation Set (20% of original train data, ~292 records)
+✔ Evaluate all trained models using RMSE.
+✔ Select the best model based on performance.
+
+3️⃣ Test Set (Completely separate, unseen data)
+✔ Final evaluation using RMSE.
+✔ Report the final performance of the selected model.
+
+
 ## Getting started
 
 To make it easy for you to get started with GitLab, here's a list of recommended next steps.
