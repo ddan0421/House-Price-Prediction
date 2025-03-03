@@ -47,12 +47,12 @@ test_imputed["Utilities"].fillna(train["Utilities"].mode()[0], inplace=True)
 test_imputed["KitchenQual"].fillna(train["KitchenQual"].mode()[0], inplace=True)
 test_imputed["Functional"].fillna(train["Functional"].mode()[0], inplace=True)
 
-
+train.to_csv("data/train_before_imputation_EDA.csv", index=False)
 
 ############################### Encode combined train and test data ########################################
 # Step 2: Combine the training and test datasets
 train_features = train.drop("SalePrice", axis=1)
-feature_df = pd.concat([train_features, test_imputed], axis=0, ignore_index=True)
+feature_df = pd.concat([train_features, test_imputed], axis=0, ignore_index=False)
 
 
 # Step 3: Encode the combined dataset
@@ -126,6 +126,10 @@ X_train_imputed.to_csv("data/X_train.csv", index=False)
 X_val_imputed.to_csv("data/X_val.csv", index=False)
 y_train.to_csv("data/y_train.csv", index=False)
 y_val.to_csv("data/y_val.csv", index=False)
+
+X_combined = pd.concat([X_train_imputed, X_val_imputed], axis=0, ignore_index=False)
+train["LotFrontage"] = X_combined["LotFrontage"]
+train.to_csv("data/train_after_imputation_EDA.csv", index=False)
 
 
 ############################### Test Data LotFrontage Missing Data Imputation ###############################

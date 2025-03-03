@@ -9,7 +9,7 @@ train = pd.read_csv("data/train.csv")
 test = pd.read_csv("data/test.csv")
 
 train_features = train.drop("SalePrice", axis=1)
-feature_df = pd.concat([train_features, test], axis=0, ignore_index=True)
+feature_df = pd.concat([train_features, test], axis=0, ignore_index=False)
 
 
 def missing_col(df):
