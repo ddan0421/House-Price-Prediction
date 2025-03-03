@@ -21,29 +21,26 @@ train_missing = missing_col(train)
 test_missing = missing_col(test)
 
 
-
-# missing data in train data
-# LotFrontage and Electrical have missing data
-
-# Electrical has only one missing data, we can impute it with the mod
-train["Electrical"].fillna(train["Electrical"].mode()[0], inplace=True)
-
-
-# LotFrontage has 259 missing data, we can build a regression model to predict it 
 """
-Split the Training and Validation Sets First:
-- Divide the dataset into training and validation subsets before performing any data preprocessing, including imputation.
+Workflow:
+Step 1: Impute categorical missing data in train set and test set with the mode from training set
+Step 2: Combine the training and test datasets
+Step 3: Encode the combined dataset
+Step 4: Split the combined dataset back into train and test
+Step 5: Split the train dataset into train and validation set
+Step 6: Impute missing continuous numerical data in the training set using IterativeImputer with BayesianRidge estimator
+Step 7: Impute missing continuous numerical data in the validation set using the trained imputer
+Step 8: Impute missing continuous numerical data in the test set using the trained imputer
+
 
 Impute Missing Values Separately:
 - Train the regression imputation model using only the training subset.
-- Use this trained imputation model to impute missing values in both the training and validation subsets.
+- Use this trained imputation model to impute missing values in the train, validation, and test subsets.
 
-
-For LotFrontage, we will use sklearn's IterativeImputer class with the BayesianRidge estimator to impute missing values.
 """
 
-# missing data in test data
-# Step 1: Impute categorical missing data in test set with the mode from training set
+# Step 1: Impute categorical missing data in train set and test set with the mode from training set
+train["Electrical"].fillna(train["Electrical"].mode()[0], inplace=True)
 test_imputed = test.copy()  # Make a copy of the test set
 test_imputed["MSZoning"].fillna(train["MSZoning"].mode()[0], inplace=True)
 test_imputed["Utilities"].fillna(train["Utilities"].mode()[0], inplace=True)
@@ -53,11 +50,12 @@ test_imputed["Functional"].fillna(train["Functional"].mode()[0], inplace=True)
 
 
 ############################### Encode combined train and test data ########################################
+# Step 2: Combine the training and test datasets
 train_features = train.drop("SalePrice", axis=1)
 feature_df = pd.concat([train_features, test_imputed], axis=0, ignore_index=True)
 
 
-# Step 1: Encoding Categorical Variables
+# Step 3: Encode the combined dataset
 nominal_cat = ["MSZoning", "Street", "Alley", "LotShape", "LandContour", "Utilities", "LotConfig", 
                "Neighborhood", "Condition1", "Condition2", "BldgType", "HouseStyle", "RoofStyle", 
                "RoofMatl", "Exterior1st", "Exterior2nd", "MasVnrType", "Foundation", "Heating", 
@@ -80,11 +78,11 @@ bool_columns = feature_df_encoded.select_dtypes(include="bool").columns
 for col in bool_columns:
     feature_df_encoded[col] = feature_df_encoded[col].astype(int)
 
-# Step 2: Split combined data into train and test. Then split train data into train and validation set
+# Step 4: Split the combined dataset back into train and test
 train_encoded = pd.concat([feature_df_encoded.iloc[:1460, :], train["SalePrice"]], axis=1)
 test_encoded = feature_df_encoded.iloc[1460:, :]
 
-
+# Step 5: Split the train dataset into train and validation set
 from sklearn.model_selection import train_test_split
 X = train_encoded.drop(columns=["SalePrice"], axis=1) 
 y = train_encoded["SalePrice"]
@@ -93,7 +91,7 @@ X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_st
 
 
 ############################### Train Data LotFrontage Missing Data Imputation ########################################
-# Step 3: Perform Iterative Imputer on LotFrontage in X_train
+# Step 6: Impute missing continuous numerical data in the training set using IterativeImputer with BayesianRidge estimator
 # Columns to be used as predictors for imputing "LotFrontage"
 columns_for_imputation = ["LotArea", "Street_Pave",
                           "LotShape_IR2", "LotShape_IR3", "LotShape_Reg",
@@ -117,7 +115,7 @@ X_train_imputed["LotFrontage"] = iterative_imputer.fit_transform(X_train[columns
 # check = X_train_imputed[X_train_imputed["Id"].isin(X_train[X_train["LotFrontage"].isna()]["Id"])]
 # check["LotFrontage"].describe() 
 
-# Step 4: Apply the same imputer to impute missing values in the validation set
+# Step 7: Impute missing continuous numerical data in the validation set using the trained imputer
 X_val_imputed = X_val.copy()  
 X_val_imputed["LotFrontage"] = iterative_imputer.transform(X_val[columns_for_imputation + ["LotFrontage"]])[:, -1]
 
@@ -131,7 +129,7 @@ y_val.to_csv("data/y_val.csv", index=False)
 
 
 ############################### Test Data LotFrontage Missing Data Imputation ###############################
-# Step 5: Impute LotFrontage with the trained imputer
+# Step 8: Impute missing continuous numerical data in the test set using the trained imputer
 test_final = test_encoded.copy()  
 test_final["LotFrontage"] = iterative_imputer.transform(test_encoded[columns_for_imputation + ["LotFrontage"]])[:, -1]
 
