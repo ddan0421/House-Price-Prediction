@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 # Importing IterativeImputer with the experimental module
 from sklearn.experimental import enable_iterative_imputer  
 from sklearn.impute import IterativeImputer
@@ -24,19 +24,27 @@ test_missing = missing_col(test)
 """
 Workflow:
 Step 1: Impute categorical missing data in train set and test set with the mode from training set
-Step 2: Combine the training and test datasets
-Step 3: Encode the combined dataset
-Step 4: Split the combined dataset back into train and test
-Step 5: Split the train dataset into train and validation set
-Step 6: Impute missing continuous numerical data in the training set using IterativeImputer with BayesianRidge estimator
-Step 7: Impute missing continuous numerical data in the validation set using the trained imputer
-Step 8: Impute missing continuous numerical data in the test set using the trained imputer
+Step 2: Encode categorical variables separately for train and test sets to prevent data leakage, ensuring consistent feature alignment using one-hot encoding and applying label encoding mappings from the train set to the test set.
+Step 3: Split the train dataset into train and validation set
+Step 4: Impute missing continuous numerical data in the training set using IterativeImputer with BayesianRidge estimator
+Step 5: Impute missing continuous numerical data in the validation set using the trained imputer
+Step 6: Impute missing continuous numerical data in the test set using the trained imputer
 
 
 Impute Missing Values Separately:
 - Train the regression imputation model using only the training subset.
 - Use this trained imputation model to impute missing values in the train, validation, and test subsets.
+- By training the imputer only on the training data, I ensure that the imputation process does not allow any information from the validation or test sets to influence the training process.
 
+Encode Categorical Data Separetely:
+- Train and Validation Split: When I encode the train and validation sets together, I'm still within the same training data, meaning I'm not introducing new or unseen data. 
+  The validation set is just a portion of the training data, so encoding both together ensures consistency in feature mapping without causing leakage.
+- Train and Test Split: The test set is entirely separate from the training process and should not influence the encoding of the training data in any way. 
+  If I encode the train and test sets together, I'm potentially introducing data leakage because the encoding process might learn patterns from the test data that shouldn't be available during model training.
+
+Final Summary:
+- Encoding is about creating consistent feature mappings and does not inherently involve predicting or learning from missing data or future values, which is why encoding can be safely done on both the train and validation sets together.
+- Imputation, however, relies on training a model to estimate missing values, which should only be done on the training set to avoid using any information from the test/validation sets during training. This is why imputation must be done separately.
 """
 
 # Step 1: Impute categorical missing data in train set and test set with the mode from training set
@@ -49,13 +57,8 @@ test_imputed["Functional"].fillna(train["Functional"].mode()[0], inplace=True)
 
 train.to_csv("data/train_before_imputation_EDA.csv", index=False)
 
-############################### Encode combined train and test data ########################################
-# Step 2: Combine the training and test datasets
-train_features = train.drop("SalePrice", axis=1)
-feature_df = pd.concat([train_features, test_imputed], axis=0, ignore_index=False)
-
-
-# Step 3: Encode the combined dataset
+############################### Encode train and test data ########################################
+# Step 2: Encode categorical variables separately for train and test sets
 nominal_cat = ["MSZoning", "Street", "Alley", "LotShape", "LandContour", "Utilities", "LotConfig", 
                "Neighborhood", "Condition1", "Condition2", "BldgType", "HouseStyle", "RoofStyle", 
                "RoofMatl", "Exterior1st", "Exterior2nd", "MasVnrType", "Foundation", "Heating", 
@@ -67,22 +70,26 @@ ordinal_cat = ["OverallQual", "OverallCond", "ExterQual", "ExterCond", "BsmtQual
                "BsmtFinType1", "BsmtFinType2","HeatingQC", "KitchenQual", "FireplaceQu", "GarageQual", "GarageCond", 
                "PoolQC", "LandSlope"]
 
+# One-hot encode nominal categorical variables
+train_encoded = pd.get_dummies(train, columns=nominal_cat, drop_first=True)
+test_encoded = pd.get_dummies(test_imputed, columns=nominal_cat, drop_first=True)
 
-feature_df_encoded = pd.get_dummies(feature_df, columns=nominal_cat, drop_first=True)
+test_encoded = test_encoded.reindex(columns=train_encoded.columns, fill_value=0)
 
+# Label encode ordinal categorical variables
 label_encoder = LabelEncoder()
 for col in ordinal_cat:
-    feature_df_encoded[col] = label_encoder.fit_transform(feature_df_encoded[col])
+    train_encoded[col] = label_encoder.fit_transform(train_encoded[col])
+    test_encoded[col] = label_encoder.transform(test_encoded[col])
 
-bool_columns = feature_df_encoded.select_dtypes(include="bool").columns
-for col in bool_columns:
-    feature_df_encoded[col] = feature_df_encoded[col].astype(int)
+bool_columns_train = train_encoded.select_dtypes(include="bool").columns
+bool_columns_test = test_encoded.select_dtypes(include="bool").columns
 
-# Step 4: Split the combined dataset back into train and test
-train_encoded = pd.concat([feature_df_encoded.iloc[:1460, :], train["SalePrice"]], axis=1)
-test_encoded = feature_df_encoded.iloc[1460:, :]
+train_encoded[bool_columns_train] = train_encoded[bool_columns_train].astype(int)
+test_encoded[bool_columns_test] = test_encoded[bool_columns_test].astype(int)
 
-# Step 5: Split the train dataset into train and validation set
+
+# Step 3: Split the train dataset into train and validation set
 from sklearn.model_selection import train_test_split
 X = train_encoded.drop(columns=["SalePrice"], axis=1) 
 y = train_encoded["SalePrice"]
@@ -91,7 +98,7 @@ X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_st
 
 
 ############################### Train Data LotFrontage Missing Data Imputation ########################################
-# Step 6: Impute missing continuous numerical data in the training set using IterativeImputer with BayesianRidge estimator
+# Step 4: Impute missing continuous numerical data in the training set using IterativeImputer with BayesianRidge estimator
 # Columns to be used as predictors for imputing "LotFrontage"
 columns_for_imputation = ["LotArea", "Street_Pave",
                           "LotShape_IR2", "LotShape_IR3", "LotShape_Reg",
@@ -115,7 +122,7 @@ X_train_imputed["LotFrontage"] = iterative_imputer.fit_transform(X_train[columns
 # check = X_train_imputed[X_train_imputed["Id"].isin(X_train[X_train["LotFrontage"].isna()]["Id"])]
 # check["LotFrontage"].describe() 
 
-# Step 7: Impute missing continuous numerical data in the validation set using the trained imputer
+# Step 5: Impute missing continuous numerical data in the validation set using the trained imputer
 X_val_imputed = X_val.copy()  
 X_val_imputed["LotFrontage"] = iterative_imputer.transform(X_val[columns_for_imputation + ["LotFrontage"]])[:, -1]
 
@@ -133,7 +140,7 @@ train.to_csv("data/train_after_imputation_EDA.csv", index=False)
 
 
 ############################### Test Data LotFrontage Missing Data Imputation ###############################
-# Step 8: Impute missing continuous numerical data in the test set using the trained imputer
+# Step 6: Impute missing continuous numerical data in the test set using the trained imputer
 test_final = test_encoded.copy()  
 test_final["LotFrontage"] = iterative_imputer.transform(test_encoded[columns_for_imputation + ["LotFrontage"]])[:, -1]
 
