@@ -1,0 +1,125 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+pacman::p_load(tidyverse, dplyr)
+
+```
+
+
+
+```{r}
+train <- read.csv("data/train.csv")
+train
+```
+
+1460 Total observations
+
+```{r}
+dim(train)
+```
+
+```{r}
+train %>% 
+  tail()
+```
+
+
+Do these steps in python before modeling:
+- Data Cleaning, Outlier Analysis and Exploratory Data Analysis
+- Use Heatmap and Correlation to find the Correlation among features
+- Analyze all the features and perform log transform for the skewed features
+- Data Visualization
+- Dummy the Categories and Finding Most Important Features
+
+
+
+
+Regression Techniques
+- Linear Regression (statsmodel's OLS, GLM Gaussian, GLM Gaussian constrained optimization)
+- Lasso
+- Ridge
+- Regression Trees
+- KNN
+- Boosting
+- Neural Network
+
+
+
+Evaluation Metrics
+- RMSE
+
+
+
+# Missing values for train
+```{r}
+na_frontage = train[is.na(train$LotFrontage),]
+```
+
+
+# Missing values for test
+
+```{r}
+test <- read.csv("data/test_clean_01.csv")
+```
+
+
+
+
+# EDA before and after imputation
+```{r}
+train_before_imputation <- read.csv("data/train_before_imputation_EDA.csv")
+train_before_imputation
+```
+
+```{r}
+train_after_imputation <- read.csv("data/train_after_imputation_EDA.csv")
+train_after_imputation
+```
+
+
+Visual Inspection: check if distribution of LotFrontage is the same for both before and after
+```{r}
+train_before_imputation %>% 
+  drop_na() %>% 
+  ggplot(aes(x = LotFrontage)) +
+    geom_histogram(aes(y = ..density..), binwidth = 2, fill = "blue", color = "black", alpha = 0.5) +
+    geom_density(color = "red", size = 1) +
+    labs(title = "Histogram and Density Plot of LotFrontage BEFORE Imputation",
+         x = "LotFrontage (ft)",
+         y = "Density") +
+    theme_minimal()
+  
+```
+
+
+```{r}
+train_after_imputation %>% 
+  ggplot(aes(x = LotFrontage)) +
+    geom_histogram(aes(y = ..density..), binwidth = 2, fill = "blue", color = "black", alpha = 0.5) +
+    geom_density(color = "red", size = 1) +
+    labs(title = "Histogram and Density Plot of LotFrontage AFTER Imputation",
+         x = "LotFrontage (ft)",
+         y = "Density") +
+    theme_minimal()
+```
+
+The histogram bars show the proportion of data points falling within each bin, scaled so that the total area under the histogram equals 1. This scaling makes it easier to compare distributions and understand the relative frequency of values within the range of the LotFrontage variable. The red density line provides a smoothed estimate of this distribution, highlighting the underlying pattern without the artifacts introduced by binning."
+
+
+
+
+
+paired t-test to determine if there's statistically significant difference between the original and imputed values
+```{r}
+before_impute <- na.omit(train_before_imputation$LotFrontage)
+after_impute <- train_after_imputation$LotFrontage
+
+library(stats)
+t_test_result <- t.test(before_impute,after_impute)
+t_test_result
+```
+
+
+
