@@ -12,26 +12,17 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 train = pd.read_csv("data/train_clean_01.csv")
 test = pd.read_csv("data/test_clean_01.csv")
 
-def missing_col(df):
-    missing_col = df.isna().sum()
-    missing_col_df = pd.DataFrame(missing_col[missing_col > 0])
-#     print(missing_col_df.index.tolist())
-    return missing_col_df
-
-train_missing = missing_col(train)
-test_missing = missing_col(test)
-
 
 """
 Workflow:
 Step 1: Impute categorical missing data in train set and test set with the mode from training set
-Step 2: Creating categorical interaction terms
+Step 2: Creating categorical interaction terms and create time variables
 Step 3: Encode categorical variables separately for train and test sets to prevent data leakage, ensuring consistent feature alignment using one-hot encoding and applying label encoding mappings from the train set to the test set.
 Step 4: Split the train dataset into train and validation set
 Step 5: Impute missing continuous numerical data in the training set using IterativeImputer with BayesianRidge estimator
 Step 6: Impute missing continuous numerical data in the validation set using the trained imputer
 Step 7: Impute missing continuous numerical data in the test set using the trained imputer
-Step 8: Creating numerical interaction terms
+Step 8: Correlation analysis and create numerical interaction terms
 
 
 Impute Missing Values Separately:
@@ -60,7 +51,7 @@ test_imputed["Functional"].fillna(train["Functional"].mode()[0], inplace=True)
 
 train.to_csv("data/train_before_imputation_EDA.csv", index=False)
 
-# Step 2: Creating categorical interaction terms
+# Step 2: Creating categorical interaction terms and create time variables
 """
 categorical:
 - combine MSSubClass and MSZoning
@@ -72,10 +63,18 @@ categorical:
 - combine LotShape and LandContour
 - combine RoofStyle and RoofMatl
 - combine Heating and HeatingQC  
+- capture the seasonality of the sale based on MoSold
+
+Feature engineering with year and month variables
+- YearBuilt
+- YearRemodAdd
+- GarageYrBlt
+- YrSold
+
 """
 
 
-def categorical_interaction(df):
+def feature_engineering(df):
     conn = duckdb.connect()
     conn.register("original_df", df)
     query = """
@@ -96,7 +95,16 @@ def categorical_interaction(df):
         CentralAir || '_' || Electrical AS CentralAir_Electrical,
         LotShape || '_' || LandContour AS LotShape_LandContour,
         RoofStyle || '_' || RoofMatl AS RoofStyle_RoofMatl,
-        Heating || '_' || HeatingQC AS Heating_HeatingQC
+        Heating || '_' || HeatingQC AS Heating_HeatingQC,
+        CASE
+           WHEN MoSold IN (12, 1, 2) THEN 'Winter'
+           WHEN MoSold IN (3, 4, 5) THEN 'Spring'
+           WHEN MoSold IN (6, 7, 8) THEN 'Summer'
+           ELSE 'Fall'
+        END AS Season_Sold,
+        YrSold - YearBuilt AS Age_House,
+        YrSold - YearRemodAdd AS Yrs_Since_Remodel,
+        YrSold - GarageYrBlt AS Age_Garage
     FROM original_df;
     """
     result = conn.execute(query).fetch_df()
@@ -108,15 +116,15 @@ def categorical_interaction(df):
         "CentralAir", "Electrical", 
         "LotShape", "LandContour", 
         "RoofStyle", "RoofMatl", 
-        "Heating", "HeatingQC"
+        "Heating", "HeatingQC", "MoSold", "YearBuilt", "YearRemodAdd", "GarageYrBlt", "YrSold"
     ]
     result = result.drop(columns=columns_to_drop)
     conn.close()
     return result
 
 
-train_new = categorical_interaction(train)
-test_new = categorical_interaction(test_imputed)
+train_new = feature_engineering(train)
+test_new = feature_engineering(test_imputed)
 
 
 ############################### Encode train and test data ########################################
@@ -125,7 +133,7 @@ nominal_cat = ["MSSubClass_MSZoning", "LotConfig_LandSlope", "Neighborhood_Condi
                "Exterior1st_Exterior2nd", "CentralAir_Electrical", "LotShape_LandContour", "RoofStyle_RoofMatl",
                "Heating_HeatingQC", "Street", "Alley", "Utilities", "MasVnrType", "Foundation", 
                "Functional", "GarageType", "GarageFinish", "PavedDrive", 
-               "Fence", "MiscFeature", "SaleType", "SaleCondition"]
+               "Fence", "MiscFeature", "SaleType", "SaleCondition", "Season_Sold"]
 
 
 ordinal_cat = ["OverallQual", "OverallCond", "ExterQual", "ExterCond", "BsmtQual", "BsmtCond", "BsmtExposure", 
@@ -245,6 +253,9 @@ X_val_imputed["LotFrontage"] = iterative_imputer.transform(X_val[columns_for_imp
 
 X_combined = pd.concat([X_train_imputed, X_val_imputed], axis=0, ignore_index=False)
 train["LotFrontage"] = X_combined["LotFrontage"]
+train["Age_House"] = X_combined["Age_House"]
+train["Yrs_Since_Remodel"] = X_combined["Yrs_Since_Remodel"]
+train["Age_Garage"] = X_combined["Age_Garage"]
 train.to_csv("data/train_after_imputation_EDA.csv", index=False)
 
 
@@ -254,35 +265,40 @@ test_final = test_encoded.copy()
 test_final["LotFrontage"] = iterative_imputer.transform(test_encoded[columns_for_imputation + ["LotFrontage"]])[:, -1]
 
 
-# Step 8: Creating numerical interaction terms
+# Step 8: Correlation analysis and create numerical interaction terms
 """
-Feature engineering with year and month variables
-- YearBuilt
-- YearRemodAdd
-- GarageYrBlt
-- MoSold
-- YrSold
+Correlation analysis for numerical variables
+- There are multiple basement SF variables. Drop "BsmtFinSF1","BsmtFinSF2", "BsmtUnfSF" and keep TotalBsmtSF 
+since "TotalBsmtSF" has the strongest positive correlation with "SalePrice"
+
 
 log transformation
 - LotFrontage
+- LotArea
+
+square root transformation
+- TotalBsmtSF
+
+cube root transformation
+- MasVnrArea
+
 
 """
 
 
-numerical_cols = ["LotFrontage", "LotArea", "YearBuilt", "YearRemodAdd", "MasVnrArea", "BsmtFinSF1",
-                  "BsmtFinSF2", "BsmtUnfSF", "TotalBsmtSF", "1stFlrSF", "2ndFlrSF",
+numerical_cols = ["LotFrontage", "LotArea", "MasVnrArea", "TotalBsmtSF", "1stFlrSF", "2ndFlrSF",
                   "LowQualFinSF", "GrLivArea", "BsmtFullBath", "BsmtHalfBath", "FullBath",
                   "HalfBath", "BedroomAbvGr", "KitchenAbvGr", "TotRmsAbvGrd",
-                  "Fireplaces", "GarageYrBlt", "GarageCars", "GarageArea", "WoodDeckSF",
+                  "Fireplaces", "GarageCars", "GarageArea", "WoodDeckSF",
                   "OpenPorchSF", "EnclosedPorch", "3SsnPorch", "ScreenPorch", "PoolArea",
-                  "MiscVal", "MoSold", "YrSold", "SalePrice"]
+                  "MiscVal", "SalePrice", "Age_House", "Yrs_Since_Remodel", "Age_Garage"]
 
 
 
 
 
-X_train_imputed.to_csv("data/X_train.csv", index=False)
-X_val_imputed.to_csv("data/X_val.csv", index=False)
+X_train_final.to_csv("data/X_train.csv", index=False)
+X_val_final.to_csv("data/X_val.csv", index=False)
 y_train.to_csv("data/y_train.csv", index=False)
 y_val.to_csv("data/y_val.csv", index=False)
 test_final.to_csv("data/test_final.csv", index=False)
