@@ -21,10 +21,10 @@ logging.basicConfig(
     ]
 )
 
-# List of data preparation files to run in sequence
-DATA_PREP_SCRIPTS = [
-    "01-EDA-contextual-imputation.py",
-    "02-EDA-separate-imputation-encoding.py",
+# List of files to run in sequence
+SCRIPTS = [
+    "01-data-preparation-contextual-imputation.py",
+    "02-data-preparation-imputation-encoding.py",
     "03-EDA-charts-before-interactions.py",
     "04-data-preparation-interactions.py",
     "05-EDA-charts-after-interactions.py"
@@ -43,16 +43,16 @@ def run_script(script_path):
 
 # Main execution
 def main():
-    logging.info("Starting data preparation process...")
+    logging.info("Starting process...")
 
-    for script in DATA_PREP_SCRIPTS:
+    for script in SCRIPTS:
         try:
             run_script(script)
         except Exception as e:
             logging.error(f"Stopping execution due to failure in {script}: {e}")
             return
 
-    logging.info("Data preparation process completed.")
+    logging.info("Process completed.")
 
 if __name__ == "__main__":
     main()
