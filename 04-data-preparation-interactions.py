@@ -102,9 +102,9 @@ def feature_engineering(df):
            WHEN MoSold IN (6, 7, 8) THEN 'Summer'
            ELSE 'Fall'
         END AS Season_Sold,
-        YrSold - YearBuilt AS Age_House,
-        YrSold - YearRemodAdd AS Yrs_Since_Remodel,
-        YrSold - GarageYrBlt AS Age_Garage
+        IF((YrSold - YearBuilt) < 0, 0, (YrSold - YearBuilt)) AS Age_House,
+        IF((YrSold - YearRemodAdd) < 0, 0, (YrSold - YearRemodAdd)) AS Yrs_Since_Remodel,
+        IF((YrSold - GarageYrBlt) < 0, 0, (YrSold - GarageYrBlt)) AS Age_Garage
     FROM original_df;
     """
     result = conn.execute(query).fetch_df()
@@ -126,6 +126,8 @@ def feature_engineering(df):
 train_new = feature_engineering(train)
 test_new = feature_engineering(test_imputed)
 
+X = train_new.drop(columns=["SalePrice"], axis=1) 
+y = train_new["SalePrice"]
 
 ############################### Encode train and test data ########################################
 # Step 3: Encode categorical variables separately for train and test sets
@@ -141,7 +143,7 @@ ordinal_cat = ["OverallQual", "OverallCond", "ExterQual", "ExterCond", "BsmtQual
                "PoolQC"]
 
 # One-hot encode nominal categorical variables
-train_encoded = pd.get_dummies(train_new, columns=nominal_cat, drop_first=True)
+train_encoded = pd.get_dummies(X, columns=nominal_cat, drop_first=True)
 test_encoded = pd.get_dummies(test_new, columns=nominal_cat, drop_first=True)
 
 test_encoded = test_encoded.reindex(columns=train_encoded.columns, fill_value=0)
@@ -161,9 +163,7 @@ test_encoded[bool_columns_test] = test_encoded[bool_columns_test].astype(int)
 
 # Step 4: Split the train dataset into train and validation set
 from sklearn.model_selection import train_test_split
-X = train_encoded.drop(columns=["SalePrice"], axis=1) 
-y = train_encoded["SalePrice"]
-X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_val, y_train, y_val = train_test_split(train_encoded, y, test_size=0.2, random_state=42)
 
 
 
@@ -259,7 +259,6 @@ train["Age_Garage"] = X_combined["Age_Garage"]
 train.to_csv("data/train_after_imputation_EDA.csv", index=False)
 
 
-############################### Test Data LotFrontage Missing Data Imputation ###############################
 # Step 7: Impute missing continuous numerical data in the test set using the trained imputer
 test_final = test_encoded.copy()  
 test_final["LotFrontage"] = iterative_imputer.transform(test_encoded[columns_for_imputation + ["LotFrontage"]])[:, -1]
@@ -267,6 +266,13 @@ test_final["LotFrontage"] = iterative_imputer.transform(test_encoded[columns_for
 
 # Step 8: Correlation analysis and create numerical interaction terms
 """
+numerical_cols = ["LotFrontage", "LotArea", "MasVnrArea", "TotalBsmtSF", "1stFlrSF", "2ndFlrSF",
+                  "LowQualFinSF", "GrLivArea", "BsmtFullBath", "BsmtHalfBath", "FullBath",
+                  "HalfBath", "BedroomAbvGr", "KitchenAbvGr", "TotRmsAbvGrd",
+                  "Fireplaces", "GarageCars", "GarageArea", "WoodDeckSF",
+                  "OpenPorchSF", "EnclosedPorch", "3SsnPorch", "ScreenPorch", "PoolArea",
+                  "MiscVal", "Age_House", "Yrs_Since_Remodel", "Age_Garage", "SalePrice"]
+
 Correlation analysis for numerical variables
 - There are multiple basement SF variables. Drop "BsmtFinSF1","BsmtFinSF2", "BsmtUnfSF" and keep TotalBsmtSF 
 since "TotalBsmtSF" has the strongest positive correlation with "SalePrice"
@@ -275,30 +281,90 @@ since "TotalBsmtSF" has the strongest positive correlation with "SalePrice"
 log transformation
 - LotFrontage
 - LotArea
+- 1stFlrSF
+- 2ndFlrSF
+- LowQualFinSF
+- GrLivArea
+- Yrs_Since_Remodel
+- Age_Garage
+- SalePrice
+
 
 square root transformation
 - TotalBsmtSF
+- WoodDeckSF
 
 cube root transformation
 - MasVnrArea
+- OpenPorchSF
 
 
+no need to transform
+- BsmtFullBath
+- BsmtHalfBath
+- FullBath
+- HalfBath
+- BedroomAbvGr
+- KitchenAbvGr
+- TotRmsAbvGrd
+- Fireplaces
+- GarageCars
+- GarageArea (already pretty normal)
+- EnclosedPorch
+- 3SsnPorch
+- ScreenPorch
+- PoolArea
+- MiscVal
+- Age_House
 """
 
+# Drop basement variables based on correlation analysis
+def drop_columns(data, cols_to_drop):
+    data.drop(columns=cols_to_drop, inplace=True)
+    return data
 
-numerical_cols = ["LotFrontage", "LotArea", "MasVnrArea", "TotalBsmtSF", "1stFlrSF", "2ndFlrSF",
-                  "LowQualFinSF", "GrLivArea", "BsmtFullBath", "BsmtHalfBath", "FullBath",
-                  "HalfBath", "BedroomAbvGr", "KitchenAbvGr", "TotRmsAbvGrd",
-                  "Fireplaces", "GarageCars", "GarageArea", "WoodDeckSF",
-                  "OpenPorchSF", "EnclosedPorch", "3SsnPorch", "ScreenPorch", "PoolArea",
-                  "MiscVal", "SalePrice", "Age_House", "Yrs_Since_Remodel", "Age_Garage"]
+cols_to_drop = ["BsmtFinSF1", "BsmtFinSF2", "BsmtUnfSF"]
+
+X_train_imputed = drop_columns(X_train_imputed.copy(), cols_to_drop)
+X_val_imputed = drop_columns(X_val_imputed.copy(), cols_to_drop)
+test_final = drop_columns(test_final.copy(), cols_to_drop)
 
 
+# Transformation
+def transform_and_drop(data, log_cols, sqrt_cols, cube_root_cols):
+    # Log transformation
+    for col in log_cols:
+        data[f"log_{col}"] = np.log1p(data[col])  # Using log1p to handle zeros
+        data.drop(columns=[col], inplace=True)
+    
+    # Square root transformation
+    for col in sqrt_cols:
+        data[f"sqrt_{col}"] = np.sqrt(data[col])
+        data.drop(columns=[col], inplace=True)
+    
+    # Cube root transformation
+    for col in cube_root_cols:
+        data[f"cbrt_{col}"] = np.cbrt(data[col])
+        data.drop(columns=[col], inplace=True)
+    
+    return data
 
+# Columns to transform
+log_cols = ["LotFrontage", "LotArea", "1stFlrSF", "2ndFlrSF", "LowQualFinSF", "GrLivArea", "Yrs_Since_Remodel", "Age_Garage"]
+sqrt_cols = ["TotalBsmtSF", "WoodDeckSF"]
+cube_root_cols = ["MasVnrArea", "OpenPorchSF"]
 
+# Apply transformations to datasets
+X_train_final = transform_and_drop(X_train_imputed.copy(), log_cols, sqrt_cols, cube_root_cols)
+X_val_final = transform_and_drop(X_val_imputed.copy(), log_cols, sqrt_cols, cube_root_cols)
+test_final = transform_and_drop(test_final.copy(), log_cols, sqrt_cols, cube_root_cols)
+
+# Transform SalePrice
+y_train_final = np.log1p(y_train)
+y_val_final = np.log1p(y_val)
 
 X_train_final.to_csv("data/X_train.csv", index=False)
 X_val_final.to_csv("data/X_val.csv", index=False)
-y_train.to_csv("data/y_train.csv", index=False)
-y_val.to_csv("data/y_val.csv", index=False)
+y_train_final.to_csv("data/y_train.csv", index=False)
+y_val_final.to_csv("data/y_val.csv", index=False)
 test_final.to_csv("data/test_final.csv", index=False)
