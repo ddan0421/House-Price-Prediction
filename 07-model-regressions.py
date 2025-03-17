@@ -27,7 +27,6 @@ vif_data["VIF"] = [variance_inflation_factor(X_train.values, i) for i in range(X
 vif_data = vif_data[vif_data["feature"] != "const"]
 vif_data = vif_data.dropna()
 vif_data = vif_data[vif_data["VIF"] != np.inf]
-vif_data.sort_values(by="VIF", ascending=True).to_csv("vif_data.csv", index=False)
 selected_features_vif = list(vif_data[vif_data["VIF"] < 10]["feature"])
 
 ############################# Feature Selection 2: Random Forest Feature Importance #############################
