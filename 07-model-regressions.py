@@ -192,6 +192,48 @@ selected_features_lasso = X_train_ml.columns[final_model_lasso.coef_.flatten() !
 print("Selected features for Lasso:")
 print(selected_features_lasso)
 
+
+
+############################# SVM #############################
+# SVM
+from sklearn.svm import SVR
+from sklearn.model_selection import GridSearchCV, KFold, cross_val_score
+
+random_state = 42
+inner_cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
+outer_cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
+
+# Define the SVM regressor model
+svm = SVR()
+
+# Define a grid of hyperparameters to search
+param_grid = {
+    "C": [0.1, 1.0, 10.0, 100.0],  # Regularization parameter
+    "epsilon": [0.001, 0.01, 0.1, 0.5, 1.0],  # Epsilon parameter (for margin of tolerance)
+    "gamma": ["scale", "auto", 0.01, 0.1, 1.0]
+}
+
+# Hyperparameter tuning for SVM Regressor
+gs_svm = GridSearchCV(estimator=svm,
+                      param_grid=param_grid,
+                      scoring="neg_root_mean_squared_error",  # Using RMSE as the evaluation metric
+                      cv=inner_cv,
+                      n_jobs=-1)
+
+gs_svm.fit(X_train_ml, y_train.values.ravel())
+
+print("Non-nested CV RMSE:", -gs_svm.best_score_)  # RMSE is the negative value from GridSearchCV
+print("Optimal Parameter:", gs_svm.best_params_)
+print("Optimal Estimator:", gs_svm.best_estimator_)
+
+# Perform nested cross-validation for SVM Regressor
+nested_score_gs_svm_rmse = cross_val_score(gs_svm, X=X_train_ml, y=y_train.values.ravel(), scoring="neg_root_mean_squared_error", cv=outer_cv)
+print("Nested CV RMSE:", -nested_score_gs_svm_rmse.mean(), " +/- ", nested_score_gs_svm_rmse.std())  # Multiply by -1 to get positive RMSE
+
+# Fit the final model on the entire training data
+final_model_svm = gs_svm.best_estimator_.fit(X_train_ml, y_train.values.ravel())
+
+
 ############################################## Models Generalization Performance ##############################################
 def evaluate_model(model, X, y, name):
     predictions = model.predict(X)
@@ -206,6 +248,6 @@ evaluate_model(glm_lr, X_val_new, y_val, "GLM Gaussian Model")
 evaluate_model(glm_lr_constrained, X_val_new, y_val, "Constrained GLM Gaussian Model")
 evaluate_model(final_model_ridge, X_val_ml, y_val, "Ridge Model")
 evaluate_model(final_model_lasso, X_val_ml, y_val, "Lasso Model")
-
+evaluate_model(final_model_svm, X_val_ml, y_val, "SVM Model")
 
 
