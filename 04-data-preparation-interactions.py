@@ -6,6 +6,7 @@ from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 from sklearn.experimental import enable_iterative_imputer  
 from sklearn.impute import IterativeImputer
 from sklearn.linear_model import BayesianRidge
+import os
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -22,7 +23,7 @@ Step 4: Split the train dataset into train and validation set
 Step 5: Impute missing continuous numerical data in the training set using IterativeImputer with BayesianRidge estimator
 Step 6: Impute missing continuous numerical data in the validation set using the trained imputer
 Step 7: Impute missing continuous numerical data in the test set using the trained imputer
-Step 8: Correlation analysis and create numerical interaction terms
+Step 8: Correlation analysis and transform numerical terms
 
 
 Impute Missing Values Separately:
@@ -263,8 +264,18 @@ train.to_csv("data/train_after_imputation_EDA.csv", index=False)
 test_final = test_encoded.copy()  
 test_final["LotFrontage"] = iterative_imputer.transform(test_encoded[columns_for_imputation + ["LotFrontage"]])[:, -1]
 
+############################### Export non-transformed and non-scaled data for non-linear modeling ###############################
+if not os.path.exists("data/model_data"):
+    os.makedirs("data/model_data")
 
-# Step 8: Correlation analysis and create numerical interaction terms
+X_train_imputed.drop("Id", axis=1).to_csv("data/model_data/X_train_ml.csv", index=False)
+X_val_imputed.drop("Id", axis=1).to_csv("data/model_data/X_val_ml.csv", index=False)
+test_final.drop("Id", axis=1).to_csv("data/model_data/test_final_ml.csv", index=False)
+y_train.to_csv("data/model_data/y_train_ml.csv", index=False)
+y_val.to_csv("data/model_data/y_val_ml.csv", index=False)
+###################################################################################################################################
+
+# Step 8: Correlation analysis and transform numerical terms
 """
 numerical_cols = ["LotFrontage", "LotArea", "MasVnrArea", "TotalBsmtSF", "1stFlrSF", "2ndFlrSF",
                   "LowQualFinSF", "GrLivArea", "BsmtFullBath", "BsmtHalfBath", "FullBath",
