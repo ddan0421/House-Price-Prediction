@@ -365,5 +365,5 @@ def evaluate_tree_model(model, X, y, name):
     print(f"Root Mean Squared Error: {rmse:.4f}")
 
 evaluate_tree_model(final_model_dt, X_val, y_val, "Decision Tree Model")
-evaluate_tree_model(final_model_rf, X_val, y_val, "GLM Gaussian Model")
+evaluate_tree_model(final_model_rf, X_val, y_val, "Random Forest Model")
 
