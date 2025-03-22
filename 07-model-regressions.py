@@ -7,8 +7,8 @@ from statsmodels.stats.outliers_influence import variance_inflation_factor
 from sklearn.metrics import root_mean_squared_error
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import Ridge, Lasso
-from sklearn.model_selection import train_test_split, GridSearchCV, KFold, cross_val_score
-
+from sklearn.model_selection import GridSearchCV, KFold, cross_val_score
+from sklearn.svm import SVR
 
 
 X_train = pd.read_csv("data/model_data/X_train.csv")
@@ -117,8 +117,7 @@ X_val_ml = X_val[ml_features]
 ############################# Ridge Regression #############################
 # Nested Cross-Validation
 random_state = 42
-inner_cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
-outer_cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
+cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 
 # Define the Ridge regression model
 ridge = Ridge()
@@ -132,20 +131,17 @@ param_grid = {
 gs_ridge = GridSearchCV(estimator=ridge,
                         param_grid=param_grid,
                         scoring="neg_root_mean_squared_error",  # Using RMSE as the evaluation metric
-                        cv=inner_cv,
-                        n_jobs=-1)
+                        cv=cv,
+                        n_jobs=-1,
+                        refit=True)
 
 gs_ridge.fit(X_train_ml, y_train)
 
-print("Non-nested CV RMSE (log-transformed scale)::", -gs_ridge.best_score_)  # RMSE is the negative value from GridSearchCV
+print("10-Fold CV RMSE (log-transformed scale):", -gs_ridge.best_score_)  # RMSE is the negative value from GridSearchCV
 print("Optimal Parameter:", gs_ridge.best_params_)
 print("Optimal Estimator:", gs_ridge.best_estimator_)
 
-nested_score_gs_ridge_rmse = cross_val_score(gs_ridge, X=X_train_ml, y=y_train, scoring="neg_root_mean_squared_error", cv=outer_cv)
-print("Nested CV RMSE (log-transformed scale):", -nested_score_gs_ridge_rmse.mean(), " +/- ", nested_score_gs_ridge_rmse.std())  # Multiply by -1 to get positive RMSE
-
-# Fit the final model on the entire training data
-final_model_ridge = gs_ridge.best_estimator_.fit(X_train_ml, y_train)
+final_model_ridge = gs_ridge.best_estimator_
 
 # Extract the selected features based on non-zero coefficients from Ridge regression
 selected_features_ridge = X_train_ml.columns[final_model_ridge.coef_.flatten() != 0]
@@ -156,8 +152,7 @@ print(selected_features_ridge)
 ############################# Lasso Regression #############################
 # Nested Cross-Validation
 random_state = 42
-inner_cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
-outer_cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
+cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 
 # Define the Lasso regression model
 lasso = Lasso()
@@ -171,20 +166,20 @@ param_grid = {
 gs_lasso = GridSearchCV(estimator=lasso,
                         param_grid=param_grid,
                         scoring="neg_root_mean_squared_error",  # Using RMSE as the evaluation metric
-                        cv=inner_cv,
-                        n_jobs=-1)
+                        cv=cv,
+                        n_jobs=-1,
+                        refit=True)
 
 gs_lasso.fit(X_train_ml, y_train)
 
-print("Non-nested CV RMSE:", -gs_lasso.best_score_)  # RMSE is the negative value from GridSearchCV
+print("10-Fold CV RMSE:", -gs_lasso.best_score_)  # RMSE is the negative value from GridSearchCV
 print("Optimal Parameter:", gs_lasso.best_params_)
 print("Optimal Estimator:", gs_lasso.best_estimator_)
 
 nested_score_gs_lasso_rmse = cross_val_score(gs_lasso, X=X_train_ml, y=y_train, scoring="neg_root_mean_squared_error", cv=outer_cv)
 print("Nested CV RMSE:", -nested_score_gs_lasso_rmse.mean(), " +/- ", nested_score_gs_lasso_rmse.std())  # Multiply by -1 to get positive RMSE
 
-# Fit the final model on the entire training data
-final_model_lasso = gs_lasso.best_estimator_.fit(X_train_ml, y_train)
+final_model_lasso = gs_lasso.best_estimator_
 
 # Extract the selected features based on non-zero coefficients from Lasso regression
 selected_features_lasso = X_train_ml.columns[final_model_lasso.coef_.flatten() != 0]
@@ -196,12 +191,8 @@ print(selected_features_lasso)
 
 ############################# SVM #############################
 # SVM
-from sklearn.svm import SVR
-from sklearn.model_selection import GridSearchCV, KFold, cross_val_score
-
 random_state = 42
-inner_cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
-outer_cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
+cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 
 # Define the SVM regressor model
 svm = SVR()
@@ -217,22 +208,18 @@ param_grid = {
 gs_svm = GridSearchCV(estimator=svm,
                       param_grid=param_grid,
                       scoring="neg_root_mean_squared_error",  # Using RMSE as the evaluation metric
-                      cv=inner_cv,
-                      n_jobs=-1)
+                      cv=cv,
+                      n_jobs=-1,
+                      refit=True)
 
 gs_svm.fit(X_train_ml, y_train.values.ravel())
 
-print("Non-nested CV RMSE:", -gs_svm.best_score_)  # RMSE is the negative value from GridSearchCV
+print("10-Fold CV RMSE:", -gs_svm.best_score_)  # RMSE is the negative value from GridSearchCV
 print("Optimal Parameter:", gs_svm.best_params_)
 print("Optimal Estimator:", gs_svm.best_estimator_)
 
-# Perform nested cross-validation for SVM Regressor
-nested_score_gs_svm_rmse = cross_val_score(gs_svm, X=X_train_ml, y=y_train.values.ravel(), scoring="neg_root_mean_squared_error", cv=outer_cv)
-print("Nested CV RMSE:", -nested_score_gs_svm_rmse.mean(), " +/- ", nested_score_gs_svm_rmse.std())  # Multiply by -1 to get positive RMSE
-
 # Fit the final model on the entire training data
-final_model_svm = gs_svm.best_estimator_.fit(X_train_ml, y_train.values.ravel())
-
+final_model_svm = gs_svm.best_estimator_
 
 ############################################## Models Generalization Performance ##############################################
 def evaluate_model(model, X, y, name):

@@ -9,7 +9,7 @@ Modeling Workflow:
 
 ✔ Train all models (OLS Linear Regression (no need to do hyperparameter tunning), ML models (hyperparameter tunning), Neural Network(hyperparameter tuning)).
 
-✔ Perform hyperparameter tuning for ML and NN models (Nested Cross-Validation for ML models (L1, L2 regression, tree-based, boosting), and some tunning methods for NN).
+✔ Perform hyperparameter tuning for ML and NN models (10-fold Cross-Validation for ML models (L1, L2 regression, tree-based, boosting), and some tunning methods for NN).
 
 ✔ Apply early stopping for Neural Networks.
 
