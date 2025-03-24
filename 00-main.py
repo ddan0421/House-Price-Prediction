@@ -29,7 +29,8 @@ SCRIPTS = [
     "04-data-preparation-interactions.py",
     "05-EDA-charts-after-interactions.py",
     "06-data-preparation-standardization.py",
-    "07-model-regressions.py"
+    "07-model-regressions.py",
+    "08-model-ML.py"
 ]
 
 # Function to execute a Python script
