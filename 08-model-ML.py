@@ -16,10 +16,10 @@ test_final = pd.read_csv("data/model_data/test_final_ml.csv")
 y_train = pd.read_csv("data/model_data/y_train_ml.csv")
 y_val = pd.read_csv("data/model_data/y_val_ml.csv")
 
-
+random_state = 42
 ###################################################################### Feature Selection ######################################################################
 # Train a Random Forest Regressor
-rf_model = RandomForestRegressor(n_estimators=200, random_state=42)
+rf_model = RandomForestRegressor(n_estimators=200, random_state=random_state)
 rf_model.fit(X_train, y_train.values.ravel())
 
 # Get feature importance
@@ -85,12 +85,9 @@ X_train_tree = X_train[combined_features_tree]
 X_val_tree = X_val[combined_features_tree]
 
 ############################################## Decision Tree Regressor Model ############################################################
-random_state = 42
-
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 dt = DecisionTreeRegressor(random_state=random_state, criterion="squared_error")
 
-# Define a grid of hyperparameters to search
 param_grid = {
     "max_depth": [10, 20, 30, 40, None],  # Maximum depth of the tree
     "min_samples_split": [2, 5, 10, 20],  # Minimum number of samples required to split a node
@@ -107,29 +104,21 @@ gs_dt = GridSearchCV(estimator=dt,
 
 gs_dt.fit(X_train_tree, y_train.values.ravel())
 
-# Output the results
 print("10-Fold CV RMSE:", -gs_dt.best_score_)  # RMSE is the negative value from GridSearchCV
 print("Optimal Parameters:", gs_dt.best_params_)
 print("Optimal Estimator:", gs_dt.best_estimator_)
 
 final_model_dt = gs_dt.best_estimator_
 
-# Extract the selected features based on the fitted decision tree
 selected_features_dt = X_train_tree.columns[final_model_dt.feature_importances_ > 0]
-
 print("Selected features for Decision Tree:")
 print(selected_features_dt)
 
 
-
 ############################################## Random Forest Tree Regressor Model ############################################################
-random_state = 42
-
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
-
 rf = RandomForestRegressor(random_state=random_state, bootstrap=True)
 
-# Define a grid of hyperparameters to search
 param_grid = {
     "n_estimators": [50, 100, 200],  # Fewer trees for faster training
     "max_depth": [3, 5, 10],  # Restrict depth to limit complexity
@@ -138,7 +127,6 @@ param_grid = {
     "max_features": ["sqrt", "log2"],  # Subset of features considered at each split
 }
 
-# Hyperparameter tuning for Random Forest Regressor
 gs_rf = GridSearchCV(estimator=rf,
                      param_grid=param_grid,
                      scoring="neg_root_mean_squared_error",  # Using RMSE as the evaluation metric
@@ -146,50 +134,39 @@ gs_rf = GridSearchCV(estimator=rf,
                      n_jobs=-1,
                      refit=True)
 
-# Fit the grid search on the training data
 gs_rf.fit(X_train_tree, y_train.values.ravel())
 
-# Output the results
 print("10-Fold CV RMSE:", -gs_rf.best_score_)  # RMSE is the negative value from GridSearchCV
 print("Optimal Parameters:", gs_rf.best_params_)
 print("Optimal Estimator:", gs_rf.best_estimator_)
 
 final_model_rf = gs_rf.best_estimator_
 
-# Extract the feature importances from the fitted random forest
 selected_features_rf = X_train_tree.columns[final_model_rf.feature_importances_ > 0]
-
 print("Selected features for Random Forest:")
 print(selected_features_rf)
 
 
 ############################################## XGBoost Regressor Model ############################################################
 # Feature Selection based on a basic XGBoost model
-# Initialize and fit the basic XGBoost model
-random_state = 42
 basic_xgb = XGBRegressor(random_state=random_state, objective="reg:squarederror", n_estimators=200)
 basic_xgb.fit(X_train, y_train.values.ravel())
 
-# Extract feature importances
 feature_importances = basic_xgb.feature_importances_
 selected_features_xgb = X_train.columns[np.array(feature_importances) > 0].to_list()  # Select non-zero importance features
 
 combined_features_xgb = list(set(selected_features_xgb + selected_numeric_features + selected_features_basic_rf))
 combined_features_xgb.sort()
 
-# Reduce the feature set
 X_train_xgb = X_train[combined_features_xgb]
 X_val_xgb = X_val[combined_features_xgb]
 print("Selected Features:", combined_features_xgb)
 
-
-# Perform GridSearchCV on the reduced feature set
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
+xgb = XGBRegressor(random_state=random_state, objective="reg:squarederror")
 
-xgb = XGBRegressor(random_state=random_state, objective="reg:squarederror", n_estimators=200)
-
-# Parameter grid for hyperparameter tuning
 param_grid = {
+    "n_estimators": [100, 200],  
     "learning_rate": [0.05, 0.1],        # Tune learning_rate to balance overfitting
     "max_depth": [3, 5],                     # Typical values for tree depth
     "min_child_weight": [1, 5],              # Vary min_child_weight to control overfitting
@@ -197,7 +174,6 @@ param_grid = {
     "colsample_bytree": [0.8, 1.0],        # Column subsampling to control model complexity
 }
 
-# Use GridSearchCV for hyperparameter tuning
 gs_xgb = GridSearchCV(
     estimator=xgb,
     param_grid=param_grid,
@@ -206,74 +182,132 @@ gs_xgb = GridSearchCV(
     n_jobs=-1,
     refit=True)
 
-# Fit the model
 gs_xgb.fit(X_train_xgb, y_train.values.ravel())
 
-# Display results from the best model
-print("10-Fold CV RMSE:", -gs_xgb.best_score_)  # Convert negative RMSE back to positive
+print("10-Fold CV RMSE:", -gs_xgb.best_score_)  
 print("Optimal Parameters:", gs_xgb.best_params_)
 print("Optimal Estimator:", gs_xgb.best_estimator_)
 
 final_model_xgb = gs_xgb.best_estimator_
 
-# Extract feature importances from the final model
-selected_features_xgb = X_train_xgb.columns[np.array(final_model_xgb.feature_importances_) > 0]
-
+selected_features_xgb_final = X_train_xgb.columns[np.array(final_model_xgb.feature_importances_) > 0]=
 print("Selected features for XGBoost:")
-print(selected_features_xgb)
-
+print(selected_features_xgb_final)
 
 
 
 ############################################## LightGBM Regressor Model ############################################################
+# Reduce the feature set using xgb's selected features
+X_train_lgbm = X_train[combined_features_xgb]
+X_val_lgbm = X_val[combined_features_xgb]
 
-# random_state = 42
+cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 
-# cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
+lgbm = lgb.LGBMRegressor(random_state=random_state, objective="regression")
 
-# # Initialize LightGBM Regressor
-# lgbm = lgb.LGBMRegressor(random_state=random_state, objective="regression")
+param_grid = {
+    "n_estimators": [100, 200],
+    "learning_rate": [0.05, 0.1],          # Tune learning_rate to balance overfitting
+    "max_depth": [-1, 3, 5],                 # LightGBM allows -1 for unlimited depth
+    "num_leaves": [31, 64],               # Number of leaves, impacts model complexity
+    "min_child_samples": [10, 20],        # Min number of data in a leaf
+    "subsample": [0.8, 1.0],              # Subsample to prevent overfitting
+    "colsample_bytree": [0.8, 1.0]       # Column subsampling to control model complexity
+}
 
-# # Parameter grid for hyperparameter tuning
-# param_grid = {
-#     "learning_rate": [0.01, 0.1],              # Typical learning rates
-#     "n_estimators": [50, 100, 200],           # Fewer boosting rounds
-#     "max_depth": [3, 6],                      # Commonly used tree depths
-#     "min_child_weight": [1, 5],               # Reasonable child weight values
-#     "gamma": [0, 0.2],                        # Focus on fewer gamma values
-#     "subsample": [0.8, 1.0],                  # Key subsample options
-#     "colsample_bytree": [0.8, 1.0],           # Impactful colsample options
-#     "reg_alpha": [0, 1],                      # Reasonable L1 range
-#     "reg_lambda": [1, 10],                    # Reasonable L2 range
-# }
+gs_lgbm = GridSearchCV(
+    estimator=lgbm,
+    param_grid=param_grid,
+    scoring="neg_root_mean_squared_error",
+    cv=cv,
+    n_jobs=-1,
+    refit=True)
 
+gs_lgbm.fit(X_train_lgbm, y_train.values.ravel())
 
-# # Use GridSearchCV for hyperparameter tuning
-# gs_lgbm = GridSearchCV(
-#     estimator=lgbm,
-#     param_grid=param_grid,
-#     scoring="neg_root_mean_squared_error",
-#     cv=cv,
-#     n_jobs=-1,
-#     refit=True)
+print("10-Fold CV RMSE:", -gs_lgbm.best_score_) 
+print("Optimal Parameters:", gs_lgbm.best_params_)
+print("Optimal Estimator:", gs_lgbm.best_estimator_)
 
-# # Fit the model
-# gs_lgbm.fit(X_train, y_train.values.ravel())
+final_model_lgbm = gs_lgbm.best_estimator_
 
-# # Display results from the best model
-# print("10-Fold CV RMSE:", -gs_lgbm.best_score_)  # Convert negative RMSE back to positive
-# print("Optimal Parameters:", gs_lgbm.best_params_)
-# print("Optimal Estimator:", gs_lgbm.best_estimator_)
-
-# final_model_lgbm = gs_lgbm.best_estimator_
-
-# # Extract feature importances from the final model
-# selected_features_lgbm = X_train.columns[np.array(final_model_lgbm.feature_importances_) > 0]
-
-# print("Selected features for LightGBM:")
-# print(selected_features_lgbm)
+selected_features_lgbm = X_train_lgbm.columns[np.array(final_model_lgbm.feature_importances_) > 0]
+print("Selected features for LightGBM:")
+print(selected_features_lgbm)
 
 
+# Learn about this
+# https://medium.com/analytics-vidhya/hyperparameters-optimization-for-lightgbm-catboost-and-xgboost-regressors-using-bayesian-6e7c495947a9
+
+import lightgbm as lgb
+from bayes_opt import BayesianOptimization
+from sklearn.metrics import mean_squared_error
+import numpy as np
+
+def bayesian_opt_lgbm(X, y, init_iter=5, n_iters=10, random_state=77, seed=101, num_iterations=200):
+    # Prepare LightGBM dataset
+    dtrain = lgb.Dataset(data=X, label=y)
+
+    # Custom RMSE evaluation function
+    def lgb_rmse_score(preds, dtrain):
+        labels = dtrain.get_label()
+        rmse = np.sqrt(mean_squared_error(labels, preds))
+        return 'rmse', rmse, False  # False indicates lower is better
+
+    # Objective Function for Bayesian Optimization
+    def hyp_lgbm(num_leaves, feature_fraction, bagging_fraction, max_depth, min_split_gain, min_child_weight):
+        params = {
+            'application': 'regression',
+            'num_iterations': num_iterations,
+            'learning_rate': 0.05,
+            'early_stopping_round': 50,
+            'metric': 'rmse'  # Use RMSE for evaluation
+        }
+        params["num_leaves"] = int(round(num_leaves))
+        params['feature_fraction'] = max(min(feature_fraction, 1), 0)
+        params['bagging_fraction'] = max(min(bagging_fraction, 1), 0)
+        params['max_depth'] = int(round(max_depth))
+        params['min_split_gain'] = min_split_gain
+        params['min_child_weight'] = min_child_weight
+
+        # Perform cross-validation using RMSE
+        cv_results = lgb.cv(
+            params,
+            dtrain,
+            nfold=5,
+            seed=seed,
+            categorical_feature=[],
+            stratified=False,
+            verbose_eval=None,
+            feval=lgb_rmse_score
+        )
+        return np.min(cv_results['rmse-mean'])  # Optimize for the smallest RMSE
+
+    # Define hyperparameter search space
+    pds = {
+        'num_leaves': (80, 100),
+        'feature_fraction': (0.1, 0.9),
+        'bagging_fraction': (0.8, 1),
+        'max_depth': (17, 25),
+        'min_split_gain': (0.001, 0.1),
+        'min_child_weight': (10, 25)
+    }
+
+    # Initialize Bayesian Optimization
+    optimizer = BayesianOptimization(hyp_lgbm, pds, random_state=random_state)
+
+    # Perform optimization
+    optimizer.maximize(init_points=init_iter, n_iter=n_iters)
+
+    # Return optimization results
+    return optimizer
+
+# Run Bayesian Optimization
+results = bayesian_opt_lgbm(X, y, init_iter=5, n_iters=10, random_state=77, seed=101, num_iterations=200)
+
+# Print the best parameters and best score
+print("Best Parameters:", results.max['params'])
+print("Best RMSE Score:", results.max['target'])
 
 
 
@@ -287,4 +321,4 @@ def evaluate_tree_model(model, X, y, name):
 evaluate_tree_model(final_model_dt, X_val_tree, y_val, "Decision Tree Regressor Model")
 evaluate_tree_model(final_model_rf, X_val_tree, y_val, "Random Forest Regressor Model")
 evaluate_tree_model(final_model_xgb, X_val_xgb, y_val, "XGBoost Regressor Model")
-
+evaluate_tree_model(final_model_lgbm, X_val_lgbm, y_val, "LGBM Regressor Model")

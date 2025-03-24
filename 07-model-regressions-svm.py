@@ -17,6 +17,8 @@ test_final = pd.read_csv("data/model_data/test_final.csv")
 y_train = pd.read_csv("data/model_data/y_train.csv")
 y_val = pd.read_csv("data/model_data/y_val.csv")
 
+random_state = 42
+
 X_train = sm.add_constant(X_train)
 X_val = sm.add_constant(X_val)
 
@@ -36,7 +38,7 @@ y_train = pd.read_csv("data/model_data/y_train.csv")
 y_val = pd.read_csv("data/model_data/y_val.csv")
 
 # Train a Random Forest Regressor
-rf_model = RandomForestRegressor(n_estimators=200, random_state=42)
+rf_model = RandomForestRegressor(n_estimators=200, random_state=random_state)
 rf_model.fit(X_train, y_train.values.ravel())
 
 # Get feature importance
@@ -115,9 +117,7 @@ X_train_ml = X_train[ml_features]
 X_val_ml = X_val[ml_features]
 
 ############################# Ridge Regression #############################
-random_state = 42
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
-
 ridge = Ridge()
 
 param_grid = {
@@ -140,9 +140,7 @@ print("Optimal Estimator:", gs_ridge.best_estimator_)
 final_model_ridge = gs_ridge.best_estimator_
 
 ############################# Lasso Regression #############################
-random_state = 42
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
-
 lasso = Lasso()
 
 param_grid = {
@@ -167,14 +165,11 @@ final_model_lasso = gs_lasso.best_estimator_
 
 # Extract the selected features based on non-zero coefficients from Lasso regression
 selected_features_lasso = X_train_ml.columns[final_model_lasso.coef_.flatten() != 0]
-
 print("Selected features for Lasso:")
 print(selected_features_lasso)
 
 ############################# SVM #############################
-random_state = 42
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
-
 svm = SVR()
 
 param_grid = {
