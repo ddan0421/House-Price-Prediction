@@ -102,12 +102,12 @@ combined_features.sort()
 
 
 ############################# Linear Regression #############################
-X_train_new = sm.add_constant(X_train[combined_features])
-X_val_new = sm.add_constant(X_val[combined_features])
+X_train_regress = sm.add_constant(X_train[combined_features])
+X_val_regress = sm.add_constant(X_val[combined_features])
 
-ols_lr = models.sm_ols(X_train_new, y_train)
-glm_lr = models.sm_glm_gaussian(X_train_new, y_train)
-glm_lr_constrained = models.constrained_sm_glm_gaussian(X_train_new, y_train, glm_lr, 0.05)
+ols_lr = models.sm_ols(X_train_regress, y_train)
+glm_lr = models.sm_glm_gaussian(X_train_regress, y_train)
+glm_lr_constrained = models.constrained_sm_glm_gaussian(X_train_regress, y_train, glm_lr, 0.05)
 
 ############################# Regularized Regression Models #############################
 ml_features = glm_lr_constrained.params.index[(glm_lr_constrained.params != 0) & (glm_lr_constrained.params.index != "const")].to_list()
@@ -115,69 +115,53 @@ X_train_ml = X_train[ml_features]
 X_val_ml = X_val[ml_features]
 
 ############################# Ridge Regression #############################
-# Nested Cross-Validation
 random_state = 42
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 
-# Define the Ridge regression model
 ridge = Ridge()
 
-# Define a grid of hyperparameters to search
 param_grid = {
-    "alpha": [0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]  # Values of alpha to search
+    "alpha": [0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0] 
 }
 
-# Hyperparameter tuning for Ridge Regression
 gs_ridge = GridSearchCV(estimator=ridge,
                         param_grid=param_grid,
-                        scoring="neg_root_mean_squared_error",  # Using RMSE as the evaluation metric
+                        scoring="neg_root_mean_squared_error", 
                         cv=cv,
                         n_jobs=-1,
                         refit=True)
 
 gs_ridge.fit(X_train_ml, y_train)
 
-print("10-Fold CV RMSE (log-transformed scale):", -gs_ridge.best_score_)  # RMSE is the negative value from GridSearchCV
+print("10-Fold CV RMSE (log-transformed scale):", -gs_ridge.best_score_) 
 print("Optimal Parameter:", gs_ridge.best_params_)
 print("Optimal Estimator:", gs_ridge.best_estimator_)
 
 final_model_ridge = gs_ridge.best_estimator_
 
-# Extract the selected features based on non-zero coefficients from Ridge regression
-selected_features_ridge = X_train_ml.columns[final_model_ridge.coef_.flatten() != 0]
-
-print("Selected features for Ridge:")
-print(selected_features_ridge)
-
 ############################# Lasso Regression #############################
-# Nested Cross-Validation
 random_state = 42
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 
-# Define the Lasso regression model
 lasso = Lasso()
 
-# Define a grid of hyperparameters to search
 param_grid = {
-    "alpha": [0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]  # Values of alpha to search
+    "alpha": [0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
 }
 
 # Hyperparameter tuning for Lasso Regression
 gs_lasso = GridSearchCV(estimator=lasso,
                         param_grid=param_grid,
-                        scoring="neg_root_mean_squared_error",  # Using RMSE as the evaluation metric
+                        scoring="neg_root_mean_squared_error", 
                         cv=cv,
                         n_jobs=-1,
                         refit=True)
 
 gs_lasso.fit(X_train_ml, y_train)
 
-print("10-Fold CV RMSE:", -gs_lasso.best_score_)  # RMSE is the negative value from GridSearchCV
+print("10-Fold CV RMSE:", -gs_lasso.best_score_) 
 print("Optimal Parameter:", gs_lasso.best_params_)
 print("Optimal Estimator:", gs_lasso.best_estimator_)
-
-nested_score_gs_lasso_rmse = cross_val_score(gs_lasso, X=X_train_ml, y=y_train, scoring="neg_root_mean_squared_error", cv=outer_cv)
-print("Nested CV RMSE:", -nested_score_gs_lasso_rmse.mean(), " +/- ", nested_score_gs_lasso_rmse.std())  # Multiply by -1 to get positive RMSE
 
 final_model_lasso = gs_lasso.best_estimator_
 
@@ -187,38 +171,31 @@ selected_features_lasso = X_train_ml.columns[final_model_lasso.coef_.flatten() !
 print("Selected features for Lasso:")
 print(selected_features_lasso)
 
-
-
 ############################# SVM #############################
-# SVM
 random_state = 42
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 
-# Define the SVM regressor model
 svm = SVR()
 
-# Define a grid of hyperparameters to search
 param_grid = {
     "C": [0.1, 1.0, 10.0, 100.0],  # Regularization parameter
     "epsilon": [0.001, 0.01, 0.1, 0.5, 1.0],  # Epsilon parameter (for margin of tolerance)
     "gamma": ["scale", "auto", 0.01, 0.1, 1.0]
 }
 
-# Hyperparameter tuning for SVM Regressor
 gs_svm = GridSearchCV(estimator=svm,
                       param_grid=param_grid,
-                      scoring="neg_root_mean_squared_error",  # Using RMSE as the evaluation metric
+                      scoring="neg_root_mean_squared_error", 
                       cv=cv,
                       n_jobs=-1,
                       refit=True)
 
 gs_svm.fit(X_train_ml, y_train.values.ravel())
 
-print("10-Fold CV RMSE:", -gs_svm.best_score_)  # RMSE is the negative value from GridSearchCV
+print("10-Fold CV RMSE:", -gs_svm.best_score_) 
 print("Optimal Parameter:", gs_svm.best_params_)
 print("Optimal Estimator:", gs_svm.best_estimator_)
 
-# Fit the final model on the entire training data
 final_model_svm = gs_svm.best_estimator_
 
 ############################################## Models Generalization Performance ##############################################
@@ -230,9 +207,9 @@ def evaluate_model(model, X, y, name):
     print(f"{name} Performance:")
     print(f"Root Mean Squared Error: {rmse:.4f}")
 
-evaluate_model(ols_lr, X_val_new, y_val, "OLS Model")
-evaluate_model(glm_lr, X_val_new, y_val, "GLM Gaussian Model")
-evaluate_model(glm_lr_constrained, X_val_new, y_val, "Constrained GLM Gaussian Model")
+evaluate_model(ols_lr, X_val_regress, y_val, "OLS Model")
+evaluate_model(glm_lr, X_val_regress, y_val, "GLM Gaussian Model")
+evaluate_model(glm_lr_constrained, X_val_regress, y_val, "Constrained GLM Gaussian Model")
 evaluate_model(final_model_ridge, X_val_ml, y_val, "Ridge Model")
 evaluate_model(final_model_lasso, X_val_ml, y_val, "Lasso Model")
 evaluate_model(final_model_svm, X_val_ml, y_val, "SVM Model")
