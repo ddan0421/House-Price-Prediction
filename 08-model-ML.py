@@ -236,39 +236,51 @@ print("Selected features for LightGBM:")
 print(selected_features_lgbm)
 
 
-# Learn about this
+# Learn about this (Bayesian Optimization)
 # https://medium.com/analytics-vidhya/hyperparameters-optimization-for-lightgbm-catboost-and-xgboost-regressors-using-bayesian-6e7c495947a9
-
 import lightgbm as lgb
 from bayes_opt import BayesianOptimization
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import root_mean_squared_error
 import numpy as np
 
-def bayesian_opt_lgbm(X, y, init_iter=5, n_iters=10, random_state=77, seed=101, num_iterations=200):
+
+random_state = 42  # Use a single consistent value
+seed = random_state  # Set seed to the same value
+
+def bayesian_opt_lgbm(X, y, init_iter=10, n_iters=25, random_state=42, seed=42):
     # Prepare LightGBM dataset
     dtrain = lgb.Dataset(data=X, label=y)
 
     # Custom RMSE evaluation function
     def lgb_rmse_score(preds, dtrain):
         labels = dtrain.get_label()
-        rmse = np.sqrt(mean_squared_error(labels, preds))
-        return 'rmse', rmse, False  # False indicates lower is better
+        rmse = root_mean_squared_error(labels, preds)
+        return "rmse", rmse, False  # False indicates lower is better
 
     # Objective Function for Bayesian Optimization
-    def hyp_lgbm(num_leaves, feature_fraction, bagging_fraction, max_depth, min_split_gain, min_child_weight):
+    def hyp_lgbm(num_boost_round, learning_rate, max_depth, num_leaves, min_child_samples, subsample, colsample_bytree, reg_alpha, reg_lambda, min_split_gain, feature_fraction, bagging_fraction, bagging_freq):
         params = {
-            'application': 'regression',
-            'num_iterations': num_iterations,
-            'learning_rate': 0.05,
-            'early_stopping_round': 50,
-            'metric': 'rmse'  # Use RMSE for evaluation
+            "objective": "regression",
+            "metric": "rmse",  # Use RMSE for evaluation
+            "verbosity": -1,   # Suppress LightGBM logs
+            "feature_pre_filter": False,  # Prevent pre-filtering of features when adjusting min_data_in_leaf
+            "seed": seed,
+            "n_jobs": -1,
+            "boosting_type": "gbdt", #added boosting_type
         }
+        params["num_boost_round"] = int(round(num_boost_round))
+        params["learning_rate"] = learning_rate
+        params["max_depth"] = int(round(max_depth))
         params["num_leaves"] = int(round(num_leaves))
-        params['feature_fraction'] = max(min(feature_fraction, 1), 0)
-        params['bagging_fraction'] = max(min(bagging_fraction, 1), 0)
-        params['max_depth'] = int(round(max_depth))
-        params['min_split_gain'] = min_split_gain
-        params['min_child_weight'] = min_child_weight
+        params["min_child_samples"] = int(round(min_child_samples))
+        params["subsample"] = max(min(subsample, 1), 0)
+        params["colsample_bytree"] = max(min(colsample_bytree, 1), 0)
+        params["reg_alpha"] = max(reg_alpha, 0)
+        params["reg_lambda"] = max(reg_lambda, 0)
+        params["min_split_gain"] = max(min_split_gain, 0)
+        params["feature_fraction"] = max(min(feature_fraction,1),0)
+        params["bagging_fraction"] = max(min(bagging_fraction, 1), 0)
+        params["bagging_freq"] = int(round(bagging_freq))
 
         # Perform cross-validation using RMSE
         cv_results = lgb.cv(
@@ -276,21 +288,26 @@ def bayesian_opt_lgbm(X, y, init_iter=5, n_iters=10, random_state=77, seed=101, 
             dtrain,
             nfold=5,
             seed=seed,
-            categorical_feature=[],
             stratified=False,
-            verbose_eval=None,
-            feval=lgb_rmse_score
+            feval=lgb_rmse_score,
         )
-        return np.min(cv_results['rmse-mean'])  # Optimize for the smallest RMSE
+        return -np.min(cv_results["valid rmse-mean"])  # Return negative RMSE for maximization
 
     # Define hyperparameter search space
     pds = {
-        'num_leaves': (80, 100),
-        'feature_fraction': (0.1, 0.9),
-        'bagging_fraction': (0.8, 1),
-        'max_depth': (17, 25),
-        'min_split_gain': (0.001, 0.1),
-        'min_child_weight': (10, 25)
+        "num_boost_round": (100, 3000),  # Increased range
+        "learning_rate": (0.005, 0.15),  # Expanded learning rate range
+        "max_depth": (-1, 15),  # Increased max depth
+        "num_leaves": (15, 256),  # Increased num leaves
+        "min_child_samples": (5, 100),  # Expanded min child samples
+        "subsample": (0.5, 1.0),  # More aggressive subsampling
+        "colsample_bytree": (0.5, 1.0),  # More aggressive colsample
+        "reg_alpha": (0, 2),  # Expanded regularization
+        "reg_lambda": (0, 2),  # Expanded regularization
+        "min_split_gain": (0, 2),  # Expanded min split gain
+        "feature_fraction": (0.5, 1.0), #added feature fraction
+        "bagging_fraction": (0.5, 1.0), #added bagging fraction
+        "bagging_freq": (1, 10), #added bagging frequency
     }
 
     # Initialize Bayesian Optimization
@@ -303,11 +320,13 @@ def bayesian_opt_lgbm(X, y, init_iter=5, n_iters=10, random_state=77, seed=101, 
     return optimizer
 
 # Run Bayesian Optimization
-results = bayesian_opt_lgbm(X, y, init_iter=5, n_iters=10, random_state=77, seed=101, num_iterations=200)
+results = bayesian_opt_lgbm(X_train_xgb, y_train)
 
 # Print the best parameters and best score
-print("Best Parameters:", results.max['params'])
-print("Best RMSE Score:", results.max['target'])
+print("Best Parameters:", results.max["params"])
+print("Best RMSE Score:", -results.max["target"])  # Convert back to positive RMSE
+
+
 
 
 
