@@ -19,7 +19,7 @@ y_val = pd.read_csv("data/model_data/y_val_ml.csv")
 
 ###################################################################### Feature Selection ######################################################################
 # Train a Random Forest Regressor
-rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+rf_model = RandomForestRegressor(n_estimators=200, random_state=42)
 rf_model.fit(X_train, y_train.values.ravel())
 
 # Get feature importance
@@ -65,7 +65,7 @@ ON cumulative_importance.row_number <= threshold_index.threshold_row;
 """
 
 # Execute the query to get selected features
-selected_features_rf = conn.execute(query).fetch_df()["feature"].to_list()
+selected_features_basic_rf = conn.execute(query).fetch_df()["feature"].to_list()
 conn.close()
 
 
@@ -78,7 +78,7 @@ selected_numeric_features = [
 
 
 # Combine the lists and remove duplicates using a set
-combined_features_tree = list(set(selected_features_rf + selected_numeric_features))
+combined_features_tree = list(set(selected_features_basic_rf + selected_numeric_features))
 combined_features_tree.sort()
 
 X_train_tree = X_train[combined_features_tree]
@@ -164,7 +164,6 @@ print(selected_features_rf)
 
 
 ############################################## XGBoost Regressor Model ############################################################
-
 # Feature Selection based on a basic XGBoost model
 # Initialize and fit the basic XGBoost model
 random_state = 42
@@ -175,7 +174,7 @@ basic_xgb.fit(X_train, y_train.values.ravel())
 feature_importances = basic_xgb.feature_importances_
 selected_features_xgb = X_train.columns[np.array(feature_importances) > 0].to_list()  # Select non-zero importance features
 
-combined_features_xgb = list(set(selected_features_xgb + selected_numeric_features + selected_features_rf))
+combined_features_xgb = list(set(selected_features_xgb + selected_numeric_features + selected_features_basic_rf))
 combined_features_xgb.sort()
 
 # Reduce the feature set
@@ -228,59 +227,57 @@ print(selected_features_xgb)
 
 ############################################## LightGBM Regressor Model ############################################################
 
-random_state = 42
+# random_state = 42
 
-cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
+# cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 
-# Initialize LightGBM Regressor
-lgbm = lgb.LGBMRegressor(random_state=random_state, objective="regression")
+# # Initialize LightGBM Regressor
+# lgbm = lgb.LGBMRegressor(random_state=random_state, objective="regression")
 
-# Parameter grid for hyperparameter tuning
-param_grid = {
-    "learning_rate": [0.01, 0.1],              # Typical learning rates
-    "n_estimators": [50, 100, 200],           # Fewer boosting rounds
-    "max_depth": [3, 6],                      # Commonly used tree depths
-    "min_child_weight": [1, 5],               # Reasonable child weight values
-    "gamma": [0, 0.2],                        # Focus on fewer gamma values
-    "subsample": [0.8, 1.0],                  # Key subsample options
-    "colsample_bytree": [0.8, 1.0],           # Impactful colsample options
-    "reg_alpha": [0, 1],                      # Reasonable L1 range
-    "reg_lambda": [1, 10],                    # Reasonable L2 range
-}
+# # Parameter grid for hyperparameter tuning
+# param_grid = {
+#     "learning_rate": [0.01, 0.1],              # Typical learning rates
+#     "n_estimators": [50, 100, 200],           # Fewer boosting rounds
+#     "max_depth": [3, 6],                      # Commonly used tree depths
+#     "min_child_weight": [1, 5],               # Reasonable child weight values
+#     "gamma": [0, 0.2],                        # Focus on fewer gamma values
+#     "subsample": [0.8, 1.0],                  # Key subsample options
+#     "colsample_bytree": [0.8, 1.0],           # Impactful colsample options
+#     "reg_alpha": [0, 1],                      # Reasonable L1 range
+#     "reg_lambda": [1, 10],                    # Reasonable L2 range
+# }
 
 
-# Use GridSearchCV for hyperparameter tuning
-gs_lgbm = GridSearchCV(
-    estimator=lgbm,
-    param_grid=param_grid,
-    scoring="neg_root_mean_squared_error",
-    cv=cv,
-    n_jobs=-1,
-    refit=True)
+# # Use GridSearchCV for hyperparameter tuning
+# gs_lgbm = GridSearchCV(
+#     estimator=lgbm,
+#     param_grid=param_grid,
+#     scoring="neg_root_mean_squared_error",
+#     cv=cv,
+#     n_jobs=-1,
+#     refit=True)
 
-# Fit the model
-gs_lgbm.fit(X_train, y_train.values.ravel())
+# # Fit the model
+# gs_lgbm.fit(X_train, y_train.values.ravel())
 
-# Display results from the best model
-print("10-Fold CV RMSE:", -gs_lgbm.best_score_)  # Convert negative RMSE back to positive
-print("Optimal Parameters:", gs_lgbm.best_params_)
-print("Optimal Estimator:", gs_lgbm.best_estimator_)
+# # Display results from the best model
+# print("10-Fold CV RMSE:", -gs_lgbm.best_score_)  # Convert negative RMSE back to positive
+# print("Optimal Parameters:", gs_lgbm.best_params_)
+# print("Optimal Estimator:", gs_lgbm.best_estimator_)
 
-final_model_lgbm = gs_lgbm.best_estimator_
+# final_model_lgbm = gs_lgbm.best_estimator_
 
-# Extract feature importances from the final model
-selected_features_lgbm = X_train.columns[np.array(final_model_lgbm.feature_importances_) > 0]
+# # Extract feature importances from the final model
+# selected_features_lgbm = X_train.columns[np.array(final_model_lgbm.feature_importances_) > 0]
 
-print("Selected features for LightGBM:")
-print(selected_features_lgbm)
+# print("Selected features for LightGBM:")
+# print(selected_features_lgbm)
 
 
 
 
 
 ############################################## Models Generalization Performance ##############################################
-
-
 def evaluate_tree_model(model, X, y, name):
     predictions = model.predict(X)
     rmse = root_mean_squared_error(y, predictions)
