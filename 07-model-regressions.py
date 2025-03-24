@@ -36,7 +36,7 @@ y_train = pd.read_csv("data/model_data/y_train.csv")
 y_val = pd.read_csv("data/model_data/y_val.csv")
 
 # Train a Random Forest Regressor
-rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+rf_model = RandomForestRegressor(n_estimators=200, random_state=42)
 rf_model.fit(X_train, y_train.values.ravel())
 
 # Get feature importance
