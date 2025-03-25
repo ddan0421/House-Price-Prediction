@@ -21,6 +21,7 @@ y_train = pd.read_csv("data/model_data/y_train_ml.csv")
 y_val = pd.read_csv("data/model_data/y_val_ml.csv")
 
 random_state = 42
+seed = 42
 ###################################################################### Feature Selection ######################################################################
 # Train a Random Forest Regressor
 rf_model = RandomForestRegressor(n_estimators=200, random_state=random_state)
@@ -245,7 +246,7 @@ print(selected_features_lgbm)
 ############################################## LGBM Models with Bayesian Optimization ############################################################
 # Learn about this (Bayesian Optimization)
 # https://medium.com/analytics-vidhya/hyperparameters-optimization-for-lightgbm-catboost-and-xgboost-regressors-using-bayesian-6e7c495947a9
-def bayesian_opt_lgbm(X, y, init_iter=10, n_iters=25, random_state=random_state):
+def bayesian_opt_lgbm(X, y, init_iter=10, n_iters=25, random_state=random_state, seed=seed):
     # Prepare LightGBM dataset
     dtrain = lgb.Dataset(data=X, label=y)
 
@@ -262,6 +263,7 @@ def bayesian_opt_lgbm(X, y, init_iter=10, n_iters=25, random_state=random_state)
             "metric": "rmse",  # Use RMSE for evaluation
             "verbosity": -1,   # Suppress LightGBM logs
             "feature_pre_filter": False,  # Prevent pre-filtering of features when adjusting min_data_in_leaf
+            "seed": seed,
             "n_jobs": -1,
             "boosting_type": "gbdt", 
         }
@@ -284,6 +286,7 @@ def bayesian_opt_lgbm(X, y, init_iter=10, n_iters=25, random_state=random_state)
             params,
             dtrain,
             nfold=10,
+            seed=seed,
             stratified=False,
             feval=lgb_rmse_score,
         )
@@ -336,6 +339,7 @@ best_params["feature_fraction"] = max(min(best_params["feature_fraction"], 1), 0
 best_params["bagging_fraction"] = max(min(best_params["bagging_fraction"], 1), 0)
 best_params["bagging_freq"] = int(round(best_params["bagging_freq"]))
 
+best_params["seed"] = seed
 best_params["n_jobs"] = -1
 best_params["objective"] = "regression"
 best_params["metric"] = "rmse"
@@ -347,12 +351,13 @@ lgbm_bayes_model = lgb.LGBMRegressor(**best_params)
 lgbm_bayes_model.fit(X_train_lgbm, y_train)
 
 ############################################## XGB Models with Bayesian Optimization ############################################################
-def bayesian_opt_xgb(X, y, init_iter=20, n_iters=50, random_state=random_state):
+def bayesian_opt_xgb(X, y, init_iter=20, n_iters=50, random_state=random_state, seed=seed):
     # Objective Function for Bayesian Optimization
     def hyp_xgb(n_estimators, learning_rate, max_depth, min_child_weight, subsample, colsample_bytree, reg_alpha, reg_lambda):
         params = {
             "objective": "reg:squarederror",
             "eval_metric": "rmse",
+            "seed": seed,
             "n_jobs": -1,
         }
         params["n_estimators"] = int(round(n_estimators))
@@ -371,6 +376,7 @@ def bayesian_opt_xgb(X, y, init_iter=20, n_iters=50, random_state=random_state):
             dtrain,
             num_boost_round=int(round(n_estimators)),
             nfold=10,
+            seed=seed,
             stratified=False,
             early_stopping_rounds=10,
             metrics="rmse"
@@ -416,6 +422,7 @@ best_params["reg_lambda"] = max(best_params["reg_lambda"], 0)
 
 best_params["objective"] = "reg:squarederror"
 best_params["eval_metric"] = "rmse"
+best_params["seed"] = seed
 best_params["n_jobs"] = -1
 best_params["random_state"] = random_state
 
