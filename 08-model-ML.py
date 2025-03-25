@@ -436,9 +436,14 @@ def evaluate_tree_model(model, X, y, name):
     print(f"{name} Performance:")
     print(f"Root Mean Squared Error: {rmse:.4f}")
 
-evaluate_tree_model(final_model_dt, X_val_tree, y_val, "Decision Tree Regressor Model")
-evaluate_tree_model(final_model_rf, X_val_tree, y_val, "Random Forest Regressor Model")
-evaluate_tree_model(final_model_xgb, X_val_xgb, y_val, "XGBoost Regressor Model")
-evaluate_tree_model(xgb_bayes_model, X_val_xgb, y_val, "XGBoost (Bayesian) Regressor Model")
-evaluate_tree_model(final_model_lgbm, X_val_lgbm, y_val, "LGBM Regressor Model")
-evaluate_tree_model(lgbm_bayes_model, X_val_lgbm, y_val, "LGBM (Bayesian) Regressor Model")
+
+
+print("############################################## 10-Fold CV Hyperparameter-Tuned ##############################################")
+evaluate_tree_model(final_model_dt, X_val_tree, y_val, "Decision Tree Regressor")
+evaluate_tree_model(final_model_rf, X_val_tree, y_val, "Random Forest Regressor")
+evaluate_tree_model(final_model_xgb, X_val_xgb, y_val, "XGBoost Regressor")
+evaluate_tree_model(final_model_lgbm, X_val_lgbm, y_val, "LightGBM Regressor")
+print("############################################## 10-Fold CV Hyperparameter-Tuned with Bayesian Optimization ##############################################")
+evaluate_tree_model(xgb_bayes_model, X_val_xgb, y_val, "XGBoost Regressor (Bayesian Optimizied)")
+evaluate_tree_model(lgbm_bayes_model, X_val_lgbm, y_val, "LightGBM Regressor (Bayesian Optimizied)")
+
