@@ -236,6 +236,9 @@ print("Selected features for LightGBM:")
 print(selected_features_lgbm)
 
 
+
+
+############################################## LGBM Models with Bayesian Optimization ############################################################
 # Learn about this (Bayesian Optimization)
 # https://medium.com/analytics-vidhya/hyperparameters-optimization-for-lightgbm-catboost-and-xgboost-regressors-using-bayesian-6e7c495947a9
 import lightgbm as lgb
@@ -243,7 +246,10 @@ from bayes_opt import BayesianOptimization
 from sklearn.metrics import root_mean_squared_error
 import numpy as np
 
+import warnings
 
+# Ignore specific types of warnings
+warnings.filterwarnings("ignore", category=UserWarning)
 random_state = 42  # Use a single consistent value
 seed = random_state  # Set seed to the same value
 
@@ -258,7 +264,7 @@ def bayesian_opt_lgbm(X, y, init_iter=10, n_iters=25, random_state=42, seed=42):
         return "rmse", rmse, False  # False indicates lower is better
 
     # Objective Function for Bayesian Optimization
-    def hyp_lgbm(num_boost_round, learning_rate, max_depth, num_leaves, min_child_samples, subsample, colsample_bytree, reg_alpha, reg_lambda, min_split_gain, feature_fraction, bagging_fraction, bagging_freq):
+    def hyp_lgbm(num_boost_round, learning_rate, max_depth, num_leaves, min_child_samples, min_sum_hessian_in_leaf, feature_fraction_bynode, reg_alpha, reg_lambda, min_split_gain, feature_fraction, bagging_fraction, bagging_freq):
         params = {
             "objective": "regression",
             "metric": "rmse",  # Use RMSE for evaluation
@@ -266,15 +272,15 @@ def bayesian_opt_lgbm(X, y, init_iter=10, n_iters=25, random_state=42, seed=42):
             "feature_pre_filter": False,  # Prevent pre-filtering of features when adjusting min_data_in_leaf
             "seed": seed,
             "n_jobs": -1,
-            "boosting_type": "gbdt", #added boosting_type
+            "boosting_type": "gbdt", 
         }
         params["num_boost_round"] = int(round(num_boost_round))
         params["learning_rate"] = learning_rate
         params["max_depth"] = int(round(max_depth))
         params["num_leaves"] = int(round(num_leaves))
         params["min_child_samples"] = int(round(min_child_samples))
-        params["subsample"] = max(min(subsample, 1), 0)
-        params["colsample_bytree"] = max(min(colsample_bytree, 1), 0)
+        params["min_sum_hessian_in_leaf"] = min_sum_hessian_in_leaf 
+        params["feature_fraction_bynode"] = feature_fraction_bynode
         params["reg_alpha"] = max(reg_alpha, 0)
         params["reg_lambda"] = max(reg_lambda, 0)
         params["min_split_gain"] = max(min_split_gain, 0)
@@ -286,7 +292,7 @@ def bayesian_opt_lgbm(X, y, init_iter=10, n_iters=25, random_state=42, seed=42):
         cv_results = lgb.cv(
             params,
             dtrain,
-            nfold=5,
+            nfold=10,
             seed=seed,
             stratified=False,
             feval=lgb_rmse_score,
@@ -295,13 +301,13 @@ def bayesian_opt_lgbm(X, y, init_iter=10, n_iters=25, random_state=42, seed=42):
 
     # Define hyperparameter search space
     pds = {
-        "num_boost_round": (100, 3000),  # Increased range
+        "num_boost_round": (50, 300),  # Increased range
         "learning_rate": (0.005, 0.15),  # Expanded learning rate range
         "max_depth": (-1, 15),  # Increased max depth
         "num_leaves": (15, 256),  # Increased num leaves
         "min_child_samples": (5, 100),  # Expanded min child samples
-        "subsample": (0.5, 1.0),  # More aggressive subsampling
-        "colsample_bytree": (0.5, 1.0),  # More aggressive colsample
+        "min_sum_hessian_in_leaf": (1e-3, 10),
+        "feature_fraction_bynode": (0.1, 1.0),  # Fraction of features per tree node
         "reg_alpha": (0, 2),  # Expanded regularization
         "reg_lambda": (0, 2),  # Expanded regularization
         "min_split_gain": (0, 2),  # Expanded min split gain
@@ -316,10 +322,8 @@ def bayesian_opt_lgbm(X, y, init_iter=10, n_iters=25, random_state=42, seed=42):
     # Perform optimization
     optimizer.maximize(init_points=init_iter, n_iter=n_iters)
 
-    # Return optimization results
     return optimizer
 
-# Run Bayesian Optimization
 results = bayesian_opt_lgbm(X_train_lgbm, y_train)
 
 # Print the best parameters and best score
@@ -327,14 +331,22 @@ print("Best Parameters:", results.max["params"])
 print("Best RMSE Score:", -results.max["target"])  # Convert back to positive RMSE
 
 
-# Refit the model with the best parameters and evaluate on X_val
 best_params = results.max["params"]
 best_params["num_boost_round"] = int(round(best_params["num_boost_round"]))
+best_params["learning_rate"] = best_params["learning_rate"]
 best_params["max_depth"] = int(round(best_params["max_depth"]))
 best_params["num_leaves"] = int(round(best_params["num_leaves"]))
 best_params["min_child_samples"] = int(round(best_params["min_child_samples"]))
+best_params["min_sum_hessian_in_leaf"] = best_params["min_sum_hessian_in_leaf"]
+best_params["feature_fraction_bynode"] = best_params["feature_fraction_bynode"]
+best_params["reg_alpha"] = max(best_params["reg_alpha"], 0)
+best_params["reg_lambda"] = max(best_params["reg_lambda"], 0)
+best_params["min_split_gain"] = max(best_params["min_split_gain"], 0)
+best_params["feature_fraction"] = max(min(best_params["feature_fraction"], 1), 0)
+best_params["bagging_fraction"] = max(min(best_params["bagging_fraction"], 1), 0)
 best_params["bagging_freq"] = int(round(best_params["bagging_freq"]))
-best_params["seed"] = 42
+
+best_params["seed"] = seed
 best_params["n_jobs"] = -1
 best_params["objective"] = "regression"
 best_params["metric"] = "rmse"
@@ -342,9 +354,91 @@ best_params["verbosity"] = -1
 best_params["feature_pre_filter"] = False
 best_params["boosting_type"] = "gbdt"
 
-model = lgb.LGBMRegressor(**best_params)
-model.fit(X_train_lgbm, y_train)
+lgbm_bayes_model = lgb.LGBMRegressor(**best_params)
+lgbm_bayes_model.fit(X_train_lgbm, y_train)
 
+############################################## XGB Models with Bayesian Optimization ############################################################
+import xgboost as xgb
+import numpy as np
+from bayes_opt import BayesianOptimization
+
+def bayesian_opt_xgb(X, y, init_iter=20, n_iters=50, random_state=random_state, seed=seed):
+    # Objective Function for Bayesian Optimization
+    def hyp_xgb(n_estimators, learning_rate, max_depth, min_child_weight, subsample, colsample_bytree, reg_alpha, reg_lambda):
+        params = {
+            "objective": "reg:squarederror",
+            "eval_metric": "rmse",
+            "seed": seed,
+            "n_jobs": -1,
+        }
+        params["n_estimators"] = int(round(n_estimators))
+        params["learning_rate"] = learning_rate
+        params["max_depth"] = int(round(max_depth))
+        params["min_child_weight"] = min_child_weight
+        params["subsample"] = max(min(subsample, 1), 0)
+        params["colsample_bytree"] = max(min(colsample_bytree, 1), 0)
+        params["reg_alpha"] = max(reg_alpha, 0)
+        params["reg_lambda"] = max(reg_lambda, 0)
+
+        # Perform cross-validation using RMSE
+        dtrain = xgb.DMatrix(data=X, label=y)
+        cv_results = xgb.cv(
+            params,
+            dtrain,
+            num_boost_round=int(round(n_estimators)),
+            nfold=10,
+            seed=seed,
+            stratified=False,
+            early_stopping_rounds=10,
+            metrics="rmse"
+        )
+        return -cv_results["test-rmse-mean"].min()  # Return negative RMSE for maximization
+
+    # Define hyperparameter search space
+    pds = {
+        "n_estimators": (50, 200),  # Increased range
+        "learning_rate": (0.005, 0.15),  # Expanded learning rate range
+        "max_depth": (3, 15),  # Increased max depth
+        "min_child_weight": (1, 5),  # Expanded min child weight
+        "subsample": (0.5, 1.0),  # Fraction of samples per tree
+        "colsample_bytree": (0.5, 1.0),  # Fraction of features per tree
+        "reg_alpha": (0, 3),  # L1 regularization
+        "reg_lambda": (0, 3),  # L2 regularization
+    }
+
+    # Initialize Bayesian Optimization
+    optimizer = BayesianOptimization(hyp_xgb, pds, random_state=random_state)
+
+    # Perform optimization
+    optimizer.maximize(init_points=init_iter, n_iter=n_iters)
+
+    return optimizer
+
+# Run Bayesian Optimization
+results = bayesian_opt_xgb(X_train_xgb, y_train)
+# Print the best parameters and best score
+print("Best Parameters:", results.max["params"])
+print("Best RMSE Score:", -results.max["target"])  # Convert back to positive RMSE
+
+
+best_params = results.max["params"]
+best_params["n_estimators"] = int(round(best_params["n_estimators"]))
+best_params["learning_rate"] = best_params["learning_rate"]
+best_params["max_depth"] = int(round(best_params["max_depth"]))
+best_params["min_child_weight"] = best_params["min_child_weight"]
+best_params["subsample"] = max(min(best_params["subsample"], 1), 0)
+best_params["colsample_bytree"] = max(min(best_params["colsample_bytree"], 1), 0)
+best_params["reg_alpha"] = max(best_params["reg_alpha"], 0)
+best_params["reg_lambda"] = max(best_params["reg_lambda"], 0)
+
+best_params["objective"] = "reg:squarederror"
+best_params["eval_metric"] = "rmse"
+best_params["seed"] = seed
+best_params["n_jobs"] = -1
+best_params["random_state"] = random_state
+
+xgb_bayes_model = xgb.XGBRegressor(**best_params)
+xgb_bayes_model.fit(X_train_xgb, y_train)
 
 ############################################## Models Generalization Performance ##############################################
 def evaluate_tree_model(model, X, y, name):
@@ -356,5 +450,6 @@ def evaluate_tree_model(model, X, y, name):
 evaluate_tree_model(final_model_dt, X_val_tree, y_val, "Decision Tree Regressor Model")
 evaluate_tree_model(final_model_rf, X_val_tree, y_val, "Random Forest Regressor Model")
 evaluate_tree_model(final_model_xgb, X_val_xgb, y_val, "XGBoost Regressor Model")
+evaluate_tree_model(xgb_bayes_model, X_val_xgb, y_val, "XGBoost (Bayesian) Regressor Model")
 evaluate_tree_model(final_model_lgbm, X_val_lgbm, y_val, "LGBM Regressor Model")
-evaluate_tree_model(model, X_val_lgbm, y_val, "LGBM (Bayesian) Regressor Model")
+evaluate_tree_model(lgbm_bayes_model, X_val_lgbm, y_val, "LGBM (Bayesian) Regressor Model")
