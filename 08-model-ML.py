@@ -190,7 +190,7 @@ print("Optimal Estimator:", gs_xgb.best_estimator_)
 
 final_model_xgb = gs_xgb.best_estimator_
 
-selected_features_xgb_final = X_train_xgb.columns[np.array(final_model_xgb.feature_importances_) > 0]=
+selected_features_xgb_final = X_train_xgb.columns[np.array(final_model_xgb.feature_importances_) > 0]
 print("Selected features for XGBoost:")
 print(selected_features_xgb_final)
 
@@ -320,14 +320,30 @@ def bayesian_opt_lgbm(X, y, init_iter=10, n_iters=25, random_state=42, seed=42):
     return optimizer
 
 # Run Bayesian Optimization
-results = bayesian_opt_lgbm(X_train_xgb, y_train)
+results = bayesian_opt_lgbm(X_train_lgbm, y_train)
 
 # Print the best parameters and best score
 print("Best Parameters:", results.max["params"])
 print("Best RMSE Score:", -results.max["target"])  # Convert back to positive RMSE
 
 
+# Refit the model with the best parameters and evaluate on X_val
+best_params = results.max["params"]
+best_params["num_boost_round"] = int(round(best_params["num_boost_round"]))
+best_params["max_depth"] = int(round(best_params["max_depth"]))
+best_params["num_leaves"] = int(round(best_params["num_leaves"]))
+best_params["min_child_samples"] = int(round(best_params["min_child_samples"]))
+best_params["bagging_freq"] = int(round(best_params["bagging_freq"]))
+best_params["seed"] = 42
+best_params["n_jobs"] = -1
+best_params["objective"] = "regression"
+best_params["metric"] = "rmse"
+best_params["verbosity"] = -1
+best_params["feature_pre_filter"] = False
+best_params["boosting_type"] = "gbdt"
 
+model = lgb.LGBMRegressor(**best_params)
+model.fit(X_train_lgbm, y_train)
 
 
 ############################################## Models Generalization Performance ##############################################
@@ -341,3 +357,4 @@ evaluate_tree_model(final_model_dt, X_val_tree, y_val, "Decision Tree Regressor 
 evaluate_tree_model(final_model_rf, X_val_tree, y_val, "Random Forest Regressor Model")
 evaluate_tree_model(final_model_xgb, X_val_xgb, y_val, "XGBoost Regressor Model")
 evaluate_tree_model(final_model_lgbm, X_val_lgbm, y_val, "LGBM Regressor Model")
+evaluate_tree_model(model, X_val_lgbm, y_val, "LGBM (Bayesian) Regressor Model")
