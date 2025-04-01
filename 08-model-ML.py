@@ -199,6 +199,67 @@ selected_features_xgb_final = X_train_xgb.columns[np.array(final_model_xgb.featu
 print("Selected features for XGBoost:")
 print(selected_features_xgb_final)
 
+############################################## XGBoost Regressor Model with gblinear ############################################################
+sig_features = ["Age_House", "BsmtCond", "BsmtFinType1", "BsmtFullBath", "BsmtQual", 
+                "Exterior1st_Exterior2nd_BrkComm_Brk Cmn", "Exterior1st_Exterior2nd_BrkFace", 
+                "Exterior1st_Exterior2nd_BrkFace_Plywood", "Exterior1st_Exterior2nd_BrkFace_Wd Sdng", 
+                "Exterior1st_Exterior2nd_CemntBd_CmentBd", "Exterior1st_Exterior2nd_Wd Sdng_ImStucc", 
+                "Fireplaces", "Foundation_Stone", "Foundation_Wood", "FullBath", "Functional_Maj2", 
+                "Functional_Min1", "Functional_Min2", "Functional_Mod", "Functional_Sev", "GarageArea", 
+                "HalfBath", "Heating_HeatingQC_GasW_Fa", "KitchenAbvGr", "KitchenQual", 
+                "LotConfig_LandSlope_CulDSac_Gtl", "LotShape_LandContour_IR1_HLS", 
+                "LotShape_LandContour_IR2_Bnk", "Neighborhood_Condition_BrkSide_Norm", 
+                "Neighborhood_Condition_BrkSide_PosN_Norm", "Neighborhood_Condition_Edwards_Artery_Norm", 
+                "Neighborhood_Condition_Edwards_PosN", "Neighborhood_Condition_IDOTRR_Artery_Norm", 
+                "Neighborhood_Condition_MeadowV_Norm", "Neighborhood_Condition_NAmes_Artery_Norm", 
+                "Neighborhood_Condition_NAmes_PosA_Norm", "Neighborhood_Condition_NWAmes_Norm", 
+                "Neighborhood_Condition_NWAmes_RRAn_Norm", "Neighborhood_Condition_NoRidge_Norm", 
+                "Neighborhood_Condition_NridgHt_Norm", "Neighborhood_Condition_OldTown_Artery_Norm", 
+                "Neighborhood_Condition_OldTown_Feedr_Norm", "Neighborhood_Condition_Sawyer_RRAe_Norm", 
+                "Neighborhood_Condition_StoneBr_Norm", "OverallCond", "OverallQual", 
+                "RoofStyle_RoofMatl_Gable_WdShngl", "RoofStyle_RoofMatl_Hip_ClyTile", 
+                "SaleCondition_AdjLand", "SaleCondition_Alloca", "SaleCondition_Normal", 
+                "SaleType_Oth", "SaleType_WD", "ScreenPorch", "log_GrLivArea", "log_LotArea", 
+                "log_Yrs_Since_Remodel", "sqrt_TotalBsmtSF", "sqrt_WoodDeckSF"]
+
+X_train_linear = pd.read_csv("data/model_data/X_train.csv")
+X_val_linear = pd.read_csv("data/model_data/X_val.csv")
+y_train_linear = pd.read_csv("data/model_data/y_train.csv")
+y_val_linear = pd.read_csv("data/model_data/y_val.csv")
+
+X_train_xgb_linear = X_train_linear[sig_features]
+X_val_xgb_linear = X_val_linear[sig_features]
+
+cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
+xgb_model_linear = xgb.XGBRegressor(
+    random_state=random_state, 
+    objective="reg:squarederror", 
+    booster="gblinear"
+)
+
+param_grid = {
+    "n_estimators": [50, 100, 200],  
+    "learning_rate": [0.01, 0.05, 0.1],  # Learning rate for convergence
+    "lambda": [0.1, 1, 10],             # L2 regularization
+    "alpha": [0, 0.1, 0.5, 1]           # L1 regularization
+}
+
+gs_xgb_linear = GridSearchCV(
+    estimator=xgb_model_linear,
+    param_grid=param_grid,
+    scoring="neg_root_mean_squared_error",
+    cv=cv,
+    n_jobs=-1,
+    refit=True
+)
+
+gs_xgb_linear.fit(X_train_xgb_linear, y_train_linear.values.ravel())
+
+print("10-Fold CV RMSE:", -gs_xgb_linear.best_score_)
+print("Optimal Parameters:", gs_xgb_linear.best_params_)
+print("Optimal Estimator:", gs_xgb_linear.best_estimator_)
+
+final_model_xgb_linear = gs_xgb_linear.best_estimator_
 
 
 ############################################## LightGBM Regressor Model ############################################################
@@ -437,12 +498,21 @@ def evaluate_tree_model(model, X, y, name):
     print(f"Root Mean Squared Error: {rmse:.4f}")
 
 
+def evaluate_linear_model(model, X, y, name):
+    predictions = model.predict(X)
+    predictions = np.expm1(predictions)
+    y_actual = np.expm1(y)
+    rmse = root_mean_squared_error(y_actual, predictions)
+    print(f"{name} Performance:")
+    print(f"Root Mean Squared Error: {rmse:.4f}")
 
 print("############################################## 10-Fold CV Hyperparameter-Tuned ##############################################")
 evaluate_tree_model(final_model_dt, X_val_tree, y_val, "Decision Tree Regressor")
 evaluate_tree_model(final_model_rf, X_val_tree, y_val, "Random Forest Regressor")
 evaluate_tree_model(final_model_xgb, X_val_xgb, y_val, "XGBoost Regressor")
+evaluate_linear_model(final_model_xgb_linear, X_val_xgb_linear, y_val_linear, "XGBoost (gblinear) Regressor")
 evaluate_tree_model(final_model_lgbm, X_val_lgbm, y_val, "LightGBM Regressor")
+
 print("############################################## 10-Fold CV Hyperparameter-Tuned with Bayesian Optimization ##############################################")
 evaluate_tree_model(xgb_bayes_model, X_val_xgb, y_val, "XGBoost Regressor (Bayesian Optimizied)")
 evaluate_tree_model(lgbm_bayes_model, X_val_lgbm, y_val, "LightGBM Regressor (Bayesian Optimizied)")
