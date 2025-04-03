@@ -517,20 +517,11 @@ def evaluate_tree_model(model, X, y, name):
     print(f"{name} Performance:")
     print(f"Root Mean Squared Error: {rmse:.4f}")
 
-
-def evaluate_linear_model(model, X, y, name):
-    predictions = model.predict(X)
-    predictions = np.expm1(predictions)
-    y_actual = np.expm1(y)
-    rmse = root_mean_squared_error(y_actual, predictions)
-    print(f"{name} Performance:")
-    print(f"Root Mean Squared Error: {rmse:.4f}")
-
 print("############################################## 10-Fold CV Hyperparameter-Tuned ##############################################")
 evaluate_tree_model(final_model_dt, X_val_tree, y_val, "Decision Tree Regressor")
 evaluate_tree_model(final_model_rf, X_val_tree, y_val, "Random Forest Regressor")
 evaluate_tree_model(final_model_xgb, X_val_xgb, y_val, "XGBoost Regressor")
-evaluate_linear_model(final_model_xgb_linear, X_val_xgb_linear, y_val_linear, "XGBoost (gblinear) Regressor")
+evaluate_tree_model(final_model_xgb_linear, X_val_xgb_linear, y_val_linear, "XGBoost (gblinear) Regressor")
 evaluate_tree_model(final_model_lgbm, X_val_lgbm, y_val, "LightGBM Regressor")
 
 print("############################################## 10-Fold CV Hyperparameter-Tuned with Bayesian Optimization ##############################################")

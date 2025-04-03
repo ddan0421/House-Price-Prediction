@@ -204,19 +204,17 @@ y_train.to_csv("data/model_data/y_train_svm.csv", index=False)
 X_val_ml.to_csv("data/model_data/X_val_svm.csv", index=False)
 
 ############################################## Models Generalization Performance ##############################################
-def evaluate_model(model, X, y, name):
+def evaluate_linear_model(model, X, y, name):
     predictions = model.predict(X)
-    predictions = np.expm1(predictions)
-    y_actual = np.expm1(y)
-    rmse = root_mean_squared_error(y_actual, predictions)
+    rmse = root_mean_squared_error(y, predictions)
     print(f"{name} Performance:")
     print(f"Root Mean Squared Error: {rmse:.4f}")
 
-evaluate_model(ols_lr, X_val_regress, y_val, "OLS Model")
-evaluate_model(glm_lr, X_val_regress, y_val, "GLM Gaussian Model")
-evaluate_model(glm_lr_constrained, X_val_regress, y_val, "Constrained GLM Gaussian Model")
-evaluate_model(final_model_ridge, X_val_ml, y_val, "Ridge Model")
-evaluate_model(final_model_lasso, X_val_ml, y_val, "Lasso Model")
-evaluate_model(final_model_svm, X_val_ml, y_val, "SVM Model")
+evaluate_linear_model(ols_lr, X_val_regress, y_val, "OLS Model")
+evaluate_linear_model(glm_lr, X_val_regress, y_val, "GLM Gaussian Model")
+evaluate_linear_model(glm_lr_constrained, X_val_regress, y_val, "Constrained GLM Gaussian Model")
+evaluate_linear_model(final_model_ridge, X_val_ml, y_val, "Ridge Model")
+evaluate_linear_model(final_model_lasso, X_val_ml, y_val, "Lasso Model")
+evaluate_linear_model(final_model_svm, X_val_ml, y_val, "SVM Model")
 
 
