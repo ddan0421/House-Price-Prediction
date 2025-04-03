@@ -268,11 +268,15 @@ test_final["LotFrontage"] = iterative_imputer.transform(test_encoded[columns_for
 if not os.path.exists("data/model_data"):
     os.makedirs("data/model_data")
 
+# Transform SalePrice
+y_train_ml = np.log1p(y_train)
+y_val_ml = np.log1p(y_val)
+
 X_train_imputed.drop("Id", axis=1).to_csv("data/model_data/X_train_ml.csv", index=False)
 X_val_imputed.drop("Id", axis=1).to_csv("data/model_data/X_val_ml.csv", index=False)
 test_final.drop("Id", axis=1).to_csv("data/model_data/test_final_ml.csv", index=False)
-y_train.to_csv("data/model_data/y_train_ml.csv", index=False)
-y_val.to_csv("data/model_data/y_val_ml.csv", index=False)
+y_train_ml.to_csv("data/model_data/y_train_ml.csv", index=False)
+y_val_ml.to_csv("data/model_data/y_val_ml.csv", index=False)
 ###################################################################################################################################
 
 # Step 8: Correlation analysis and transform numerical terms
