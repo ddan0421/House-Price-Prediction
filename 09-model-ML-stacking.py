@@ -40,6 +40,21 @@ oof_preds = np.zeros((X_train_xgb.shape[0], len(base_models)))
 kf = KFold(n_splits=10, shuffle=True, random_state=42)
 
 # Generate OOF predictions for each base model
+"""
+k-fold cross validation overview:
+
+train_idx: 
+- In each fold, the train_idx consists of all the data indices that are not part of the val_idx for that fold.
+
+val_idx: 
+- The val_idx is unique for each fold. No data point will appear in the validation set for more than one fold.
+- the sum of all val_idx across all folds will equal the total number of data points in the dataset.
+
+After the loop completes, the oof_preds array will have predictions for all data points, 
+and every prediction will be made by a model that was not trained on the corresponding data point.
+This ensures the OOF predictions are unbiased estimates of the model's performance.
+
+"""
 for fold, (train_idx, val_idx) in enumerate(kf.split(X_train_xgb)):
     for i, (name, model, X_train, y_train) in enumerate(base_models):
         X_fold_train, X_fold_val = X_train[train_idx], X_train[val_idx]
