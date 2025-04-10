@@ -61,11 +61,7 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X_train_xgb)):
         y_fold_train, y_fold_val = y_train[train_idx], y_train[val_idx]
         
         model.fit(X_fold_train, y_fold_train)  # Train on fold-specific data
-
-        if name == "svr":
-            oof_preds[val_idx, i] = np.expm1(model.predict(X_fold_val))
-        else:
-            oof_preds[val_idx, i] = model.predict(X_fold_val)  # Regular predictions for other models
+        oof_preds[val_idx, i] = model.predict(X_fold_val)  
 
 oof_df = pd.DataFrame(oof_preds, columns=[name for name, _, _, _ in base_models])
 oof_df["Target"] = y_train_xgb
@@ -92,7 +88,7 @@ for i, (name, model, _, _) in enumerate(base_models):
     elif name == "rf":
         test_preds[:, i] = model.predict(X_val_rf)
     elif name == "svr":
-        test_preds[:, i] = np.expm1(model.predict(X_val_svm))
+        test_preds[:, i] = model.predict(X_val_svm)
 
 # Final predictions using meta-learner
 test_preds = sm.add_constant(test_preds)
