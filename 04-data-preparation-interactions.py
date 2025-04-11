@@ -24,7 +24,7 @@ Step 5: Impute missing continuous numerical data in the training set using Itera
 Step 6: Impute missing continuous numerical data in the validation set using the trained imputer
 Step 7: Impute missing continuous numerical data in the test set using the trained imputer
 Step 8: Correlation analysis and transform numerical terms
-
+Step 9: Creating interaction terms for numerical variables
 
 Impute Missing Values Separately:
 - Train the regression imputation model using only the training subset.
@@ -373,6 +373,33 @@ cube_root_cols = ["MasVnrArea", "OpenPorchSF"]
 X_train_final = transform_and_drop(X_train_imputed.copy(), log_cols, sqrt_cols, cube_root_cols)
 X_val_final = transform_and_drop(X_val_imputed.copy(), log_cols, sqrt_cols, cube_root_cols)
 test_final = transform_and_drop(test_final.copy(), log_cols, sqrt_cols, cube_root_cols)
+
+
+# Step 9: Creating interaction terms for numerical variables
+"""
+log_GrLivArea × TotRmsAbvGrd: Interaction between total rooms and living area, which could reflect spaciousness.
+GarageArea × GarageCars: Correlates garage area with its car capacity, showing efficiency of garage space utilization.
+log_Age_Garage × GarageCars: Reflects how the age of the garage relates to its functionality or relevance to car capacity.
+BedroomAbvGr / TotRmsAbvGrd: Measures the proportion of bedrooms relative to the total rooms above grade.
+2ndFlrSF / GrLivArea: captures the proportion of second-floor square footage to the total above-grade living area.
+
+"""
+
+
+def create_interactions(df):
+    df["Living_Rooms"] = df["log_GrLivArea"] * df["TotRmsAbvGrd"]
+    df["Garage_Space"] = df["GarageArea"] * df["GarageCars"]
+    df["Garage_AgeCars"] = df["log_Age_Garage"] * df["GarageCars"]
+    df["Porch_Age"] = df["EnclosedPorch"] * df["Age_House"]
+    df["Ratio_Bedroom_Rooms"] = df["BedroomAbvGr"] / (df["TotRmsAbvGrd"])
+    df["Ratio_2ndFlr_Living"] = df["log_2ndFlrSF"] / (df["log_GrLivArea"])
+
+    return df
+
+X_train_final = create_interactions(X_train_final)
+X_val_final = create_interactions(X_val_final)
+test_final = create_interactions(test_final)
+
 
 # Transform SalePrice
 y_train_final = np.log1p(y_train)

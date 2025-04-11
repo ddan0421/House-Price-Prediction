@@ -19,7 +19,8 @@ numerical_variables = [
     "cbrt_MasVnrArea", "cbrt_OpenPorchSF",
     "BsmtFullBath", "BsmtHalfBath", "FullBath", "HalfBath", "BedroomAbvGr", "KitchenAbvGr",
     "TotRmsAbvGrd", "Fireplaces", "GarageCars", "GarageArea", "EnclosedPorch", "3SsnPorch",
-    "ScreenPorch", "PoolArea", "MiscVal", "Age_House"
+    "ScreenPorch", "PoolArea", "MiscVal", "Age_House",
+    "Living_Rooms", "Garage_Space", "Garage_AgeCars", "Porch_Age", "Ratio_Bedroom_Rooms", "Ratio_2ndFlr_Living"
 ]
 
 scaler = StandardScaler()

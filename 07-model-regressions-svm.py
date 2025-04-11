@@ -94,7 +94,8 @@ selected_numeric_features = [
     "log_LotArea", "cbrt_MasVnrArea", "sqrt_TotalBsmtSF", "log_1stFlrSF", 
     "log_GrLivArea", "BsmtFullBath", "FullBath", "HalfBath", "BedroomAbvGr", 
     "KitchenAbvGr", "Fireplaces", "GarageCars", "GarageArea", "sqrt_WoodDeckSF", 
-    "cbrt_OpenPorchSF", "EnclosedPorch", "Age_House", "TotRmsAbvGrd"
+    "cbrt_OpenPorchSF", "EnclosedPorch", "Age_House", "TotRmsAbvGrd",
+    "Living_Rooms", "Garage_Space", "Garage_AgeCars", "Porch_Age", "log_Yrs_Since_Remodel", "Ratio_Bedroom_Rooms", "Ratio_2ndFlr_Living", "log_2ndFlrSF"
 ]
 
 

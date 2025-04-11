@@ -25,6 +25,20 @@ y_val = pd.read_csv("data/model_data/y_val_ml.csv")
 
 random_state = 42
 seed = 42
+###################################################################### Numerical Interaction ######################################################################
+def create_interactions(df):
+    df["Living_Rooms"] = df["GrLivArea"] * df["TotRmsAbvGrd"]
+    df["Garage_Space"] = df["GarageArea"] * df["GarageCars"]
+    df["Garage_AgeCars"] = df["Age_Garage"] * df["GarageCars"]
+    df["Porch_Age"] = df["EnclosedPorch"] * df["Age_House"]
+    df["Ratio_Bedroom_Rooms"] = df["BedroomAbvGr"] / (df["TotRmsAbvGrd"])
+    df["Ratio_2ndFlr_Living"] = df["2ndFlrSF"] / (df["GrLivArea"])
+
+    return df
+X_train = create_interactions(X_train)
+X_val = create_interactions(X_val)
+test_final = create_interactions(test_final)
+
 ###################################################################### Feature Selection ######################################################################
 # Train a Random Forest Regressor
 rf_model = RandomForestRegressor(n_estimators=200, random_state=random_state)
@@ -81,7 +95,8 @@ selected_numeric_features = [
     "LotArea", "MasVnrArea", "TotalBsmtSF", "1stFlrSF", 
     "GrLivArea", "BsmtFullBath", "FullBath", "HalfBath", "BedroomAbvGr", 
     "KitchenAbvGr", "Fireplaces", "GarageCars", "GarageArea", "WoodDeckSF", 
-    "OpenPorchSF", "EnclosedPorch", "Age_House", "TotRmsAbvGrd"
+    "OpenPorchSF", "EnclosedPorch", "Age_House", "TotRmsAbvGrd",
+    "Living_Rooms", "Garage_Space", "Garage_AgeCars", "Porch_Age", "Yrs_Since_Remodel", "Ratio_Bedroom_Rooms", "Ratio_2ndFlr_Living", "2ndFlrSF"
 ]
 
 
