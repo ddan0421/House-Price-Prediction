@@ -402,8 +402,8 @@ test_final = create_interactions(test_final)
 
 
 # Transform SalePrice
-y_train_final = np.log1p(y_train)
-y_val_final = np.log1p(y_val)
+y_train_final = np.log(y_train)
+y_val_final = np.log(y_val)
 
 X_train_final.to_csv("data/X_train.csv", index=False)
 X_val_final.to_csv("data/X_val.csv", index=False)
