@@ -121,6 +121,9 @@ def evaluate_model(model, X, y, name):
 
 evaluate_model(best_model, X_val, y_val, "Tuned Neural Network Model")
 
+best_model.save("final_model_NN.h5")
+# new_model = tf.keras.models.load_model("final_model_NN.h5")
+
 
 
 
