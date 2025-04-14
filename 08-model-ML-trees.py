@@ -335,7 +335,14 @@ selected_features_lgbm = X_train_lgbm.columns[np.array(final_model_lgbm.feature_
 print("Selected features for LightGBM:")
 print(selected_features_lgbm)
 
+# Save the trained model for future use (stacking)
+with open("final_model_lgbm.pkl", "wb") as f:
+    pickle.dump(final_model_lgbm, f)
+print("lgbm model saved to final_model_lgbm.pkl")
 
+X_train_lgbm.to_csv("data/model_data/X_train_lgbm.csv", index=False)
+y_train.to_csv("data/model_data/y_train_lgbm.csv", index=False)
+X_val_lgbm.to_csv("data/model_data/X_val_lgbm.csv", index=False)
 
 
 ############################################## LGBM Models with Bayesian Optimization ############################################################
@@ -445,6 +452,15 @@ best_params["boosting_type"] = "gbdt"
 lgbm_bayes_model = lgb.LGBMRegressor(**best_params)
 lgbm_bayes_model.fit(X_train_lgbm, y_train)
 
+# Save the trained model for future use (stacking)
+with open("final_model_LGBM_bayes.pkl", "wb") as f:
+    pickle.dump(lgbm_bayes_model, f)
+print("LGBM Bayes model saved to final_model_LGBM_bayes.pkl")
+
+X_train_lgbm.to_csv("data/model_data/X_train_lgbm_bayes.csv", index=False)
+y_train.to_csv("data/model_data/y_train_lgbm_bayes.csv", index=False)
+X_val_lgbm.to_csv("data/model_data/X_val_lgbm_bayes.csv", index=False)
+
 ############################################## XGB Models with Bayesian Optimization ############################################################
 def bayesian_opt_xgb(X, y, init_iter=20, n_iters=50, random_state=random_state, seed=seed):
     # Objective Function for Bayesian Optimization
@@ -523,6 +539,15 @@ best_params["random_state"] = random_state
 
 xgb_bayes_model = xgb.XGBRegressor(**best_params)
 xgb_bayes_model.fit(X_train_xgb, y_train)
+
+# Save the trained model for future use (stacking)
+with open("final_model_xgb_bayes.pkl", "wb") as f:
+    pickle.dump(xgb_bayes_model, f)
+print("XGB Bayes model saved to final_model_xgb_bayes.pkl")
+
+X_train_xgb.to_csv("data/model_data/X_train_xgb_bayes.csv", index=False)
+y_train.to_csv("data/model_data/y_train_xgb_bayes.csv", index=False)
+X_val_xgb.to_csv("data/model_data/X_val_xgb_bayes.csv", index=False)
 
 ############################################## Models Generalization Performance ##############################################
 def evaluate_tree_model(model, X, y, name):

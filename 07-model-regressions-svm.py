@@ -170,6 +170,15 @@ selected_features_lasso = X_train_ml.columns[final_model_lasso.coef_.flatten() !
 print("Selected features for Lasso:")
 print(selected_features_lasso)
 
+# Save the trained model for future use (stacking)
+with open("final_model_lasso.pkl", "wb") as f:
+    pickle.dump(final_model_lasso, f)
+print("Lasso model saved to final_model_lasso.pkl")
+
+X_train_ml.to_csv("data/model_data/X_train_lasso.csv", index=False)
+y_train.to_csv("data/model_data/y_train_lasso.csv", index=False)
+X_val_ml.to_csv("data/model_data/X_val_lasso.csv", index=False)
+
 ############################# SVM #############################
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 svm = SVR()
