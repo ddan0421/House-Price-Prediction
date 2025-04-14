@@ -269,8 +269,8 @@ if not os.path.exists("data/model_data"):
     os.makedirs("data/model_data")
 
 # Transform SalePrice
-y_train_ml = np.log1p(y_train)
-y_val_ml = np.log1p(y_val)
+y_train_ml = np.log(y_train)
+y_val_ml = np.log(y_val)
 
 X_train_imputed.drop("Id", axis=1).to_csv("data/model_data/X_train_ml.csv", index=False)
 X_val_imputed.drop("Id", axis=1).to_csv("data/model_data/X_val_ml.csv", index=False)
