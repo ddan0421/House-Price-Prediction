@@ -2,6 +2,10 @@ import subprocess
 import logging
 from datetime import datetime
 from pytz import timezone
+import sys
+import io
+
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 # Set up timezone for logging
 def timetz(*args):
