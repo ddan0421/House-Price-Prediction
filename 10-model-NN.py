@@ -66,7 +66,7 @@ def build_model(hp):
 tuner = Hyperband(
     build_model,
     objective="val_loss",
-    max_epochs=50,  # Number of hyperparameter combinations to try
+    max_epochs=100,  # Number of hyperparameter combinations to try
     executions_per_trial=1,  # Number of executions per trial
     directory="hyperparameter_tuning",
     project_name="price_nn_tuning",
