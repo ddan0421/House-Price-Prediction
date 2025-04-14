@@ -87,7 +87,7 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X_train_xgb)):
             # Train traditional models
             model.fit(X_fold_train, y_fold_train)
 
-        oof_preds[val_idx, i] = model.predict(X_fold_val)  
+        oof_preds[val_idx, i] = model.predict(X_fold_val).flatten()  
 
 oof_df = pd.DataFrame(oof_preds, columns=[name for name, _, _, _ in base_models])
 oof_df["Target"] = y_train_xgb
@@ -111,13 +111,13 @@ test_preds = np.zeros((X_val_xgb.shape[0], len(base_models)))
 
 for i, (name, model, _, _) in enumerate(base_models):
     if name == "xgb":
-        test_preds[:, i] = model.predict(X_val_xgb)
+        test_preds[:, i] = model.predict(X_val_xgb).flatten()
     elif name == "rf":
-        test_preds[:, i] = model.predict(X_val_rf)
+        test_preds[:, i] = model.predict(X_val_rf).flatten()
     elif name == "svr":
-        test_preds[:, i] = model.predict(X_val_svm)
+        test_preds[:, i] = model.predict(X_val_svm).flatten()
     elif name == "nn":
-        test_preds[:, i] = model.predict(X_val_nn, batch_size=X_val_nn.shape[0])
+        test_preds[:, i] = model.predict(X_val_nn, batch_size=X_val_nn.shape[0]).flatten()
 
 # Final predictions using meta-learner
 test_preds = sm.add_constant(test_preds)
