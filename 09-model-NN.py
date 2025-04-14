@@ -3,10 +3,10 @@ import numpy as np
 from sklearn.metrics import root_mean_squared_error
 from tensorflow.keras import Sequential, Input
 from tensorflow.keras.layers import Dense, Dropout
-from tensorflow.keras import optimizers
+from tensorflow.keras import optimizers, metrics
 from tensorflow.keras.callbacks import EarlyStopping
 import tensorflow.keras.backend as K
-from keras_tuner.tuners import RandomSearch, BayesianOptimization
+from keras_tuner.tuners import RandomSearch, BayesianOptimization, Hyperband
 import tensorflow as tf
 import random
 
@@ -27,11 +27,6 @@ y_val = np.array(y_val)
 random.seed(42)  # Python random seed
 np.random.seed(42)  # NumPy random seed
 tf.random.set_seed(42)  # TensorFlow random seed
-
-@tf.keras.utils.register_keras_serializable()
-def rmse_transformed(y_true, y_pred):
-    return tf.sqrt(tf.reduce_mean(tf.square(y_true - y_pred)))
-
 
 # Define the model-building function for hyperparameter tuning
 def build_model(hp):
@@ -63,15 +58,15 @@ def build_model(hp):
             learning_rate=hp.Float("learning_rate", min_value=1e-4, max_value=1e-2, sampling="log") # Tune Learning Rate. According to Andrew Ng lol
         ),
         loss="mean_squared_error",
-        metrics=[rmse_transformed]
+        metrics=[metrics.RootMeanSquaredError()]
     )
     return model
 
 # Set up the Keras Tuner
-tuner = BayesianOptimization(
+tuner = Hyperband(
     build_model,
     objective="val_loss",
-    max_trials=50,  # Number of hyperparameter combinations to try
+    max_epochs=50,  # Number of hyperparameter combinations to try
     executions_per_trial=1,  # Number of executions per trial
     directory="hyperparameter_tuning",
     project_name="price_nn_tuning",
