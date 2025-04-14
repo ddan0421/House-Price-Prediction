@@ -2,10 +2,11 @@ import subprocess
 import logging
 from datetime import datetime
 from pytz import timezone
-import sys
-import io
+import os
+import locale
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+locale.setlocale(locale.LC_ALL, "en_US.UTF-8")  # Set UTF-8 as the default locale
+os.environ["PYTHONIOENCODING"] = "utf-8"        # Ensure subprocess inherits UTF-8
 
 # Set up timezone for logging
 def timetz(*args):
