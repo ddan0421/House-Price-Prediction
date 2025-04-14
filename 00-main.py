@@ -32,7 +32,8 @@ SCRIPTS = [
     "07-model-regressions-svm.py",
     "08-model-ML-trees.py",
     "09-model-ML-stacking.py",
-    "09-model-NN.py"
+    "09-model-NN.py",
+    "10-final-stacking.py"
 ]
 
 # Function to execute a Python script
