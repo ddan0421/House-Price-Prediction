@@ -28,9 +28,8 @@ random.seed(42)  # Python random seed
 np.random.seed(42)  # NumPy random seed
 tf.random.set_seed(42)  # TensorFlow random seed
 
-
+@tf.keras.utils.register_keras_serializable()
 def rmse_transformed(y_true, y_pred):
-    # Compute RMSE for transformed values
     return tf.sqrt(tf.reduce_mean(tf.square(y_true - y_pred)))
 
 
