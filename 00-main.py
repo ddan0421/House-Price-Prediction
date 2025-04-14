@@ -2,11 +2,6 @@ import subprocess
 import logging
 from datetime import datetime
 from pytz import timezone
-import os
-import locale
-
-locale.setlocale(locale.LC_ALL, "en_US.UTF-8")  # Set UTF-8 as the default locale
-os.environ["PYTHONIOENCODING"] = "utf-8"        # Ensure subprocess inherits UTF-8
 
 # Set up timezone for logging
 def timetz(*args):
@@ -36,9 +31,7 @@ SCRIPTS = [
     "06-data-preparation-standardization.py",
     "07-model-regressions-svm.py",
     "08-model-ML-trees.py",
-    "09-model-ML-stacking.py",
-    "09-model-NN.py",
-    "10-final-stacking.py"
+    "09-model-ML-stacking.py"
 ]
 
 # Function to execute a Python script
