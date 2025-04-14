@@ -235,27 +235,26 @@ y_train.to_csv("data/model_data/y_train_xgb.csv", index=False)
 X_val_xgb.to_csv("data/model_data/X_val_xgb.csv", index=False)
 
 ############################################## XGBoost Regressor Model with gblinear ############################################################
-sig_features = ["Age_House", "BsmtCond", "BsmtFinType1", "BsmtFullBath", "BsmtQual", 
-                "Exterior1st_Exterior2nd_BrkComm_Brk Cmn", "Exterior1st_Exterior2nd_BrkFace", 
-                "Exterior1st_Exterior2nd_BrkFace_Plywood", "Exterior1st_Exterior2nd_BrkFace_Wd Sdng", 
-                "Exterior1st_Exterior2nd_CemntBd_CmentBd", "Exterior1st_Exterior2nd_Wd Sdng_ImStucc", 
-                "Fireplaces", "Foundation_Stone", "Foundation_Wood", "FullBath", "Functional_Maj2", 
-                "Functional_Min1", "Functional_Min2", "Functional_Mod", "Functional_Sev", "GarageArea", 
-                "HalfBath", "Heating_HeatingQC_GasW_Fa", "KitchenAbvGr", "KitchenQual", 
-                "LotConfig_LandSlope_CulDSac_Gtl", "LotShape_LandContour_IR1_HLS", 
-                "LotShape_LandContour_IR2_Bnk", "Neighborhood_Condition_BrkSide_Norm", 
-                "Neighborhood_Condition_BrkSide_PosN_Norm", "Neighborhood_Condition_Edwards_Artery_Norm", 
-                "Neighborhood_Condition_Edwards_PosN", "Neighborhood_Condition_IDOTRR_Artery_Norm", 
-                "Neighborhood_Condition_MeadowV_Norm", "Neighborhood_Condition_NAmes_Artery_Norm", 
-                "Neighborhood_Condition_NAmes_PosA_Norm", "Neighborhood_Condition_NWAmes_Norm", 
-                "Neighborhood_Condition_NWAmes_RRAn_Norm", "Neighborhood_Condition_NoRidge_Norm", 
-                "Neighborhood_Condition_NridgHt_Norm", "Neighborhood_Condition_OldTown_Artery_Norm", 
-                "Neighborhood_Condition_OldTown_Feedr_Norm", "Neighborhood_Condition_Sawyer_RRAe_Norm", 
-                "Neighborhood_Condition_StoneBr_Norm", "OverallCond", "OverallQual", 
-                "RoofStyle_RoofMatl_Gable_WdShngl", "RoofStyle_RoofMatl_Hip_ClyTile", 
-                "SaleCondition_AdjLand", "SaleCondition_Alloca", "SaleCondition_Normal", 
-                "SaleType_Oth", "SaleType_WD", "ScreenPorch", "log_GrLivArea", "log_LotArea", 
-                "log_Yrs_Since_Remodel", "sqrt_TotalBsmtSF", "sqrt_WoodDeckSF"]
+sig_features = [
+    "Age_House", "BsmtCond", "BsmtFinType1", "BsmtFullBath", "BsmtQual", "CentralAir_Electrical_Y_FuseA",
+    "CentralAir_Electrical_Y_SBrkr", "Exterior1st_Exterior2nd_BrkComm_Brk Cmn", "Exterior1st_Exterior2nd_BrkFace",
+    "Exterior1st_Exterior2nd_BrkFace_Plywood", "Exterior1st_Exterior2nd_BrkFace_Wd Sdng", 
+    "Exterior1st_Exterior2nd_CemntBd_CmentBd", "Exterior1st_Exterior2nd_Wd Sdng_ImStucc", 
+    "Exterior1st_Exterior2nd_Wd Sdng_VinylSd", "Fireplaces", "Functional_Maj2", "Functional_Min1", 
+    "Functional_Min2", "Functional_Mod", "Functional_Sev", "KitchenAbvGr", "KitchenQual", 
+    "LotShape_LandContour_IR1_HLS", "LotShape_LandContour_IR2_Bnk", 
+    "Neighborhood_Condition_BrkSide_PosN_Norm", "Neighborhood_Condition_Edwards_Artery_Norm", 
+    "Neighborhood_Condition_Edwards_PosN", "Neighborhood_Condition_IDOTRR_Artery_Norm", 
+    "Neighborhood_Condition_MeadowV_Norm", "Neighborhood_Condition_NAmes_Artery_Norm", 
+    "Neighborhood_Condition_NAmes_PosA_Norm", "Neighborhood_Condition_NoRidge_Norm", 
+    "Neighborhood_Condition_NridgHt_Norm", "Neighborhood_Condition_OldTown_Feedr_Norm", 
+    "Neighborhood_Condition_Sawyer_RRAe_Norm", "Neighborhood_Condition_StoneBr_Norm", "OverallCond", 
+    "OverallQual", "Ratio_2ndFlr_Living", "RoofStyle_RoofMatl_Gable_WdShngl", 
+    "RoofStyle_RoofMatl_Hip_ClyTile", "SaleCondition_Alloca", "SaleCondition_Normal", 
+    "SaleType_WD", "ScreenPorch", "log_GrLivArea", "log_LotArea", "log_Yrs_Since_Remodel", 
+    "sqrt_TotalBsmtSF", "sqrt_WoodDeckSF"
+]
+
 
 X_train_linear = pd.read_csv("data/model_data/X_train.csv")
 X_val_linear = pd.read_csv("data/model_data/X_val.csv")

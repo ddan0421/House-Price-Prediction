@@ -114,7 +114,7 @@ glm_lr = models.sm_glm_gaussian(X_train_regress, y_train)
 glm_lr_constrained = models.constrained_sm_glm_gaussian(X_train_regress, y_train, glm_lr, 0.05)
 
 ############################# Regularized Regression Models #############################
-ml_features = glm_lr_constrained.params.index[(glm_lr_constrained.params != 0) & (glm_lr_constrained.params.index != "const")].to_list()
+ml_features = glm_lr_constrained.params.index[(glm_lr_constrained.pvalues < 0.05) & (glm_lr_constrained.params != 0) & (glm_lr_constrained.params.index != "const")].to_list()
 X_train_ml = X_train[ml_features]
 X_val_ml = X_val[ml_features]
 
