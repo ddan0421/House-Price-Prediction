@@ -295,6 +295,14 @@ print("Optimal Estimator:", gs_xgb_linear.best_estimator_)
 
 final_model_xgb_linear = gs_xgb_linear.best_estimator_
 
+# Save the trained model for future use (stacking)
+with open("final_model_xgb_linear.pkl", "wb") as f:
+    pickle.dump(final_model_xgb_linear, f)
+print("XGB linear model saved to final_model_xgb_linear.pkl")
+
+X_train_xgb_linear.to_csv("data/model_data/X_train_xgb_linear.csv", index=False)
+y_train_linear.to_csv("data/model_data/y_train_xgb_linear.csv", index=False)
+X_val_xgb_linear.to_csv("data/model_data/X_val_xgb_linear.csv", index=False)
 
 ############################################## LightGBM Regressor Model ############################################################
 # Reduce the feature set using xgb's selected features

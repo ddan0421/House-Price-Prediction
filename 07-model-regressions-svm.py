@@ -113,6 +113,15 @@ ols_lr = models.sm_ols(X_train_regress, y_train)
 glm_lr = models.sm_glm_gaussian(X_train_regress, y_train)
 glm_lr_constrained = models.constrained_sm_glm_gaussian(X_train_regress, y_train, glm_lr, 0.05)
 
+# Save the trained model for future use (stacking)
+with open("final_model_lr_constraiend.pkl", "wb") as f:
+    pickle.dump(glm_lr_constrained, f)
+print("LR constrained model saved to final_model_lr_constraiend.pkl")
+
+X_train_regress.to_csv("data/model_data/X_train_lr.csv", index=False)
+y_train.to_csv("data/model_data/y_train_lr.csv", index=False)
+X_val_regress.to_csv("data/model_data/X_val_lr.csv", index=False)
+
 ############################# Regularized Regression Models #############################
 ml_features = glm_lr_constrained.params.index[(glm_lr_constrained.pvalues < 0.05) & (glm_lr_constrained.params != 0) & (glm_lr_constrained.params.index != "const")].to_list()
 X_train_ml = X_train[ml_features]
