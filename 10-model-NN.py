@@ -103,7 +103,8 @@ history = best_model.fit(
     epochs=100,
     batch_size=32,
     callbacks=[stop_early],
-    verbose=1
+    verbose=1,
+    shuffle=True
 )
 
 # Evaluate the model
