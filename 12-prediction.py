@@ -79,9 +79,9 @@ base_models = [
     ("lr", lr_model, X_lr, y_lr),
     ("svr", svr_model, X_svm, y_svm),
     # ("lasso", lasso_model, X_lasso, y_lasso),
-    # ("lgbm_bayes", lgbm_bayes_model, X_lgbm_bayes, y_lgbm_bayes),
-    # ("xgb_bayes", xgb_bayes_model, X_xgb_bayes, y_xgb_bayes),
-    # ("lgbm", lgbm_model, X_lgbm, y_lgbm),
+    ("lgbm_bayes", lgbm_bayes_model, X_lgbm_bayes, y_lgbm_bayes),
+    ("xgb_bayes", xgb_bayes_model, X_xgb_bayes, y_xgb_bayes),
+    ("lgbm", lgbm_model, X_lgbm, y_lgbm),
 ]
 
 

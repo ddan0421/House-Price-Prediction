@@ -59,9 +59,9 @@ base_models = [
     ("lr", lr_model, X_train_lr, y_train_lr),
     ("svr", svr_model, X_train_svm, y_train_svm),
     # ("lasso", lasso_model, X_train_lasso, y_train_lasso),
-    # ("lgbm_bayes", lgbm_bayes_model, X_train_lgbm_bayes, y_train_lgbm_bayes),
-    # ("xgb_bayes", xgb_bayes_model, X_train_xgb_bayes, y_train_xgb_bayes),
-    # ("lgbm", lgbm_model, X_train_lgbm, y_train_lgbm)
+    ("lgbm_bayes", lgbm_bayes_model, X_train_lgbm_bayes, y_train_lgbm_bayes),
+    ("xgb_bayes", xgb_bayes_model, X_train_xgb_bayes, y_train_xgb_bayes),
+    ("lgbm", lgbm_model, X_train_lgbm, y_train_lgbm)
 ]
 
 # Create an empty array to store OOF predictions
