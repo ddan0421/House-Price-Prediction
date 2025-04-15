@@ -110,6 +110,10 @@ y_agg = oof_df["Target"]
 meta_learner_ols = models.sm_ols(X_agg, y_agg)
 
 # Simulate predictions on val data
+"""
+During the prediction phase, we will first use the base models (trained on the entire training data) to generate predictions on the validation data.
+Then, we will use these predictions as features for the trained meta-learner from above.
+"""
 X_val_xgb = pd.read_csv("data/model_data/X_val_xgb.csv")
 X_val_lr = pd.read_csv("data/model_data/X_val_lr.csv")
 X_val_svm = pd.read_csv("data/model_data/X_val_svm.csv")
