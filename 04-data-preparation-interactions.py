@@ -172,7 +172,7 @@ X_train, X_val, y_train, y_val = train_test_split(train_encoded, y, test_size=0.
 # Step 5: Impute missing continuous numerical data in the training set using IterativeImputer with BayesianRidge estimator
 # Columns to be used as predictors for imputing "LotFrontage"
 columns_for_imputation = [
-    "LotArea", "Street_Pave",
+    "LotArea", "1stFlrSF","Street_Pave",
     "LotShape_LandContour_IR1_HLS", "LotShape_LandContour_IR1_Low", 
     "LotShape_LandContour_IR1_Lvl", "LotShape_LandContour_IR2_Bnk", 
     "LotShape_LandContour_IR2_HLS", "LotShape_LandContour_IR2_Low", 
