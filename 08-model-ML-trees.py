@@ -38,7 +38,7 @@ def create_interactions(df):
 X_train = create_interactions(X_train)
 X_val = create_interactions(X_val)
 test_final = create_interactions(test_final)
-
+test_final.to_csv("data/model_data/test_final_ml.csv", index=False)
 ###################################################################### Feature Selection ######################################################################
 # Train a Random Forest Regressor
 rf_model = RandomForestRegressor(n_estimators=200, random_state=random_state)
