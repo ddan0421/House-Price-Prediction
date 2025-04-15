@@ -30,7 +30,6 @@ test_final[numerical_variables] = scaler.transform(test_final[numerical_variable
 
 X_train.drop("Id", axis=1, inplace=True)
 X_val.drop("Id", axis=1, inplace=True)
-test_final.drop("Id", axis=1, inplace=True)
 
 if not os.path.exists("data/model_data"):
     os.makedirs("data/model_data")

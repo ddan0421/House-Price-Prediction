@@ -274,7 +274,7 @@ y_val_ml = np.log(y_val)
 
 X_train_imputed.drop("Id", axis=1).to_csv("data/model_data/X_train_ml.csv", index=False)
 X_val_imputed.drop("Id", axis=1).to_csv("data/model_data/X_val_ml.csv", index=False)
-test_final.drop("Id", axis=1).to_csv("data/model_data/test_final_ml.csv", index=False)
+test_final.to_csv("data/model_data/test_final_ml.csv", index=False)
 y_train_ml.to_csv("data/model_data/y_train_ml.csv", index=False)
 y_val_ml.to_csv("data/model_data/y_val_ml.csv", index=False)
 ###################################################################################################################################
