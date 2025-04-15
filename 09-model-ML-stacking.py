@@ -109,6 +109,11 @@ y_agg = oof_df["Target"]
 # Train meta-learner (Linear Regression)
 meta_learner_ols = models.sm_ols(X_agg, y_agg)
 
+# Save the trained model for future use (stacking)
+with open("meta_learner_ols.pkl", "wb") as f:
+    pickle.dump(meta_learner_ols, f)
+print("Meta-learner model saved to meta_learner_ols.pkl")
+
 # Simulate predictions on val data
 """
 During the prediction phase, we will first use the base models (trained on the entire training data) to generate predictions on the validation data.
