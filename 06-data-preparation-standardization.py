@@ -20,7 +20,8 @@ numerical_variables = [
     "BsmtFullBath", "BsmtHalfBath", "FullBath", "HalfBath", "BedroomAbvGr", "KitchenAbvGr",
     "TotRmsAbvGrd", "Fireplaces", "GarageCars", "GarageArea", "EnclosedPorch", "3SsnPorch",
     "ScreenPorch", "PoolArea", "MiscVal", "Age_House",
-    "Living_Rooms", "Garage_Space", "Garage_AgeCars", "Porch_Age", "Ratio_Bedroom_Rooms", "Ratio_2ndFlr_Living"
+    "Living_Rooms", "Garage_Space", "Garage_AgeCars", "Porch_Age", "Ratio_Bedroom_Rooms", "Ratio_2ndFlr_Living",
+    "sqrt_BsmtUnfSF", "sqrt_BsmtFinSF1", "BsmtFinSF2"
 ]
 
 scaler = StandardScaler()

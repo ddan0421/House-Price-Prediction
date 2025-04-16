@@ -288,10 +288,6 @@ numerical_cols = ["LotFrontage", "LotArea", "MasVnrArea", "TotalBsmtSF", "1stFlr
                   "OpenPorchSF", "EnclosedPorch", "3SsnPorch", "ScreenPorch", "PoolArea",
                   "MiscVal", "Age_House", "Yrs_Since_Remodel", "Age_Garage", "SalePrice"]
 
-Correlation analysis for numerical variables
-- There are multiple basement SF variables. Drop "BsmtFinSF1","BsmtFinSF2", "BsmtUnfSF" and keep TotalBsmtSF 
-since "TotalBsmtSF" has the strongest positive correlation with "SalePrice"
-
 
 log transformation
 - LotFrontage
@@ -308,6 +304,8 @@ log transformation
 square root transformation
 - TotalBsmtSF
 - WoodDeckSF
+- BsmtUnfSF
+- BsmtFinSF1
 
 cube root transformation
 - MasVnrArea
@@ -331,18 +329,8 @@ no need to transform
 - PoolArea
 - MiscVal
 - Age_House
+- BsmtFinSF2
 """
-
-# Drop basement variables based on correlation analysis
-def drop_columns(data, cols_to_drop):
-    data.drop(columns=cols_to_drop, inplace=True)
-    return data
-
-cols_to_drop = ["BsmtFinSF1", "BsmtFinSF2", "BsmtUnfSF"]
-
-X_train_imputed = drop_columns(X_train_imputed.copy(), cols_to_drop)
-X_val_imputed = drop_columns(X_val_imputed.copy(), cols_to_drop)
-test_final = drop_columns(test_final.copy(), cols_to_drop)
 
 
 # Transformation
@@ -366,7 +354,7 @@ def transform_and_drop(data, log_cols, sqrt_cols, cube_root_cols):
 
 # Columns to transform
 log_cols = ["LotFrontage", "LotArea", "1stFlrSF", "2ndFlrSF", "LowQualFinSF", "GrLivArea", "Yrs_Since_Remodel", "Age_Garage"]
-sqrt_cols = ["TotalBsmtSF", "WoodDeckSF"]
+sqrt_cols = ["TotalBsmtSF", "WoodDeckSF", "BsmtUnfSF", "BsmtFinSF1"]
 cube_root_cols = ["MasVnrArea", "OpenPorchSF"]
 
 # Apply transformations to datasets
