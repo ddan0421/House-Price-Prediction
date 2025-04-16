@@ -149,3 +149,100 @@ def constrained_sm_glm_gaussian(X, y, glm_gau_result, thresh):
     # model.remove_data()
 
     return model
+
+
+
+
+################################################################### Stepwise Selection for OLS Regression ###################################################################
+def ols_stepwise_selection(x_data,
+                           y_data, 
+                           initial_list  = [], 
+                           threshold_in  = 0.01, 
+                           threshold_out = 0.05, 
+                           verbose       = True):
+    """
+    Perform a forward-backward feature selection based on p-values from statsmodels.api.OLS.
+
+    Arguments:
+        x_data : pandas.DataFrame
+            DataFrame with candidate features.
+        y_data : array-like
+            The target variable.
+        initial_list : list
+            List of features (column names of x) to start with.
+        threshold_in : float
+            Include a feature if its p-value < threshold_in.
+        threshold_out : float
+            Exclude a feature if its p-value > threshold_out.
+        verbose : bool
+            Whether to print the sequence of inclusions and exclusions.
+
+    Returns:
+        list
+            The list of selected features.
+
+    Note: Always set threshold_in < threshold_out to avoid infinite loops.
+    """
+
+    # required imports
+    import statsmodels.api as sm
+    import pandas as pd
+
+
+    # setting placeholer list
+    included = list(initial_list)
+
+
+    # looping over each x-feature until there are no more significant p-values
+    while True:
+        changed = False
+
+        # forward step: adding an x-feature
+        excluded = [col for col in x_data.columns if col not in included]
+        new_pvals = pd.Series(dtype = float, index = excluded)
+
+
+        # fitting model with additional candidate feature
+        for new_column in excluded:
+
+            model = sm.OLS(y_data,
+                           sm.add_constant(x_data[included + [new_column]])).fit()
+
+            new_pvals[new_column] = model.pvalues[new_column]
+
+
+        if not new_pvals.empty:
+            best_pval = new_pvals.min()
+            if best_pval < threshold_in:
+                best_feature = new_pvals.idxmin()  # Use idxmin() instead of argmin()
+                included.append(best_feature)
+                changed = True
+                if verbose:
+                    print('Add  {:30} with p-value {:.6}'.format(best_feature, best_pval))
+
+
+        # backward step: potentially removing an x-feature
+        if included:
+            model = sm.OLS(y_data, sm.add_constant(x_data[included])).fit()
+
+            # excluding intercept p-value (first element)
+            pvals = model.pvalues.iloc[1:]
+
+            # ensuring the model is not empty
+            if not pvals.empty:
+                worst_pval = pvals.max()
+                if worst_pval > threshold_out:
+                    worst_feature = pvals.idxmax()  # Use idxmax() instead of argmax()
+                    included.remove(worst_feature)
+                    changed = True
+                    if verbose:
+                        print('Drop {:30} with p-value {:.6}'.format(worst_feature, worst_pval))
+
+
+        # stopping the loop if optimized
+        if not changed:
+            break
+
+
+    # returning stepwise model's x-features
+    return included
