@@ -16,8 +16,8 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # Load datasets for each base model
 X_train_xgb = pd.read_csv("data/model_data/X_train_xgb.csv").values
 y_train_xgb = pd.read_csv("data/model_data/y_train_xgb.csv").values.flatten()
-X_train_lr = pd.read_csv("data/model_data/X_train_lr.csv").values
-y_train_lr = pd.read_csv("data/model_data/y_train_lr.csv").values.flatten()
+X_train_ridge = pd.read_csv("data/model_data/X_train_ridge.csv").values
+y_train_ridge = pd.read_csv("data/model_data/y_train_ridge.csv").values.flatten()
 X_train_svm = pd.read_csv("data/model_data/X_train_svm.csv").values
 y_train_svm = pd.read_csv("data/model_data/y_train_svm.csv").values.flatten()
 X_train_lasso = pd.read_csv("data/model_data/X_train_lasso.csv").values
@@ -34,8 +34,8 @@ y_train_nn = pd.read_csv("data/model_data/y_train.csv").values.flatten()
 # Load pre-trained base models
 with open("final_model_xgb.pkl", "rb") as f:
     xgb_model = pickle.load(f)
-with open("final_model_lr_constraiend.pkl", "rb") as f:
-    lr_model = pickle.load(f)   
+with open("final_model_ridge.pkl", "rb") as f:
+    ridge_model = pickle.load(f)   
 with open("final_model_svm.pkl", "rb") as f:
     svr_model = pickle.load(f)
 with open("final_model_lasso.pkl", "rb") as f:
@@ -50,12 +50,12 @@ nn_model = tf.keras.models.load_model("final_model_NN.keras")
 
 base_models = [
     ("xgb", xgb_model, X_train_xgb, y_train_xgb),
-    ("lr", lr_model, X_train_lr, y_train_lr),
+    ("ridge", ridge_model, X_train_ridge, y_train_ridge),
     ("svr", svr_model, X_train_svm, y_train_svm),
-    # ("lasso", lasso_model, X_train_lasso, y_train_lasso),
-    # ("lgbm_bayes", lgbm_bayes_model, X_train_lgbm_bayes, y_train_lgbm_bayes),
-    # ("xgb_bayes", xgb_bayes_model, X_train_xgb_bayes, y_train_xgb_bayes),
-    # ("lgbm", lgbm_model, X_train_lgbm, y_train_lgbm),
+    ("lasso", lasso_model, X_train_lasso, y_train_lasso),
+    ("lgbm_bayes", lgbm_bayes_model, X_train_lgbm_bayes, y_train_lgbm_bayes),
+    ("xgb_bayes", xgb_bayes_model, X_train_xgb_bayes, y_train_xgb_bayes),
+    ("lgbm", lgbm_model, X_train_lgbm, y_train_lgbm),
     ("nn", nn_model, X_train_nn, y_train_nn)
 ]
 
@@ -104,10 +104,6 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X_train_xgb)):
                 callbacks=[early_stopping],
                 shuffle=True
             )
-        elif name == "lr":
-            X_fold_train_df = pd.DataFrame(X_fold_train, columns=[f"feature_{j}" for j in range(X_fold_train.shape[1])])
-            model_lr = models.sm_glm_gaussian(X_fold_train_df, y_fold_train)
-            model = models.constrained_sm_glm_gaussian(X_fold_train_df, y_fold_train, model_lr, 0.05)
         else:
             # Train traditional models
             model.fit(X_fold_train, y_fold_train)
@@ -126,7 +122,7 @@ meta_learner_ols = models.sm_ols(X_agg, y_agg)
 
 # Simulate predictions on val data
 X_val_xgb = pd.read_csv("data/model_data/X_val_xgb.csv")
-X_val_lr = pd.read_csv("data/model_data/X_val_lr.csv")
+X_val_ridge = pd.read_csv("data/model_data/X_val_ridge.csv")
 X_val_svm = pd.read_csv("data/model_data/X_val_svm.csv")
 X_val_lasso = pd.read_csv("data/model_data/X_val_lasso.csv")
 X_val_lgbm_bayes = pd.read_csv("data/model_data/X_val_lgbm_bayes.csv")
@@ -141,8 +137,8 @@ test_preds = np.zeros((X_val_xgb.shape[0], len(base_models)))
 for i, (name, model, _, _) in enumerate(base_models):
     if name == "xgb":
         test_preds[:, i] = model.predict(X_val_xgb)
-    elif name == "lr":
-        test_preds[:, i] = model.predict(X_val_lr)
+    elif name == "ridge":
+        test_preds[:, i] = model.predict(X_val_ridge)
     elif name == "svr":
         test_preds[:, i] = model.predict(X_val_svm)
     elif name == "lasso":
