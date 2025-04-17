@@ -89,7 +89,11 @@ selected_features_rf = conn.execute(query).fetch_df()["feature"].to_list()
 conn.close()
 
 
-############################# Feature Selection 3: Selected Numeric Variables based on Correlation Matrix and Domain Knowledge #############################
+############################# Feature Selection 3: Stepwise Selection for OLS Regression #############################
+# Stepwise Selection for OLS Regression
+selected_features_stepwise = models.ols_stepwise_selection(X_train, y_train, threshold_in=0.01, threshold_out=0.05)
+
+############################# Feature Selection 4: Selected Numeric Variables based on Correlation Matrix and Domain Knowledge #############################
 selected_numeric_features = [
     "log_LotArea", "cbrt_MasVnrArea", "sqrt_TotalBsmtSF", "log_1stFlrSF", 
     "log_GrLivArea", "BsmtFullBath", "FullBath", "HalfBath", "BedroomAbvGr", 
@@ -99,33 +103,22 @@ selected_numeric_features = [
 ]
 
 
-# Combine the three lists and remove duplicates using a set
-combined_features = list(set(selected_features_vif + selected_features_rf + selected_numeric_features))
+# Combine the four lists and remove duplicates using a set
+combined_features = list(set(selected_features_vif + selected_features_rf + selected_numeric_features + selected_features_stepwise))
 combined_features.sort()
 
 
 
 ############################# Linear Regression #############################
-X_train_regress = sm.add_constant(X_train[combined_features])
-X_val_regress = sm.add_constant(X_val[combined_features])
+# Use only the selected features from stepwise selection method for the linear regression model
+X_train_regress = sm.add_constant(X_train[selected_features_stepwise])
+X_val_regress = sm.add_constant(X_val[selected_features_stepwise])
 
 ols_lr = models.sm_ols(X_train_regress, y_train)
-glm_lr = models.sm_glm_gaussian(X_train_regress, y_train)
-glm_lr_constrained = models.constrained_sm_glm_gaussian(X_train_regress, y_train, glm_lr, 0.05)
-
-# Save the trained model for future use (stacking)
-with open("final_model_lr_constraiend.pkl", "wb") as f:
-    pickle.dump(glm_lr_constrained, f)
-print("LR constrained model saved to final_model_lr_constraiend.pkl")
-
-X_train_regress.to_csv("data/model_data/X_train_lr.csv", index=False)
-y_train.to_csv("data/model_data/y_train_lr.csv", index=False)
-X_val_regress.to_csv("data/model_data/X_val_lr.csv", index=False)
 
 ############################# Regularized Regression Models #############################
-ml_features = glm_lr_constrained.params.index[(glm_lr_constrained.pvalues < 0.05) & (glm_lr_constrained.params != 0) & (glm_lr_constrained.params.index != "const")].to_list()
-X_train_ml = X_train[ml_features]
-X_val_ml = X_val[ml_features]
+X_train_ml = X_train[combined_features]
+X_val_ml = X_val[combined_features]
 
 ############################# Ridge Regression #############################
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
@@ -149,6 +142,15 @@ print("Optimal Parameter:", gs_ridge.best_params_)
 print("Optimal Estimator:", gs_ridge.best_estimator_)
 
 final_model_ridge = gs_ridge.best_estimator_
+
+# Save the trained model for future use (stacking)
+with open("final_model_ridge.pkl", "wb") as f:
+    pickle.dump(final_model_ridge, f)
+print("Ridge model saved to final_model_ridge.pkl")
+
+X_train_ml.to_csv("data/model_data/X_train_ridge.csv", index=False)
+y_train.to_csv("data/model_data/y_train_ridge.csv", index=False)
+X_val_ml.to_csv("data/model_data/X_val_ridge.csv", index=False)
 
 ############################# Lasso Regression #############################
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
@@ -230,8 +232,6 @@ def evaluate_linear_model(model, X, y, name):
     print(f"Root Mean Squared Error: {rmse:.4f}")
 
 evaluate_linear_model(ols_lr, X_val_regress, y_val, "OLS Model")
-evaluate_linear_model(glm_lr, X_val_regress, y_val, "GLM Gaussian Model")
-evaluate_linear_model(glm_lr_constrained, X_val_regress, y_val, "Constrained GLM Gaussian Model")
 evaluate_linear_model(final_model_ridge, X_val_ml, y_val, "Ridge Model")
 evaluate_linear_model(final_model_lasso, X_val_ml, y_val, "Lasso Model")
 evaluate_linear_model(final_model_svm, X_val_ml, y_val, "SVM Model")
