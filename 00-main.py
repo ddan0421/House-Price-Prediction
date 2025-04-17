@@ -31,7 +31,8 @@ SCRIPTS = [
     "06-data-preparation-standardization.py",
     "07-model-regressions-svm.py",
     "08-model-ML-trees.py",
-    "09-model-ML-stacking.py"
+    "09-model-ML-stacking.py",
+    "12-prediction.py"
 ]
 
 # Function to execute a Python script
