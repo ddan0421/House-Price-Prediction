@@ -234,75 +234,6 @@ X_train_xgb.to_csv("data/model_data/X_train_xgb.csv", index=False)
 y_train.to_csv("data/model_data/y_train_xgb.csv", index=False)
 X_val_xgb.to_csv("data/model_data/X_val_xgb.csv", index=False)
 
-############################################## XGBoost Regressor Model with gblinear ############################################################
-sig_features = [
-    "Age_House", "BsmtCond", "BsmtFinType1", "BsmtFullBath", "BsmtQual", "CentralAir_Electrical_Y_FuseA",
-    "CentralAir_Electrical_Y_SBrkr", "Exterior1st_Exterior2nd_BrkComm_Brk Cmn", "Exterior1st_Exterior2nd_BrkFace",
-    "Exterior1st_Exterior2nd_BrkFace_Plywood", "Exterior1st_Exterior2nd_BrkFace_Wd Sdng", 
-    "Exterior1st_Exterior2nd_CemntBd_CmentBd", "Exterior1st_Exterior2nd_Wd Sdng_ImStucc", 
-    "Exterior1st_Exterior2nd_Wd Sdng_VinylSd", "Fireplaces", "Functional_Maj2", "Functional_Min1", 
-    "Functional_Min2", "Functional_Mod", "Functional_Sev", "KitchenAbvGr", "KitchenQual", 
-    "LotShape_LandContour_IR1_HLS", "LotShape_LandContour_IR2_Bnk", 
-    "Neighborhood_Condition_BrkSide_PosN_Norm", "Neighborhood_Condition_Edwards_Artery_Norm", 
-    "Neighborhood_Condition_Edwards_PosN", "Neighborhood_Condition_IDOTRR_Artery_Norm", 
-    "Neighborhood_Condition_MeadowV_Norm", "Neighborhood_Condition_NAmes_Artery_Norm", 
-    "Neighborhood_Condition_NAmes_PosA_Norm", "Neighborhood_Condition_NoRidge_Norm", 
-    "Neighborhood_Condition_NridgHt_Norm", "Neighborhood_Condition_OldTown_Feedr_Norm", 
-    "Neighborhood_Condition_Sawyer_RRAe_Norm", "Neighborhood_Condition_StoneBr_Norm", "OverallCond", 
-    "OverallQual", "Ratio_2ndFlr_Living", "RoofStyle_RoofMatl_Gable_WdShngl", 
-    "RoofStyle_RoofMatl_Hip_ClyTile", "SaleCondition_Alloca", "SaleCondition_Normal", 
-    "SaleType_WD", "ScreenPorch", "log_GrLivArea", "log_LotArea", "log_Yrs_Since_Remodel", 
-    "sqrt_TotalBsmtSF", "sqrt_WoodDeckSF"
-]
-
-
-X_train_linear = pd.read_csv("data/model_data/X_train.csv")
-X_val_linear = pd.read_csv("data/model_data/X_val.csv")
-y_train_linear = pd.read_csv("data/model_data/y_train.csv")
-y_val_linear = pd.read_csv("data/model_data/y_val.csv")
-
-X_train_xgb_linear = X_train_linear[sig_features]
-X_val_xgb_linear = X_val_linear[sig_features]
-
-cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
-xgb_model_linear = xgb.XGBRegressor(
-    random_state=random_state, 
-    objective="reg:squarederror", 
-    booster="gblinear"
-)
-
-param_grid = {
-    "n_estimators": [50, 100, 200],  
-    "learning_rate": [0.01, 0.05, 0.1],  # Learning rate for convergence
-    "lambda": [0.1, 1, 10],             # L2 regularization
-    "alpha": [0, 0.1, 0.5, 1]           # L1 regularization
-}
-
-gs_xgb_linear = GridSearchCV(
-    estimator=xgb_model_linear,
-    param_grid=param_grid,
-    scoring="neg_root_mean_squared_error",
-    cv=cv,
-    n_jobs=-1,
-    refit=True
-)
-
-gs_xgb_linear.fit(X_train_xgb_linear, y_train_linear.values.ravel())
-
-print("10-Fold CV RMSE:", -gs_xgb_linear.best_score_)
-print("Optimal Parameters:", gs_xgb_linear.best_params_)
-print("Optimal Estimator:", gs_xgb_linear.best_estimator_)
-
-final_model_xgb_linear = gs_xgb_linear.best_estimator_
-
-# Save the trained model for future use (stacking)
-with open("final_model_xgb_linear.pkl", "wb") as f:
-    pickle.dump(final_model_xgb_linear, f)
-print("XGB linear model saved to final_model_xgb_linear.pkl")
-
-X_train_xgb_linear.to_csv("data/model_data/X_train_xgb_linear.csv", index=False)
-y_train_linear.to_csv("data/model_data/y_train_xgb_linear.csv", index=False)
-X_val_xgb_linear.to_csv("data/model_data/X_val_xgb_linear.csv", index=False)
 
 ############################################## LightGBM Regressor Model ############################################################
 # Reduce the feature set using xgb's selected features
@@ -568,7 +499,6 @@ print("############################################## 10-Fold CV Hyperparameter-
 evaluate_tree_model(final_model_dt, X_val_tree, y_val, "Decision Tree Regressor")
 evaluate_tree_model(final_model_rf, X_val_tree, y_val, "Random Forest Regressor")
 evaluate_tree_model(final_model_xgb, X_val_xgb, y_val, "XGBoost Regressor")
-evaluate_tree_model(final_model_xgb_linear, X_val_xgb_linear, y_val_linear, "XGBoost (gblinear) Regressor")
 evaluate_tree_model(final_model_lgbm, X_val_lgbm, y_val, "LightGBM Regressor")
 
 print("############################################## 10-Fold CV Hyperparameter-Tuned with Bayesian Optimization ##############################################")
