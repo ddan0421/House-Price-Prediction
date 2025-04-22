@@ -15,13 +15,13 @@ Modeling Workflow:
 
 2️⃣ Validation Set (20% of original train data, ~292 records)
 
-✔ Evaluate all trained models using RMSE.
+✔ Evaluate all trained models using RMSE between the logarithm of the predicted value and the logarithm of the observed sales price.
 
 ✔ Select the best model based on performance.
 
 3️⃣ Test Set (Completely separate, unseen data)
 
-✔ Final evaluation using RMSE.
+✔ Final evaluation using RMSE between the logarithm of the predicted value and the logarithm of the observed sales price.
 
 ✔ Report the final performance of the selected model.
 
