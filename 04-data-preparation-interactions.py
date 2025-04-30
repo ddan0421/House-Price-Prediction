@@ -1,7 +1,6 @@
 import pandas as pd
 import duckdb
 import numpy as np
-from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 # Importing IterativeImputer with the experimental module
 from sklearn.experimental import enable_iterative_imputer  
 from sklearn.impute import IterativeImputer
@@ -135,12 +134,12 @@ y = train_new["SalePrice"]
 nominal_cat = ["MSSubClass_MSZoning", "LotConfig_LandSlope", "Neighborhood_Condition", "BldgType_HouseStyle",
                "Exterior1st_Exterior2nd", "CentralAir_Electrical", "LotShape_LandContour", "RoofStyle_RoofMatl",
                "Heating_HeatingQC", "Street", "Alley", "Utilities", "MasVnrType", "Foundation", 
-               "Functional", "GarageType", "GarageFinish", "PavedDrive", 
+               "Functional", "GarageType", "PavedDrive", 
                "Fence", "MiscFeature", "SaleType", "SaleCondition", "Season_Sold"]
 
 
 ordinal_cat = ["OverallQual", "OverallCond", "ExterQual", "ExterCond", "BsmtQual", "BsmtCond", "BsmtExposure", 
-               "BsmtFinType1", "BsmtFinType2", "KitchenQual", "FireplaceQu", "GarageQual", "GarageCond", 
+               "BsmtFinType1", "BsmtFinType2", "KitchenQual", "FireplaceQu", "GarageFinish", "GarageQual", "GarageCond", 
                "PoolQC"]
 
 # One-hot encode nominal categorical variables
@@ -150,16 +149,137 @@ test_encoded = pd.get_dummies(test_new, columns=nominal_cat, drop_first=True)
 test_encoded = test_encoded.reindex(columns=train_encoded.columns, fill_value=0)
 
 # Label encode ordinal categorical variables
-label_encoder = LabelEncoder()
-for col in ordinal_cat:
-    train_encoded[col] = label_encoder.fit_transform(train_encoded[col])
-    test_encoded[col] = label_encoder.transform(test_encoded[col])
+
+def ordinal_encoding(df):
+    conn = duckdb.connect()
+    conn.register("input_df", df)
+    query = """
+    SELECT 
+        *,
+        -- OverallQual is already in numeric format, so no need to encode it
+        -- OverallCond is already in numeric format, so no need to encode it
+        CASE 
+            WHEN ExterQual = 'Ex' THEN 5
+            WHEN ExterQual = 'Gd' THEN 4
+            WHEN ExterQual = 'TA' THEN 3
+            WHEN ExterQual = 'Fa' THEN 2
+            WHEN ExterQual = 'Po' THEN 1
+            ELSE 0
+        END AS ExterQual_encoded,
+        CASE
+            WHEN ExterCond = 'Ex' THEN 5
+            WHEN ExterCond = 'Gd' THEN 4
+            WHEN ExterCond = 'TA' THEN 3
+            WHEN ExterCond = 'Fa' THEN 2
+            WHEN ExterCond = 'Po' THEN 1
+            ELSE 0
+        END AS ExterCond_encoded,
+        CASE
+            WHEN BsmtQual = 'Ex' THEN 5
+            WHEN BsmtQual = 'Gd' THEN 4
+            WHEN BsmtQual = 'TA' THEN 3
+            WHEN BsmtQual = 'Fa' THEN 2
+            WHEN BsmtQual = 'Po' THEN 1
+            ELSE 0
+        END AS BsmtQual_encoded,
+        CASE
+            WHEN BsmtCond = 'Ex' THEN 5
+            WHEN BsmtCond = 'Gd' THEN 4
+            WHEN BsmtCond = 'TA' THEN 3
+            WHEN BsmtCond = 'Fa' THEN 2
+            WHEN BsmtCond = 'Po' THEN 1
+            ELSE 0
+        END AS BsmtCond_encoded,
+        CASE
+            WHEN BsmtExposure = 'Gd' THEN 4
+            WHEN BsmtExposure = 'Av' THEN 3
+            WHEN BsmtExposure = 'Mn' THEN 2
+            WHEN BsmtExposure = 'No' THEN 1
+            ELSE 0
+        END AS BsmtExposure_encoded,
+        CASE
+            WHEN BsmtFinType1 = 'GLQ' THEN 6
+            WHEN BsmtFinType1 = 'ALQ' THEN 5
+            WHEN BsmtFinType1 = 'BLQ' THEN 4
+            WHEN BsmtFinType1 = 'Rec' THEN 3
+            WHEN BsmtFinType1 = 'LwQ' THEN 2
+            WHEN BsmtFinType1 = 'Unf' THEN 1
+            ELSE 0
+        END AS BsmtFinType1_encoded,
+        CASE
+            WHEN BsmtFinType2 = 'GLQ' THEN 6
+            WHEN BsmtFinType2 = 'ALQ' THEN 5
+            WHEN BsmtFinType2 = 'BLQ' THEN 4
+            WHEN BsmtFinType2 = 'Rec' THEN 3
+            WHEN BsmtFinType2 = 'LwQ' THEN 2
+            WHEN BsmtFinType2 = 'Unf' THEN 1
+            ELSE 0
+        END AS BsmtFinType2_encoded,
+        CASE
+            WHEN KitchenQual = 'Ex' THEN 5
+            WHEN KitchenQual = 'Gd' THEN 4
+            WHEN KitchenQual = 'TA' THEN 3
+            WHEN KitchenQual = 'Fa' THEN 2
+            WHEN KitchenQual = 'Po' THEN 1
+            ELSE 0
+        END AS KitchenQual_encoded,
+        CASE
+            WHEN FireplaceQu = 'Ex' THEN 5
+            WHEN FireplaceQu = 'Gd' THEN 4
+            WHEN FireplaceQu = 'TA' THEN 3
+            WHEN FireplaceQu = 'Fa' THEN 2
+            WHEN FireplaceQu = 'Po' THEN 1
+            ELSE 0
+        END AS FireplaceQu_encoded,
+        CASE
+            WHEN GarageFinish = 'Fin' THEN 3
+            WHEN GarageFinish = 'RFn' THEN 2
+            WHEN GarageFinish = 'Unf' THEN 1
+            ELSE 0
+        END AS GarageFinish_encoded,
+        CASE
+            WHEN GarageQual = 'Ex' THEN 5
+            WHEN GarageQual = 'Gd' THEN 4
+            WHEN GarageQual = 'TA' THEN 3
+            WHEN GarageQual = 'Fa' THEN 2
+            WHEN GarageQual = 'Po' THEN 1
+            ELSE 0
+        END AS GarageQual_encoded,
+        CASE
+            WHEN GarageCond = 'Ex' THEN 5
+            WHEN GarageCond = 'Gd' THEN 4
+            WHEN GarageCond = 'TA' THEN 3
+            WHEN GarageCond = 'Fa' THEN 2
+            WHEN GarageCond = 'Po' THEN 1
+            ELSE 0
+        END AS GarageCond_encoded,
+        CASE
+            WHEN PoolQC = 'Ex' THEN 4
+            WHEN PoolQC = 'Gd' THEN 3
+            WHEN PoolQC = 'TA' THEN 2
+            WHEN PoolQC = 'Fa' THEN 1
+            ELSE 0
+        END AS PoolQC_encoded,
+    FROM input_df;
+    """
+    result = conn.execute(query).fetch_df()
+    columns_to_drop = [
+        "ExterQual", "ExterCond", "BsmtQual", "BsmtCond", "BsmtExposure", 
+        "BsmtFinType1", "BsmtFinType2", "KitchenQual", "FireplaceQu", "GarageFinish", "GarageQual", "GarageCond", 
+        "PoolQC"]
+    result = result.drop(columns=columns_to_drop)
+    conn.close()
+    return result
+
+train_encoded = ordinal_encoding(train_encoded)
+test_encoded = ordinal_encoding(test_encoded)
+
 
 bool_columns_train = train_encoded.select_dtypes(include="bool").columns
 bool_columns_test = test_encoded.select_dtypes(include="bool").columns
 
-train_encoded[bool_columns_train] = train_encoded[bool_columns_train].astype(int)
-test_encoded[bool_columns_test] = test_encoded[bool_columns_test].astype(int)
+train_encoded[bool_columns_train] = train_encoded[bool_columns_train].astype("int8")
+test_encoded[bool_columns_test] = test_encoded[bool_columns_test].astype("int8")
 
 
 # Step 4: Split the train dataset into train and validation set
