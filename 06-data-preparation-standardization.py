@@ -4,11 +4,11 @@ import os
 from sklearn.preprocessing import StandardScaler
 
 
-X_train = pd.read_csv("data/X_train.csv")
-X_val = pd.read_csv("data/X_val.csv")
-test_final = pd.read_csv("data/test_final.csv")
-y_train = pd.read_csv("data/y_train.csv")
-y_val = pd.read_csv("data/y_val.csv")
+X_train = pd.read_csv("data/X_train_reg.csv")
+X_val = pd.read_csv("data/X_val_reg.csv")
+test_final = pd.read_csv("data/test_final_reg.csv")
+y_train = pd.read_csv("data/y_train_reg.csv")
+y_val = pd.read_csv("data/y_val_reg.csv")
 
 
 
@@ -35,10 +35,10 @@ X_val.drop("Id", axis=1, inplace=True)
 if not os.path.exists("data/model_data"):
     os.makedirs("data/model_data")
 
-X_train.to_csv("data/model_data/X_train.csv", index=False)
-X_val.to_csv("data/model_data/X_val.csv", index=False)
-test_final.to_csv("data/model_data/test_final.csv", index=False)
-y_train.to_csv("data/model_data/y_train.csv", index=False)
-y_val.to_csv("data/model_data/y_val.csv", index=False)
+X_train.to_csv("data/model_data/X_train_reg.csv", index=False)
+X_val.to_csv("data/model_data/X_val_reg.csv", index=False)
+test_final.to_csv("data/model_data/test_final_reg.csv", index=False)
+y_train.to_csv("data/model_data/y_train_reg.csv", index=False)
+y_val.to_csv("data/model_data/y_val_reg.csv", index=False)
 
 

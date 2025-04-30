@@ -381,22 +381,9 @@ train.to_csv("data/train_after_imputation_EDA.csv", index=False)
 
 
 # Step 7: Impute missing continuous numerical data in the test set using the trained imputer
-test_final = test_encoded.copy()  
-test_final["LotFrontage"] = iterative_imputer.transform(test_encoded[columns_for_imputation + ["LotFrontage"]])[:, -1]
+test_imputed = test_encoded.copy()  
+test_imputed["LotFrontage"] = iterative_imputer.transform(test_encoded[columns_for_imputation + ["LotFrontage"]])[:, -1]
 
-############################### Export non-transformed and non-scaled data for non-linear modeling ###############################
-if not os.path.exists("data/model_data"):
-    os.makedirs("data/model_data")
-
-# Transform SalePrice
-y_train_ml = np.log(y_train)
-y_val_ml = np.log(y_val)
-
-X_train_imputed.drop("Id", axis=1).to_csv("data/model_data/X_train_ml.csv", index=False)
-X_val_imputed.drop("Id", axis=1).to_csv("data/model_data/X_val_ml.csv", index=False)
-test_final.to_csv("data/model_data/test_final_ml.csv", index=False)
-y_train_ml.to_csv("data/model_data/y_train_ml.csv", index=False)
-y_val_ml.to_csv("data/model_data/y_val_ml.csv", index=False)
 ###################################################################################################################################
 
 # Step 8: Correlation analysis and transform numerical terms
@@ -480,7 +467,7 @@ cube_root_cols = ["MasVnrArea", "OpenPorchSF"]
 # Apply transformations to datasets
 X_train_final = transform_and_drop(X_train_imputed.copy(), log_cols, sqrt_cols, cube_root_cols)
 X_val_final = transform_and_drop(X_val_imputed.copy(), log_cols, sqrt_cols, cube_root_cols)
-test_final = transform_and_drop(test_final.copy(), log_cols, sqrt_cols, cube_root_cols)
+test_final = transform_and_drop(test_imputed.copy(), log_cols, sqrt_cols, cube_root_cols)
 
 
 # Step 9: Creating interaction terms for numerical variables
@@ -509,12 +496,291 @@ X_val_final = create_interactions(X_val_final)
 test_final = create_interactions(test_final)
 
 
+
+
+if not os.path.exists("data/model_data"):
+    os.makedirs("data/model_data")
+
+
 # Transform SalePrice
 y_train_final = np.log(y_train)
 y_val_final = np.log(y_val)
 
-X_train_final.to_csv("data/X_train.csv", index=False)
-X_val_final.to_csv("data/X_val.csv", index=False)
-y_train_final.to_csv("data/y_train.csv", index=False)
-y_val_final.to_csv("data/y_val.csv", index=False)
-test_final.to_csv("data/test_final.csv", index=False)
+X_train_final.to_csv("data/X_train_reg.csv", index=False)
+X_val_final.to_csv("data/X_val_reg.csv", index=False)
+y_train_final.to_csv("data/y_train_reg.csv", index=False)
+y_val_final.to_csv("data/y_val_reg.csv", index=False)
+test_final.to_csv("data/test_final_reg.csv", index=False)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#################################################################### ML data preparation ####################################################################
+train = pd.read_csv("data/train_clean_01.csv")
+test = pd.read_csv("data/test_clean_01.csv")
+
+# Step 1: Impute categorical missing data in train set and test set with the mode from training set
+train["Electrical"].fillna(train["Electrical"].mode()[0], inplace=True)
+test_imputed = test.copy()  # Make a copy of the test set
+test_imputed["MSZoning"].fillna(train["MSZoning"].mode()[0], inplace=True)
+test_imputed["Utilities"].fillna(train["Utilities"].mode()[0], inplace=True)
+test_imputed["KitchenQual"].fillna(train["KitchenQual"].mode()[0], inplace=True)
+test_imputed["Functional"].fillna(train["Functional"].mode()[0], inplace=True)
+
+
+
+def feature_engineering(df):
+    conn = duckdb.connect()
+    conn.register("original_df", df)
+    query = """
+    SELECT 
+        *,
+        CASE
+           WHEN MoSold IN (12, 1, 2) THEN 'Winter'
+           WHEN MoSold IN (3, 4, 5) THEN 'Spring'
+           WHEN MoSold IN (6, 7, 8) THEN 'Summer'
+           ELSE 'Fall'
+        END AS Season_Sold,
+        IF((YrSold - YearBuilt) < 0, 0, (YrSold - YearBuilt)) AS Age_House,
+        IF((YrSold - YearRemodAdd) < 0, 0, (YrSold - YearRemodAdd)) AS Yrs_Since_Remodel,
+        IF((YrSold - GarageYrBlt) < 0, 0, (YrSold - GarageYrBlt)) AS Age_Garage
+    FROM original_df;
+    """
+    result = conn.execute(query).fetch_df()
+    columns_to_drop = [
+        "MoSold", "YearBuilt", "YearRemodAdd", "GarageYrBlt", "YrSold"
+    ]
+    result = result.drop(columns=columns_to_drop)
+    conn.close()
+    return result
+
+
+train_new = feature_engineering(train)
+test_new = feature_engineering(test_imputed)
+
+X = train_new.drop(columns=["SalePrice"], axis=1) 
+y = train_new["SalePrice"]
+
+############################### Encode train and test data ########################################
+# Step 3: Encode categorical variables separately for train and test sets
+nominal_cat = ["MSSubClass", "MSZoning", "LotConfig","Condition1", "Condition2", "Neighborhood", "BldgType", "HouseStyle", 
+                "Exterior1st", "Exterior2nd", "CentralAir", "Electrical", "LandContour", "RoofStyle", "RoofMatl", "Heating",
+                "Street", "Alley", "Utilities", "MasVnrType", "Foundation", 
+               "Functional", "GarageType", "PavedDrive", 
+               "Fence", "MiscFeature", "SaleType", "SaleCondition", "Season_Sold"]
+
+
+ordinal_cat = ["OverallQual", "OverallCond", 
+               "LandSlope","LotShape", "HeatingQC", 
+               "ExterQual", "ExterCond", "BsmtQual", "BsmtCond", "BsmtExposure", 
+               "BsmtFinType1", "BsmtFinType2", "KitchenQual", "FireplaceQu", "GarageFinish", "GarageQual", "GarageCond", 
+               "PoolQC"]
+
+# One-hot encode nominal categorical variables
+train_encoded = pd.get_dummies(X, columns=nominal_cat, drop_first=True)
+test_encoded = pd.get_dummies(test_new, columns=nominal_cat, drop_first=True)
+
+test_encoded = test_encoded.reindex(columns=train_encoded.columns, fill_value=0)
+
+# Label encode ordinal categorical variables
+
+def ordinal_encoding(df):
+    conn = duckdb.connect()
+    conn.register("input_df", df)
+    query = """
+    SELECT 
+        *,
+        -- OverallQual is already in numeric format, so no need to encode it
+        -- OverallCond is already in numeric format, so no need to encode it
+        CASE 
+            WHEN LandSlope = 'Gtl' THEN 1
+            WHEN LandSlope = 'Mod' THEN 2
+            WHEN LandSlope = 'Sev' THEN 3
+            ELSE 0 
+        END AS LandSlope_encoded,
+        CASE 
+            WHEN LotShape = 'Reg' THEN 1
+            WHEN LotShape = 'IR1' THEN 2
+            WHEN LotShape = 'IR2' THEN 3
+            WHEN LotShape = 'IR3' THEN 4
+            ELSE 0 
+        END AS LotShape_encoded,
+        CASE 
+            WHEN HeatingQC = 'Ex' THEN 5
+            WHEN HeatingQC = 'Gd' THEN 4
+            WHEN HeatingQC = 'TA' THEN 3
+            WHEN HeatingQC = 'Fa' THEN 2
+            WHEN HeatingQC = 'Po' THEN 1
+            ELSE 0
+        END AS HeatingQC_encoded,  
+        CASE 
+            WHEN ExterQual = 'Ex' THEN 5
+            WHEN ExterQual = 'Gd' THEN 4
+            WHEN ExterQual = 'TA' THEN 3
+            WHEN ExterQual = 'Fa' THEN 2
+            WHEN ExterQual = 'Po' THEN 1
+            ELSE 0
+        END AS ExterQual_encoded,
+        CASE
+            WHEN ExterCond = 'Ex' THEN 5
+            WHEN ExterCond = 'Gd' THEN 4
+            WHEN ExterCond = 'TA' THEN 3
+            WHEN ExterCond = 'Fa' THEN 2
+            WHEN ExterCond = 'Po' THEN 1
+            ELSE 0
+        END AS ExterCond_encoded,
+        CASE
+            WHEN BsmtQual = 'Ex' THEN 5
+            WHEN BsmtQual = 'Gd' THEN 4
+            WHEN BsmtQual = 'TA' THEN 3
+            WHEN BsmtQual = 'Fa' THEN 2
+            WHEN BsmtQual = 'Po' THEN 1
+            ELSE 0
+        END AS BsmtQual_encoded,
+        CASE
+            WHEN BsmtCond = 'Ex' THEN 5
+            WHEN BsmtCond = 'Gd' THEN 4
+            WHEN BsmtCond = 'TA' THEN 3
+            WHEN BsmtCond = 'Fa' THEN 2
+            WHEN BsmtCond = 'Po' THEN 1
+            ELSE 0
+        END AS BsmtCond_encoded,
+        CASE
+            WHEN BsmtExposure = 'Gd' THEN 4
+            WHEN BsmtExposure = 'Av' THEN 3
+            WHEN BsmtExposure = 'Mn' THEN 2
+            WHEN BsmtExposure = 'No' THEN 1
+            ELSE 0
+        END AS BsmtExposure_encoded,
+        CASE
+            WHEN BsmtFinType1 = 'GLQ' THEN 6
+            WHEN BsmtFinType1 = 'ALQ' THEN 5
+            WHEN BsmtFinType1 = 'BLQ' THEN 4
+            WHEN BsmtFinType1 = 'Rec' THEN 3
+            WHEN BsmtFinType1 = 'LwQ' THEN 2
+            WHEN BsmtFinType1 = 'Unf' THEN 1
+            ELSE 0
+        END AS BsmtFinType1_encoded,
+        CASE
+            WHEN BsmtFinType2 = 'GLQ' THEN 6
+            WHEN BsmtFinType2 = 'ALQ' THEN 5
+            WHEN BsmtFinType2 = 'BLQ' THEN 4
+            WHEN BsmtFinType2 = 'Rec' THEN 3
+            WHEN BsmtFinType2 = 'LwQ' THEN 2
+            WHEN BsmtFinType2 = 'Unf' THEN 1
+            ELSE 0
+        END AS BsmtFinType2_encoded,
+        CASE
+            WHEN KitchenQual = 'Ex' THEN 5
+            WHEN KitchenQual = 'Gd' THEN 4
+            WHEN KitchenQual = 'TA' THEN 3
+            WHEN KitchenQual = 'Fa' THEN 2
+            WHEN KitchenQual = 'Po' THEN 1
+            ELSE 0
+        END AS KitchenQual_encoded,
+        CASE
+            WHEN FireplaceQu = 'Ex' THEN 5
+            WHEN FireplaceQu = 'Gd' THEN 4
+            WHEN FireplaceQu = 'TA' THEN 3
+            WHEN FireplaceQu = 'Fa' THEN 2
+            WHEN FireplaceQu = 'Po' THEN 1
+            ELSE 0
+        END AS FireplaceQu_encoded,
+        CASE
+            WHEN GarageFinish = 'Fin' THEN 3
+            WHEN GarageFinish = 'RFn' THEN 2
+            WHEN GarageFinish = 'Unf' THEN 1
+            ELSE 0
+        END AS GarageFinish_encoded,
+        CASE
+            WHEN GarageQual = 'Ex' THEN 5
+            WHEN GarageQual = 'Gd' THEN 4
+            WHEN GarageQual = 'TA' THEN 3
+            WHEN GarageQual = 'Fa' THEN 2
+            WHEN GarageQual = 'Po' THEN 1
+            ELSE 0
+        END AS GarageQual_encoded,
+        CASE
+            WHEN GarageCond = 'Ex' THEN 5
+            WHEN GarageCond = 'Gd' THEN 4
+            WHEN GarageCond = 'TA' THEN 3
+            WHEN GarageCond = 'Fa' THEN 2
+            WHEN GarageCond = 'Po' THEN 1
+            ELSE 0
+        END AS GarageCond_encoded,
+        CASE
+            WHEN PoolQC = 'Ex' THEN 4
+            WHEN PoolQC = 'Gd' THEN 3
+            WHEN PoolQC = 'TA' THEN 2
+            WHEN PoolQC = 'Fa' THEN 1
+            ELSE 0
+        END AS PoolQC_encoded,
+    FROM input_df;
+    """
+    result = conn.execute(query).fetch_df()
+    columns_to_drop = [
+        "LandSlope","LotShape", "HeatingQC", 
+               "ExterQual", "ExterCond", "BsmtQual", "BsmtCond", "BsmtExposure", 
+               "BsmtFinType1", "BsmtFinType2", "KitchenQual", "FireplaceQu", "GarageFinish", "GarageQual", "GarageCond", 
+               "PoolQC"]
+    result = result.drop(columns=columns_to_drop)
+    conn.close()
+    return result
+
+train_encoded = ordinal_encoding(train_encoded)
+test_encoded = ordinal_encoding(test_encoded)
+
+
+bool_columns_train = train_encoded.select_dtypes(include="bool").columns
+bool_columns_test = test_encoded.select_dtypes(include="bool").columns
+
+train_encoded[bool_columns_train] = train_encoded[bool_columns_train].astype("int8")
+test_encoded[bool_columns_test] = test_encoded[bool_columns_test].astype("int8")
+
+
+# Step 4: Split the train dataset into train and validation set
+from sklearn.model_selection import train_test_split
+X_train, X_val, y_train, y_val = train_test_split(train_encoded, y, test_size=0.2, random_state=42)
+
+X_train_ml = X_train.copy()  
+X_train_ml["LotFrontage"] = X_train_imputed["LotFrontage"]
+
+
+# Step 6: Impute missing continuous numerical data in the validation set using the trained imputer
+X_val_ml = X_val.copy()  
+X_val_ml["LotFrontage"] = X_val_imputed["LotFrontage"]
+
+
+
+
+# Step 7: Impute missing continuous numerical data in the test set using the trained imputer
+test_final_ml = test_encoded.copy()  
+test_final_ml["LotFrontage"] = test_imputed["LotFrontage"]
+
+############################### Export non-transformed and non-scaled data for non-linear modeling ###############################
+if not os.path.exists("data/model_data"):
+    os.makedirs("data/model_data")
+
+# Transform SalePrice
+y_train_ml = np.log(y_train)
+y_val_ml = np.log(y_val)
+
+X_train_ml.drop("Id", axis=1).to_csv("data/model_data/X_train_ml.csv", index=False)
+X_val_ml.drop("Id", axis=1).to_csv("data/model_data/X_val_ml.csv", index=False)
+test_final_ml.to_csv("data/model_data/test_final_ml.csv", index=False)
+y_train_ml.to_csv("data/model_data/y_train_ml.csv", index=False)
+y_val_ml.to_csv("data/model_data/y_val_ml.csv", index=False)

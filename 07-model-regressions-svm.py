@@ -12,11 +12,11 @@ from sklearn.svm import SVR
 import pickle
 
 
-X_train = pd.read_csv("data/model_data/X_train.csv")
-X_val = pd.read_csv("data/model_data/X_val.csv")
-test_final = pd.read_csv("data/model_data/test_final.csv")
-y_train = pd.read_csv("data/model_data/y_train.csv")
-y_val = pd.read_csv("data/model_data/y_val.csv")
+X_train = pd.read_csv("data/model_data/X_train_reg.csv")
+X_val = pd.read_csv("data/model_data/X_val_reg.csv")
+test_final = pd.read_csv("data/model_data/test_final_reg.csv")
+y_train = pd.read_csv("data/model_data/y_train_reg.csv")
+y_val = pd.read_csv("data/model_data/y_val_reg.csv")
 
 random_state = 42
 
@@ -33,10 +33,10 @@ vif_data = vif_data[vif_data["VIF"] != np.inf]
 selected_features_vif = list(vif_data[vif_data["VIF"] < 10]["feature"])
 
 ############################# Feature Selection 2: Random Forest Feature Importance #############################
-X_train = pd.read_csv("data/model_data/X_train.csv")
-X_val = pd.read_csv("data/model_data/X_val.csv")
-y_train = pd.read_csv("data/model_data/y_train.csv")
-y_val = pd.read_csv("data/model_data/y_val.csv")
+X_train = pd.read_csv("data/model_data/X_train_reg.csv")
+X_val = pd.read_csv("data/model_data/X_val_reg.csv")
+y_train = pd.read_csv("data/model_data/y_train_reg.csv")
+y_val = pd.read_csv("data/model_data/y_val_reg.csv")
 
 # Train a Random Forest Regressor
 rf_model = RandomForestRegressor(n_estimators=200, random_state=random_state)
