@@ -96,7 +96,7 @@ for name, model, X, y in base_models:
 
 # Predict on test data
 test_final_ml = pd.read_csv("data/model_data/test_final_ml.csv")
-test_final_regress = pd.read_csv("data/model_data/test_final.csv")
+test_final_regress = pd.read_csv("data/model_data/test_final_reg.csv")
 test_final_regress = sm.add_constant(test_final_regress)
 
 X_val_xgb = pd.read_csv("data/model_data/X_val_xgb.csv")
