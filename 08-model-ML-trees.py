@@ -197,16 +197,12 @@ cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 xgb_model = xgb.XGBRegressor(random_state=random_state, objective="reg:squarederror")
 
 param_grid = {
-    "n_estimators": [100, 200],  # Keep 2 values (number of trees)
-    "learning_rate": [0.05, 0.1],  # Reduce to 3 values (convergence control)
-    "max_depth": [3, 5],  # Reduced depth values for trees
-    "min_child_weight": [1, 3],  # Simplified to 2 values
-    "subsample": [0.8, 1.0],  # Reduced subsample range
-    "colsample_bytree": [0.8, 1.0],  # Reduced range for feature sampling
-    "gamma": [0, 0.1],  # Reduced gamma range (splitting criteria)
-    "reg_alpha": [0, 0.01],  # Reduced L1 regularization options
-    "reg_lambda": [1, 1.5],  # Reduced L2 regularization options
-    "tree_method": ["auto", "approx"],  # Reduced tree methods for optimization
+    "n_estimators": [100, 200],  
+    "learning_rate": [0.05, 0.1],        # Tune learning_rate to balance overfitting
+    "max_depth": [3, 5],                     # Typical values for tree depth
+    "min_child_weight": [1, 5],              # Vary min_child_weight to control overfitting
+    "subsample": [0.8, 1.0],               # Subsample to prevent overfitting
+    "colsample_bytree": [0.8, 1.0],        # Column subsampling to control model complexity
 }
 
 gs_xgb = GridSearchCV(
@@ -249,17 +245,13 @@ cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 lgbm = lgb.LGBMRegressor(random_state=random_state, objective="regression")
 
 param_grid = {
-    "n_estimators": [100, 200],               # Number of boosting rounds
-    "learning_rate": [0.01, 0.05, 0.1],       # Control convergence speed
-    "max_depth": [-1, 3, 5],                   # Reduced depth for simplicity
-    "num_leaves": [15, 31],                    # Reduced to 2 values for leaves per tree
-    "min_child_samples": [20, 30],             # Reduced minimum samples for leaf nodes
-    "min_child_weight": [1e-3, 1e-2],          # Reduced range for minimum weight in leaf
-    "subsample": [0.8, 1.0],                   # Reduced to 2 values for row sampling
-    "colsample_bytree": [0.8, 1.0],            # Reduced to 2 values for feature sampling
-    "reg_alpha": [0, 0.01],                    # Reduced to 2 values for L1 regularization
-    "reg_lambda": [1, 1.5],                    # Reduced to 2 values for L2 regularization
-    "max_bin": [255, 511],                     # Reduced max bins for discretizing features
+    "n_estimators": [100, 200],
+    "learning_rate": [0.05, 0.1],          # Tune learning_rate to balance overfitting
+    "max_depth": [-1, 3, 5],                 # LightGBM allows -1 for unlimited depth
+    "num_leaves": [31, 64],               # Number of leaves, impacts model complexity
+    "min_child_samples": [10, 20],        # Min number of data in a leaf
+    "subsample": [0.8, 1.0],              # Subsample to prevent overfitting
+    "colsample_bytree": [0.8, 1.0]       # Column subsampling to control model complexity
 }
 
 gs_lgbm = GridSearchCV(
