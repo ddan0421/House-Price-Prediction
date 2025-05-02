@@ -195,10 +195,12 @@ cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 svm = SVR()
 
 param_grid = {
-    "C": [0.1, 1.0, 10.0, 100.0],  # Regularization parameter
-    "epsilon": [0.001, 0.01, 0.1, 0.5, 1.0],  # Epsilon parameter (for margin of tolerance)
-    "gamma": ["scale", "auto", 0.01, 0.1, 1.0]
+    "C": [0.1, 1.0, 10.0, 100.0],  # Narrow range for regularization parameter
+    "epsilon": [0.01, 0.1, 1.0],
+    "gamma": ["scale", "auto", 0.01, 0.1, 1.0],  # Limited gamma range
+    "tol": [1e-4, 1e-3]  # Reduced tolerance values
 }
+
 
 gs_svm = GridSearchCV(estimator=svm,
                       param_grid=param_grid,
