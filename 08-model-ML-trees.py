@@ -197,12 +197,12 @@ cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 xgb_model = xgb.XGBRegressor(random_state=random_state, objective="reg:squarederror")
 
 param_grid = {
-    "n_estimators": [170, 185, 200],  
-    "learning_rate": [0.07, 0.08, 0.1],  
-    "max_depth": [3, 4, 5, 6],  
-    "min_child_weight": [1, 2.5, 5],  
-    "subsample": [0.75, 0.8, 0.85, 1.0],  
-    "colsample_bytree": [0.6, 0.7, 0.8, 0.9, 1.0],  
+    "n_estimators": [100, 200],  
+    "learning_rate": [0.05, 0.1],        
+    "max_depth": [3, 5],                     
+    "min_child_weight": [1, 5],              
+    "subsample": [0.8, 1.0],               
+    "colsample_bytree": [0.8, 1.0] 
 }
 
 gs_xgb = GridSearchCV(
@@ -245,17 +245,13 @@ cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 lgbm = lgb.LGBMRegressor(random_state=random_state, objective="regression", verbose=-1)
 
 param_grid = {
-    "n_estimators": [150, 200],  # Based on grid search
-    "learning_rate": [0.1, 0.12],  # Reflects both tuning methods
-    "max_depth": [3, 5],  # Focused on feasible depths
-    "num_leaves": [15, 31],  # Balanced range from grid and Bayesian
-    "min_child_samples": [15, 20],  # Based on Bayesian results
-    "subsample": [0.8],  # Converged optimal value
-    "colsample_bytree": [0.8, 1.0],  # Balanced between grid and Bayesian
-    "reg_alpha": [0, 0.5],  # Informed by Bayesian results
-    "reg_lambda": [1.0, 1.5],  # Reflects both methods
-    "min_split_gain": [0.01],  # Bayesian optimal
-    "max_bin": [255],  # Computationally efficient
+    "n_estimators": [100, 200],
+    "learning_rate": [0.05, 0.1],          
+    "max_depth": [-1, 3, 5],            
+    "num_leaves": [31, 64],            
+    "min_child_samples": [10, 20],      
+    "subsample": [0.8, 1.0],           
+    "colsample_bytree": [0.8, 1.0]      
 }
 
 gs_lgbm = GridSearchCV(
