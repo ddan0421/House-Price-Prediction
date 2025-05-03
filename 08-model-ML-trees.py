@@ -197,12 +197,12 @@ cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 xgb_model = xgb.XGBRegressor(random_state=random_state, objective="reg:squarederror")
 
 param_grid = {
-    "n_estimators": [100, 200],  
-    "learning_rate": [0.05, 0.1],        # Tune learning_rate to balance overfitting
-    "max_depth": [3, 5],                     # Typical values for tree depth
-    "min_child_weight": [1, 5],              # Vary min_child_weight to control overfitting
-    "subsample": [0.8, 1.0],               # Subsample to prevent overfitting
-    "colsample_bytree": [0.8, 1.0],        # Column subsampling to control model complexity
+    "n_estimators": [170, 185, 200],  
+    "learning_rate": [0.07, 0.08, 0.1],  
+    "max_depth": [3, 4, 5, 6],  
+    "min_child_weight": [1, 2.5, 5],  
+    "subsample": [0.75, 0.8, 0.85, 1.0],  
+    "colsample_bytree": [0.6, 0.7, 0.8, 0.9, 1.0],  
 }
 
 gs_xgb = GridSearchCV(
@@ -242,16 +242,20 @@ X_val_lgbm = X_val[combined_features_xgb]
 
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 
-lgbm = lgb.LGBMRegressor(random_state=random_state, objective="regression")
+lgbm = lgb.LGBMRegressor(random_state=random_state, objective="regression", verbose=-1)
 
 param_grid = {
-    "n_estimators": [100, 200],
-    "learning_rate": [0.05, 0.1],          # Tune learning_rate to balance overfitting
-    "max_depth": [-1, 3, 5],                 # LightGBM allows -1 for unlimited depth
-    "num_leaves": [31, 64],               # Number of leaves, impacts model complexity
-    "min_child_samples": [10, 20],        # Min number of data in a leaf
-    "subsample": [0.8, 1.0],              # Subsample to prevent overfitting
-    "colsample_bytree": [0.8, 1.0]       # Column subsampling to control model complexity
+    "n_estimators": [150, 200],  # Based on grid search
+    "learning_rate": [0.1, 0.12],  # Reflects both tuning methods
+    "max_depth": [3, 5],  # Focused on feasible depths
+    "num_leaves": [15, 31],  # Balanced range from grid and Bayesian
+    "min_child_samples": [15, 20],  # Based on Bayesian results
+    "subsample": [0.8],  # Converged optimal value
+    "colsample_bytree": [0.8, 1.0],  # Balanced between grid and Bayesian
+    "reg_alpha": [0, 0.5],  # Informed by Bayesian results
+    "reg_lambda": [1.0, 1.5],  # Reflects both methods
+    "min_split_gain": [0.01],  # Bayesian optimal
+    "max_bin": [255],  # Computationally efficient
 }
 
 gs_lgbm = GridSearchCV(
@@ -335,19 +339,19 @@ def bayesian_opt_lgbm(X, y, init_iter=40, n_iters=50, random_state=random_state,
 
     # Define hyperparameter search space
     pds = {
-        "num_boost_round": (50, 300),  # Increased range
-        "learning_rate": (0.005, 0.15),  # Expanded learning rate range
-        "max_depth": (-1, 15),  # Increased max depth
-        "num_leaves": (15, 256),  # Increased num leaves
-        "min_child_samples": (5, 100),  # Expanded min child samples
-        "min_sum_hessian_in_leaf": (1e-3, 10),
-        "feature_fraction_bynode": (0.1, 1.0),  # Fraction of features per tree node
-        "reg_alpha": (0, 2),  # Expanded regularization
-        "reg_lambda": (0, 2),  # Expanded regularization
-        "min_split_gain": (0, 2),  # Expanded min split gain
-        "feature_fraction": (0.5, 1.0), #added feature fraction
-        "bagging_fraction": (0.5, 1.0), #added bagging fraction
-        "bagging_freq": (1, 10), #added bagging frequency
+        "num_boost_round": (150, 250),  # Focused around optimal results
+        "learning_rate": (0.08, 0.15),  # Centered on optimal values
+        "max_depth": (3, 10),  # Tightened range based on grid and Bayesian results
+        "num_leaves": (15, 128),  # Balanced between grid search and Bayesian ranges
+        "min_child_samples": (10, 25),  # Focused around optimal values
+        "min_sum_hessian_in_leaf": (1e-3, 7),  # Narrowed based on Bayesian result
+        "feature_fraction_bynode": (0.3, 0.7),  # Focused around Bayesian results
+        "reg_alpha": (0, 1),  # Balanced between grid and Bayesian ranges
+        "reg_lambda": (1, 2),  # Focused on higher values suggested by Bayesian
+        "min_split_gain": (0.0, 0.1),  # Tightened range based on Bayesian results
+        "feature_fraction": (0.6, 0.8),  # Focused on the Bayesian result
+        "bagging_fraction": (0.7, 0.9),  # Centered around Bayesian optimal
+        "bagging_freq": (3, 7),  # Tightened range based on Bayesian results
     }
 
     # Initialize Bayesian Optimization
@@ -435,14 +439,14 @@ def bayesian_opt_xgb(X, y, init_iter=40, n_iters=50, random_state=random_state, 
 
     # Define hyperparameter search space
     pds = {
-        "n_estimators": (50, 200),  # Increased range
-        "learning_rate": (0.005, 0.15),  # Expanded learning rate range
-        "max_depth": (3, 15),  # Increased max depth
-        "min_child_weight": (1, 5),  # Expanded min child weight
-        "subsample": (0.5, 1.0),  # Fraction of samples per tree
-        "colsample_bytree": (0.5, 1.0),  # Fraction of features per tree
-        "reg_alpha": (0, 2),  # L1 regularization
-        "reg_lambda": (0, 2),  # L2 regularization
+        "n_estimators": (150, 200),  # Increased range
+        "learning_rate": (0.07, 0.12),  # Expanded learning rate range
+        "max_depth": (3, 5),  # Increased max depth
+        "min_child_weight": (1, 3),  # Expanded min child weight
+        "subsample": (0.7, 0.85),  # Fraction of samples per tree
+        "colsample_bytree": (0.6, 0.8),  # Fraction of features per tree
+        "reg_alpha": (0.5, 1.0),  # L1 regularization
+        "reg_lambda": (0.2, 1.0),  # L2 regularization
     }
 
     # Initialize Bayesian Optimization
