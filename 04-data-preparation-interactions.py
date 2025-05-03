@@ -9,49 +9,49 @@ import os
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-train = pd.read_csv("data/train_clean_01.csv")
-test = pd.read_csv("data/test_clean_01.csv")
-
-
 """
-Workflow:
-Step 1: Impute categorical missing data in train set and test set with the mode from training set
-Step 2: Creating categorical interaction terms and create time variables
-Step 3: Encode categorical variables separately for train and test sets to prevent data leakage, ensuring consistent feature alignment using one-hot encoding and applying label encoding mappings from the train set to the test set.
-Step 4: Split the train dataset into train and validation set
+Regression Model Data Preparation Workflow:
+Step 1: Split the train dataset into train and validation set
+Step 2: Impute categorical missing data in train, validation, and test sets with the mode from training set to prevent data leakage
+Step 3: Creating categorical interaction terms and create time variables
+Step 4: Encode categorical variables separately for train, validation, and test sets to prevent data leakage, ensuring consistent feature alignment using one-hot encoding and applying ordinal encoding mappings from the train set to the test set
 Step 5: Impute missing continuous numerical data in the training set using IterativeImputer with BayesianRidge estimator
 Step 6: Impute missing continuous numerical data in the validation set using the trained imputer
 Step 7: Impute missing continuous numerical data in the test set using the trained imputer
 Step 8: Correlation analysis and transform numerical terms
 Step 9: Creating interaction terms for numerical variables
 
-Impute Missing Values Separately:
+
+Impute Categorical Data (train, validation, test):
+- Imputing missing values in the train, validation, and test set using the mode calculated exclusively from the original train set ensures that no information from the test or validation set influences the training process.
+- The validation set remains independent of the training process and can be used for model selection.
+
+Impute Missing Continuous Numerical Data (LotFrontage) Separately (train, validation, test):
 - Train the regression imputation model using only the training subset.
 - Use this trained imputation model to impute missing values in the train, validation, and test subsets.
 - By training the imputer only on the training data, I ensure that the imputation process does not allow any information from the validation or test sets to influence the training process.
-
-Encode Categorical Data Separetely:
-- Train and Validation Split: When I encode the train and validation sets together, I'm still within the same training data, meaning I'm not introducing new or unseen data. 
-  The validation set is just a portion of the training data, so encoding both together ensures consistency in feature mapping without causing leakage.
-- Train and Test Split: The test set is entirely separate from the training process and should not influence the encoding of the training data in any way. 
-  If I encode the train and test sets together, I'm potentially introducing data leakage because the encoding process might learn patterns from the test data that shouldn't be available during model training.
-
-Final Summary:
-- Encoding is about creating consistent feature mappings and does not inherently involve predicting or learning from missing data or future values, which is why encoding can be safely done on both the train and validation sets together.
-- Imputation, however, relies on training a model to estimate missing values, which should only be done on the training set to avoid using any information from the test/validation sets during training. This is why imputation must be done separately.
 """
+train = pd.read_csv("data/train_clean_01.csv")
+test = pd.read_csv("data/test_clean_01.csv")
 
-# Step 1: Impute categorical missing data in train set and test set with the mode from training set
-train["Electrical"].fillna(train["Electrical"].mode()[0], inplace=True)
-test_imputed = test.copy()  # Make a copy of the test set
-test_imputed["MSZoning"].fillna(train["MSZoning"].mode()[0], inplace=True)
-test_imputed["Utilities"].fillna(train["Utilities"].mode()[0], inplace=True)
-test_imputed["KitchenQual"].fillna(train["KitchenQual"].mode()[0], inplace=True)
-test_imputed["Functional"].fillna(train["Functional"].mode()[0], inplace=True)
+# Step 1: Split the train dataset into train and validation set
+X = train.drop(columns=["SalePrice"], axis=1)
+y = train["SalePrice"]
 
-train.to_csv("data/train_before_imputation_EDA.csv", index=False)
+from sklearn.model_selection import train_test_split
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Step 2: Creating categorical interaction terms and create time variables
+
+# Step 2: Impute categorical missing data in train, validation, and test sets with the mode from training set to prevent data leakage
+X_train["Electrical"].fillna(X_train["Electrical"].mode()[0], inplace=True)
+# validation set has no missing values except LotFrontage
+test["MSZoning"].fillna(X_train["MSZoning"].mode()[0], inplace=True)
+test["Utilities"].fillna(X_train["Utilities"].mode()[0], inplace=True)
+test["KitchenQual"].fillna(X_train["KitchenQual"].mode()[0], inplace=True)
+test["Functional"].fillna(X_train["Functional"].mode()[0], inplace=True)
+
+
+# Step 3: Creating categorical interaction terms and create time variables
 """
 categorical:
 - combine MSSubClass and MSZoning
@@ -123,14 +123,11 @@ def feature_engineering(df):
     return result
 
 
-train_new = feature_engineering(train)
-test_new = feature_engineering(test_imputed)
+X_train = feature_engineering(X_train)
+X_val = feature_engineering(X_val)
+test = feature_engineering(test)
 
-X = train_new.drop(columns=["SalePrice"], axis=1) 
-y = train_new["SalePrice"]
-
-############################### Encode train and test data ########################################
-# Step 3: Encode categorical variables separately for train and test sets
+# Step 4: Encode categorical variables separately for train, validation, and test sets to prevent data leakage, ensuring consistent feature alignment using one-hot encoding and applying ordinal encoding mappings from the train set to the test set
 nominal_cat = ["MSSubClass_MSZoning", "LotConfig_LandSlope", "Neighborhood_Condition", "BldgType_HouseStyle",
                "Exterior1st_Exterior2nd", "CentralAir_Electrical", "LotShape_LandContour", "RoofStyle_RoofMatl",
                "Heating_HeatingQC", "Street", "Alley", "Utilities", "MasVnrType", "Foundation", 
@@ -143,12 +140,14 @@ ordinal_cat = ["OverallQual", "OverallCond", "ExterQual", "ExterCond", "BsmtQual
                "PoolQC"]
 
 # One-hot encode nominal categorical variables
-train_encoded = pd.get_dummies(X, columns=nominal_cat, drop_first=True)
-test_encoded = pd.get_dummies(test_new, columns=nominal_cat, drop_first=True)
+X_train_encoded = pd.get_dummies(X_train, columns=nominal_cat, drop_first=True)
+X_val_encoded = pd.get_dummies(X_val, columns=nominal_cat, drop_first=True)
+test_encoded = pd.get_dummies(test, columns=nominal_cat, drop_first=True)
 
-test_encoded = test_encoded.reindex(columns=train_encoded.columns, fill_value=0)
+X_val_encoded = X_val_encoded.reindex(columns=X_train_encoded.columns, fill_value=0)
+test_encoded = test_encoded.reindex(columns=X_train_encoded.columns, fill_value=0)
 
-# Label encode ordinal categorical variables
+# Use Duckdb to encode ordinal categorical variables
 
 def ordinal_encoding(df):
     conn = duckdb.connect()
@@ -271,20 +270,20 @@ def ordinal_encoding(df):
     conn.close()
     return result
 
-train_encoded = ordinal_encoding(train_encoded)
+X_train_encoded = ordinal_encoding(X_train_encoded)
+X_val_encoded = ordinal_encoding(X_val_encoded)
 test_encoded = ordinal_encoding(test_encoded)
 
 
-bool_columns_train = train_encoded.select_dtypes(include="bool").columns
+bool_columns_train = X_train_encoded.select_dtypes(include="bool").columns
+bool_columns_val = X_val_encoded.select_dtypes(include="bool").columns
 bool_columns_test = test_encoded.select_dtypes(include="bool").columns
 
-train_encoded[bool_columns_train] = train_encoded[bool_columns_train].astype("int8")
+X_train_encoded[bool_columns_train] = X_train_encoded[bool_columns_train].astype("int8")
+X_val_encoded[bool_columns_val] = X_val_encoded[bool_columns_val].astype("int8")
 test_encoded[bool_columns_test] = test_encoded[bool_columns_test].astype("int8")
 
 
-# Step 4: Split the train dataset into train and validation set
-from sklearn.model_selection import train_test_split
-X_train, X_val, y_train, y_val = train_test_split(train_encoded, y, test_size=0.2, random_state=42)
 
 
 
@@ -292,99 +291,49 @@ X_train, X_val, y_train, y_val = train_test_split(train_encoded, y, test_size=0.
 # Step 5: Impute missing continuous numerical data in the training set using IterativeImputer with BayesianRidge estimator
 # Columns to be used as predictors for imputing "LotFrontage"
 columns_for_imputation = [
-    "LotArea", "1stFlrSF","Street_Pave",
-    "LotShape_LandContour_IR1_HLS", "LotShape_LandContour_IR1_Low", 
-    "LotShape_LandContour_IR1_Lvl", "LotShape_LandContour_IR2_Bnk", 
-    "LotShape_LandContour_IR2_HLS", "LotShape_LandContour_IR2_Low", 
-    "LotShape_LandContour_IR2_Lvl", "LotShape_LandContour_IR3_Bnk", 
-    "LotShape_LandContour_IR3_HLS", "LotShape_LandContour_IR3_Low", 
-    "LotShape_LandContour_IR3_Lvl", "LotShape_LandContour_Reg_Bnk", 
-    "LotShape_LandContour_Reg_HLS", "LotShape_LandContour_Reg_Low", 
-    "LotShape_LandContour_Reg_Lvl", "Neighborhood_Condition_Blueste_Norm", 
-    "Neighborhood_Condition_BrDale_Norm", "Neighborhood_Condition_BrkSide_Artery", 
-    "Neighborhood_Condition_BrkSide_Feedr_Norm", "Neighborhood_Condition_BrkSide_Feedr_RRNn", 
-    "Neighborhood_Condition_BrkSide_Norm", "Neighborhood_Condition_BrkSide_PosN_Norm", 
-    "Neighborhood_Condition_BrkSide_RRAn_Feedr", "Neighborhood_Condition_BrkSide_RRAn_Norm", 
-    "Neighborhood_Condition_BrkSide_RRNn_Feedr", "Neighborhood_Condition_ClearCr_Feedr_Norm", 
-    "Neighborhood_Condition_ClearCr_Norm", "Neighborhood_Condition_CollgCr_Norm", 
-    "Neighborhood_Condition_CollgCr_PosN_Norm", "Neighborhood_Condition_Crawfor_Feedr_Norm", 
-    "Neighborhood_Condition_Crawfor_Norm", "Neighborhood_Condition_Crawfor_PosA_Norm", 
-    "Neighborhood_Condition_Crawfor_PosN_Norm", "Neighborhood_Condition_Edwards_Artery_Norm", 
-    "Neighborhood_Condition_Edwards_Feedr_Norm", "Neighborhood_Condition_Edwards_Norm", 
-    "Neighborhood_Condition_Edwards_PosN", "Neighborhood_Condition_Gilbert_Feedr_Norm", 
-    "Neighborhood_Condition_Gilbert_Norm", "Neighborhood_Condition_Gilbert_RRAn_Norm", 
-    "Neighborhood_Condition_Gilbert_RRNn_Norm", "Neighborhood_Condition_IDOTRR_Artery_Norm", 
-    "Neighborhood_Condition_IDOTRR_Feedr", "Neighborhood_Condition_IDOTRR_Feedr_Norm", 
-    "Neighborhood_Condition_IDOTRR_Norm", "Neighborhood_Condition_IDOTRR_RRAe_Norm", 
-    "Neighborhood_Condition_IDOTRR_RRNn_Norm", "Neighborhood_Condition_MeadowV_Norm", 
-    "Neighborhood_Condition_Mitchel_Artery_Norm", "Neighborhood_Condition_Mitchel_Feedr_Norm", 
-    "Neighborhood_Condition_Mitchel_Norm", "Neighborhood_Condition_NAmes_Artery_Norm", 
-    "Neighborhood_Condition_NAmes_Feedr_Norm", "Neighborhood_Condition_NAmes_Norm", 
-    "Neighborhood_Condition_NAmes_PosA_Norm", "Neighborhood_Condition_NAmes_PosN_Norm", 
-    "Neighborhood_Condition_NPkVill_Norm", "Neighborhood_Condition_NWAmes_Feedr_Norm", 
-    "Neighborhood_Condition_NWAmes_Feedr_RRAn", "Neighborhood_Condition_NWAmes_Norm", 
-    "Neighborhood_Condition_NWAmes_PosA_Norm", "Neighborhood_Condition_NWAmes_PosN_Norm", 
-    "Neighborhood_Condition_NWAmes_RRAn_Norm", "Neighborhood_Condition_NoRidge_Norm", 
-    "Neighborhood_Condition_NridgHt_Norm", "Neighborhood_Condition_NridgHt_PosN", 
-    "Neighborhood_Condition_OldTown_Artery", "Neighborhood_Condition_OldTown_Artery_Norm", 
-    "Neighborhood_Condition_OldTown_Artery_PosA", "Neighborhood_Condition_OldTown_Feedr_Norm", 
-    "Neighborhood_Condition_OldTown_Feedr_RRNn", "Neighborhood_Condition_OldTown_Norm", 
-    "Neighborhood_Condition_OldTown_RRAn_Feedr", "Neighborhood_Condition_SWISU_Feedr_Norm", 
-    "Neighborhood_Condition_SWISU_Norm", "Neighborhood_Condition_SawyerW_Feedr_Norm", 
-    "Neighborhood_Condition_SawyerW_Norm", "Neighborhood_Condition_SawyerW_RRAe_Norm", 
-    "Neighborhood_Condition_SawyerW_RRNe_Norm", "Neighborhood_Condition_Sawyer_Feedr_Norm", 
-    "Neighborhood_Condition_Sawyer_Feedr_RRAe", "Neighborhood_Condition_Sawyer_Norm", 
-    "Neighborhood_Condition_Sawyer_PosN_Norm", "Neighborhood_Condition_Sawyer_RRAe_Norm", 
-    "Neighborhood_Condition_Somerst_Feedr_Norm", "Neighborhood_Condition_Somerst_Norm", 
-    "Neighborhood_Condition_Somerst_RRAn_Norm", "Neighborhood_Condition_Somerst_RRNn_Norm", 
-    "Neighborhood_Condition_StoneBr_Norm", "Neighborhood_Condition_Timber_Norm", 
-    "Neighborhood_Condition_Veenker_Feedr_Norm", "Neighborhood_Condition_Veenker_Norm", 
-    "BldgType_HouseStyle_1Fam_1.5Unf", "BldgType_HouseStyle_1Fam_1Story", 
-    "BldgType_HouseStyle_1Fam_2.5Fin", "BldgType_HouseStyle_1Fam_2.5Unf", 
-    "BldgType_HouseStyle_1Fam_2Story", "BldgType_HouseStyle_1Fam_SFoyer", 
-    "BldgType_HouseStyle_1Fam_SLvl", "BldgType_HouseStyle_2fmCon_1.5Fin", 
-    "BldgType_HouseStyle_2fmCon_1.5Unf", "BldgType_HouseStyle_2fmCon_1Story", 
-    "BldgType_HouseStyle_2fmCon_2.5Fin", "BldgType_HouseStyle_2fmCon_2.5Unf", 
-    "BldgType_HouseStyle_2fmCon_2Story", "BldgType_HouseStyle_2fmCon_SLvl", 
-    "BldgType_HouseStyle_Duplex_1.5Fin", "BldgType_HouseStyle_Duplex_1Story", 
-    "BldgType_HouseStyle_Duplex_2Story", "BldgType_HouseStyle_Duplex_SFoyer", 
-    "BldgType_HouseStyle_Duplex_SLvl", "BldgType_HouseStyle_TwnhsE_1Story", 
-    "BldgType_HouseStyle_TwnhsE_2Story", "BldgType_HouseStyle_TwnhsE_SFoyer", 
-    "BldgType_HouseStyle_TwnhsE_SLvl", "BldgType_HouseStyle_Twnhs_1Story", 
-    "BldgType_HouseStyle_Twnhs_2Story", "BldgType_HouseStyle_Twnhs_SFoyer", 
-    "BldgType_HouseStyle_Twnhs_SLvl"
+    "LotArea", "1stFlrSF", "Street_Pave",
+    "LotShape_LandContour_IR1_HLS", "LotShape_LandContour_IR1_Low", "LotShape_LandContour_IR1_Lvl",
+    "LotShape_LandContour_IR2_Bnk", "LotShape_LandContour_IR2_HLS", "LotShape_LandContour_IR2_Low",
+    "LotShape_LandContour_IR2_Lvl", "LotShape_LandContour_IR3_Bnk", "LotShape_LandContour_IR3_HLS",
+    "LotShape_LandContour_IR3_Low", "LotShape_LandContour_IR3_Lvl", "LotShape_LandContour_Reg_Bnk",
+    "LotShape_LandContour_Reg_HLS", "LotShape_LandContour_Reg_Low", "LotShape_LandContour_Reg_Lvl",
+    
+    "Neighborhood_Condition_Blueste_Norm", "Neighborhood_Condition_BrDale_Norm", "Neighborhood_Condition_BrkSide_Artery",
+    "Neighborhood_Condition_BrkSide_Feedr_Norm", "Neighborhood_Condition_BrkSide_Norm", "Neighborhood_Condition_BrkSide_PosN_Norm",
+    "Neighborhood_Condition_BrkSide_RRAn_Feedr", "Neighborhood_Condition_BrkSide_RRAn_Norm", "Neighborhood_Condition_BrkSide_RRNn_Feedr",
+    "Neighborhood_Condition_ClearCr_Feedr_Norm", "Neighborhood_Condition_ClearCr_Norm", "Neighborhood_Condition_CollgCr_Norm",
+    
+    "BldgType_HouseStyle_1Fam_1.5Unf", "BldgType_HouseStyle_1Fam_1Story", "BldgType_HouseStyle_1Fam_2.5Fin",
+    "BldgType_HouseStyle_1Fam_2.5Unf", "BldgType_HouseStyle_1Fam_2Story", "BldgType_HouseStyle_1Fam_SFoyer",
+    "BldgType_HouseStyle_1Fam_SLvl", "BldgType_HouseStyle_2fmCon_1.5Fin", "BldgType_HouseStyle_2fmCon_1.5Unf",
+    "BldgType_HouseStyle_2fmCon_1Story", "BldgType_HouseStyle_2fmCon_2.5Fin", "BldgType_HouseStyle_2fmCon_2.5Unf",
+    "BldgType_HouseStyle_2fmCon_2Story", "BldgType_HouseStyle_2fmCon_SLvl", "BldgType_HouseStyle_Duplex_1.5Fin",
+    
+    "BldgType_HouseStyle_Duplex_1Story", "BldgType_HouseStyle_Duplex_2Story", "BldgType_HouseStyle_Duplex_SFoyer",
+    "BldgType_HouseStyle_Duplex_SLvl", "BldgType_HouseStyle_TwnhsE_1Story", "BldgType_HouseStyle_TwnhsE_2Story",
+    "BldgType_HouseStyle_TwnhsE_SFoyer", "BldgType_HouseStyle_TwnhsE_SLvl", "BldgType_HouseStyle_Twnhs_1Story",
+    "BldgType_HouseStyle_Twnhs_2Story", "BldgType_HouseStyle_Twnhs_SFoyer", "BldgType_HouseStyle_Twnhs_SLvl"
 ]
-
 
 iterative_imputer = IterativeImputer(estimator=BayesianRidge(), random_state=42)
 
-X_train_imputed = X_train.copy()  
-X_train_imputed["LotFrontage"] = iterative_imputer.fit_transform(X_train[columns_for_imputation + ["LotFrontage"]])[ :, -1]
-
-
-# check = X_train_imputed[X_train_imputed["Id"].isin(X_train[X_train["LotFrontage"].isna()]["Id"])]
-# check["LotFrontage"].describe() 
+X_train_imputed = X_train_encoded.copy()  
+X_train_imputed["LotFrontage"] = iterative_imputer.fit_transform(X_train_encoded[columns_for_imputation + ["LotFrontage"]])[ :, -1]
 
 # Step 6: Impute missing continuous numerical data in the validation set using the trained imputer
-X_val_imputed = X_val.copy()  
-X_val_imputed["LotFrontage"] = iterative_imputer.transform(X_val[columns_for_imputation + ["LotFrontage"]])[:, -1]
+X_val_imputed = X_val_encoded.copy()  
+X_val_imputed["LotFrontage"] = iterative_imputer.transform(X_val_encoded[columns_for_imputation + ["LotFrontage"]])[:, -1]
 
-# check = X_val_imputed[X_val_imputed["Id"].isin(X_val[X_val["LotFrontage"].isna()]["Id"])]
-# check["LotFrontage"].describe() 
-
-X_combined = pd.concat([X_train_imputed, X_val_imputed], axis=0, ignore_index=False)
+X_combined = pd.concat([X_train_imputed.sort_values(by="Id", ascending=True), X_val_imputed.sort_values(by="Id", ascending=True)], axis=0, ignore_index=True)
 train["LotFrontage"] = X_combined["LotFrontage"]
 train["Age_House"] = X_combined["Age_House"]
 train["Yrs_Since_Remodel"] = X_combined["Yrs_Since_Remodel"]
 train["Age_Garage"] = X_combined["Age_Garage"]
 train.to_csv("data/train_after_imputation_EDA.csv", index=False)
 
-
 # Step 7: Impute missing continuous numerical data in the test set using the trained imputer
 test_imputed = test_encoded.copy()  
 test_imputed["LotFrontage"] = iterative_imputer.transform(test_encoded[columns_for_imputation + ["LotFrontage"]])[:, -1]
-
-###################################################################################################################################
 
 # Step 8: Correlation analysis and transform numerical terms
 """
@@ -477,7 +426,7 @@ GarageArea × GarageCars: Correlates garage area with its car capacity, showing 
 log_Age_Garage × GarageCars: Reflects how the age of the garage relates to its functionality or relevance to car capacity.
 BedroomAbvGr / TotRmsAbvGrd: Measures the proportion of bedrooms relative to the total rooms above grade.
 2ndFlrSF / GrLivArea: captures the proportion of second-floor square footage to the total above-grade living area.
-
+EnclosedPorch / Age_House: Interaction between the enclosed porch area and the age of the house, which may indicate how well the house has been maintained or updated.
 """
 
 
@@ -494,8 +443,6 @@ def create_interactions(df):
 X_train_final = create_interactions(X_train_final)
 X_val_final = create_interactions(X_val_final)
 test_final = create_interactions(test_final)
-
-
 
 
 if not os.path.exists("data/model_data"):
@@ -518,31 +465,39 @@ test_final.to_csv("data/test_final_reg.csv", index=False)
 
 
 
+#################################################################### ML Data Preparation ####################################################################
+"""
+ML Model Data Preparation Workflow:
+Step 1: Split the train dataset into train and validation set
+Step 2: Impute categorical missing data in train, validation, and test sets with the mode from training set to prevent data leakage
+Step 3: Creating time variables
+Step 4: Encode categorical variables separately for train, validation, and test sets to prevent data leakage, ensuring consistent feature alignment using one-hot encoding and applying ordinal encoding mappings from the train set to the test set
+Step 5: Impute missing continuous numerical data in the training set using the data from Regresion model data preparation step
+Step 6: Impute missing continuous numerical data in the validation set using the data from Regresion model data preparation step
+Step 7: Impute missing continuous numerical data in the test set using the data from Regresion model data preparation step
+"""
 
-
-
-
-
-
-
-
-
-
-
-#################################################################### ML data preparation ####################################################################
 train = pd.read_csv("data/train_clean_01.csv")
 test = pd.read_csv("data/test_clean_01.csv")
 
-# Step 1: Impute categorical missing data in train set and test set with the mode from training set
-train["Electrical"].fillna(train["Electrical"].mode()[0], inplace=True)
-test_imputed = test.copy()  # Make a copy of the test set
-test_imputed["MSZoning"].fillna(train["MSZoning"].mode()[0], inplace=True)
-test_imputed["Utilities"].fillna(train["Utilities"].mode()[0], inplace=True)
-test_imputed["KitchenQual"].fillna(train["KitchenQual"].mode()[0], inplace=True)
-test_imputed["Functional"].fillna(train["Functional"].mode()[0], inplace=True)
+# Step 1: Split the train dataset into train and validation set
+X = train.drop(columns=["SalePrice"], axis=1)
+y = train["SalePrice"]
+
+from sklearn.model_selection import train_test_split
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
 
+# Step 2: Impute categorical missing data in train, validation, and test sets with the mode from training set to prevent data leakage
+X_train["Electrical"].fillna(X_train["Electrical"].mode()[0], inplace=True)
+# validation set has no missing values except LotFrontage
+test["MSZoning"].fillna(X_train["MSZoning"].mode()[0], inplace=True)
+test["Utilities"].fillna(X_train["Utilities"].mode()[0], inplace=True)
+test["KitchenQual"].fillna(X_train["KitchenQual"].mode()[0], inplace=True)
+test["Functional"].fillna(X_train["Functional"].mode()[0], inplace=True)
 
+
+# Step 3: Creating time variables
 def feature_engineering(df):
     conn = duckdb.connect()
     conn.register("original_df", df)
@@ -569,14 +524,12 @@ def feature_engineering(df):
     return result
 
 
-train_new = feature_engineering(train)
-test_new = feature_engineering(test_imputed)
+X_train = feature_engineering(X_train)
+X_val = feature_engineering(X_val)
+test = feature_engineering(test)
 
-X = train_new.drop(columns=["SalePrice"], axis=1) 
-y = train_new["SalePrice"]
 
-############################### Encode train and test data ########################################
-# Step 3: Encode categorical variables separately for train and test sets
+# Step 4: Encode categorical variables separately for train, validation, and test sets to prevent data leakage, ensuring consistent feature alignment using one-hot encoding and applying ordinal encoding mappings from the train set to the test set
 nominal_cat = ["MSSubClass", "MSZoning", "LotConfig","Condition1", "Condition2", "Neighborhood", "BldgType", "HouseStyle", 
                 "Exterior1st", "Exterior2nd", "CentralAir", "Electrical", "LandContour", "RoofStyle", "RoofMatl", "Heating",
                 "Street", "Alley", "Utilities", "MasVnrType", "Foundation", 
@@ -591,13 +544,14 @@ ordinal_cat = ["OverallQual", "OverallCond",
                "PoolQC"]
 
 # One-hot encode nominal categorical variables
-train_encoded = pd.get_dummies(X, columns=nominal_cat, drop_first=True)
-test_encoded = pd.get_dummies(test_new, columns=nominal_cat, drop_first=True)
+X_train_encoded = pd.get_dummies(X_train, columns=nominal_cat, drop_first=True)
+X_val_encoded = pd.get_dummies(X_val, columns=nominal_cat, drop_first=True)
+test_encoded = pd.get_dummies(test, columns=nominal_cat, drop_first=True)
 
-test_encoded = test_encoded.reindex(columns=train_encoded.columns, fill_value=0)
+X_val_encoded = X_val_encoded.reindex(columns=X_train_encoded.columns, fill_value=0)
+test_encoded = test_encoded.reindex(columns=X_train_encoded.columns, fill_value=0)
 
-# Label encode ordinal categorical variables
-
+# Use Duckdb to encode ordinal categorical variables
 def ordinal_encoding(df):
     conn = duckdb.connect()
     conn.register("input_df", df)
@@ -741,33 +695,28 @@ def ordinal_encoding(df):
     conn.close()
     return result
 
-train_encoded = ordinal_encoding(train_encoded)
+X_train_encoded = ordinal_encoding(X_train_encoded)
+X_val_encoded = ordinal_encoding(X_val_encoded)
 test_encoded = ordinal_encoding(test_encoded)
 
 
-bool_columns_train = train_encoded.select_dtypes(include="bool").columns
+bool_columns_train = X_train_encoded.select_dtypes(include="bool").columns
+bool_columns_val = X_val_encoded.select_dtypes(include="bool").columns
 bool_columns_test = test_encoded.select_dtypes(include="bool").columns
 
-train_encoded[bool_columns_train] = train_encoded[bool_columns_train].astype("int8")
+X_train_encoded[bool_columns_train] = X_train_encoded[bool_columns_train].astype("int8")
+X_val_encoded[bool_columns_val] = X_val_encoded[bool_columns_val].astype("int8")
 test_encoded[bool_columns_test] = test_encoded[bool_columns_test].astype("int8")
 
-
-# Step 4: Split the train dataset into train and validation set
-from sklearn.model_selection import train_test_split
-X_train, X_val, y_train, y_val = train_test_split(train_encoded, y, test_size=0.2, random_state=42)
-
-X_train_ml = X_train.copy()  
+# Step 5: Impute missing continuous numerical data in the training set using the data from Regresion model data preparation step
+X_train_ml = X_train_encoded.copy()  
 X_train_ml["LotFrontage"] = X_train_imputed["LotFrontage"]
 
-
-# Step 6: Impute missing continuous numerical data in the validation set using the trained imputer
-X_val_ml = X_val.copy()  
+# Step 6: Impute missing continuous numerical data in the validation set using the data from Regresion model data preparation step
+X_val_ml = X_val_encoded.copy()  
 X_val_ml["LotFrontage"] = X_val_imputed["LotFrontage"]
 
-
-
-
-# Step 7: Impute missing continuous numerical data in the test set using the trained imputer
+# Step 7: Impute missing continuous numerical data in the test set using the data from Regresion model data preparation step
 test_final_ml = test_encoded.copy()  
 test_final_ml["LotFrontage"] = test_imputed["LotFrontage"]
 

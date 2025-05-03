@@ -5,7 +5,6 @@ import seaborn as sns
 import scipy.stats as stats
 import os
 
-train_before = pd.read_csv("data/train_before_imputation_EDA.csv")
 train_after = pd.read_csv("data/train_after_imputation_EDA.csv")
 
 categorical_cols = ['MSSubClass','MSZoning', 'Street', 'Alley', 'LotShape', 'LandContour', 'Utilities',
