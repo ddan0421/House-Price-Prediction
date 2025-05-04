@@ -7,7 +7,7 @@ from statsmodels.stats.outliers_influence import variance_inflation_factor
 from sklearn.metrics import root_mean_squared_error
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import Ridge, Lasso
-from sklearn.model_selection import GridSearchCV, KFold, cross_val_score
+from sklearn.model_selection import GridSearchCV, KFold
 from sklearn.svm import SVR
 import pickle
 
@@ -20,9 +20,132 @@ y_val = pd.read_csv("data/model_data/y_val_reg.csv")
 
 random_state = 42
 
+############################# Feature Selection: Stepwise Selection for OLS Regression #############################
+# Stepwise Selection for OLS Regression
+selected_features_stepwise = models.ols_stepwise_selection(X_train, y_train, threshold_in=0.01, threshold_out=0.05)
+
+############################# Feature Selection: Selected Numeric Variables based on Correlation Matrix and Domain Knowledge #############################
+selected_numeric_features = [
+    "log_LotArea", "cbrt_MasVnrArea", "sqrt_TotalBsmtSF", "log_1stFlrSF", 
+    "log_GrLivArea", "BsmtFullBath", "FullBath", "HalfBath", "BedroomAbvGr", 
+    "KitchenAbvGr", "Fireplaces", "GarageCars", "GarageArea", "sqrt_WoodDeckSF", 
+    "cbrt_OpenPorchSF", "EnclosedPorch", "Age_House", "TotRmsAbvGrd",
+    "Living_Rooms", "Garage_Space", "Garage_AgeCars", "Porch_Age", "log_Yrs_Since_Remodel", "Ratio_Bedroom_Rooms", "Ratio_2ndFlr_Living", "log_2ndFlrSF"
+]
+
+################################# Result from Lasso Regression (input data: selected_features_stepwise) #############################
+lasso = ['OverallQual', 'log_GrLivArea', 'Age_House', 'log_LotArea',
+       'OverallCond', 'sqrt_BsmtFinSF1', 'RoofStyle_RoofMatl_Hip_ClyTile',
+       'Neighborhood_Condition_Edwards_PosN', 'log_Age_Garage',
+       'sqrt_TotalBsmtSF', 'KitchenQual_encoded',
+       'Neighborhood_Condition_Crawfor_Norm', 'Garage_Space', 'Fireplaces',
+       'Foundation_PConc', 'Exterior1st_Exterior2nd_BrkFace_Wd Sdng',
+       'Neighborhood_Condition_StoneBr_Norm', 'Functional_Typ',
+       'BsmtExposure_encoded', 'KitchenAbvGr', 'SaleType_New',
+       'SaleCondition_Normal', 'BsmtFullBath',
+       'Neighborhood_Condition_NridgHt_Norm', 'PoolQC_encoded',
+       'CentralAir_Electrical_N_SBrkr', 'Neighborhood_Condition_NoRidge_Norm',
+       'Neighborhood_Condition_Somerst_Norm',
+       'Exterior1st_Exterior2nd_BrkFace',
+       'Neighborhood_Condition_BrkSide_Norm', 'MSSubClass_MSZoning_50_RM',
+       'MSSubClass_MSZoning_160_RM', 'Neighborhood_Condition_ClearCr_Norm',
+       'ScreenPorch', 'sqrt_WoodDeckSF']
+
+# Combine the four lists and remove duplicates using a set
+combined_features_lr = list(set(selected_numeric_features + lasso))
+combined_features_lr.sort()
+
+############################# Linear Regression #############################
+# Use only the selected features from stepwise selection method for the linear regression model
+X_train_regress = sm.add_constant(X_train[combined_features_lr])
+X_val_regress = sm.add_constant(X_val[combined_features_lr])
+
+ols_lr = models.sm_ols(X_train_regress, y_train)
+
+############################# Regularized Regression Models #############################
+X_train_reg_lr = X_train[combined_features_lr]
+X_val_reg_lr  = X_val[combined_features_lr]
+
+############################# Ridge Regression #############################
+cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
+ridge = Ridge()
+
+param_grid = {
+    "alpha": [0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0] 
+}
+
+gs_ridge = GridSearchCV(estimator=ridge,
+                        param_grid=param_grid,
+                        scoring="neg_root_mean_squared_error", 
+                        cv=cv,
+                        n_jobs=-1,
+                        refit=True)
+
+gs_ridge.fit(X_train_reg_lr, y_train)
+
+print("10-Fold CV RMSE (log-transformed scale):", -gs_ridge.best_score_) 
+print("Optimal Parameter:", gs_ridge.best_params_)
+print("Optimal Estimator:", gs_ridge.best_estimator_)
+
+final_model_ridge = gs_ridge.best_estimator_
+
+# Save the trained model for future use (stacking)
+with open("final_model_ridge.pkl", "wb") as f:
+    pickle.dump(final_model_ridge, f)
+print("Ridge model saved to final_model_ridge.pkl")
+
+X_train_reg_lr.to_csv("data/model_data/X_train_ridge.csv", index=False)
+y_train.to_csv("data/model_data/y_train_ridge.csv", index=False)
+X_val_reg_lr.to_csv("data/model_data/X_val_ridge.csv", index=False)
+
+############################# Lasso Regression #############################
+cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
+lasso = Lasso()
+
+param_grid = {
+    "alpha": [0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
+}
+
+# Hyperparameter tuning for Lasso Regression
+gs_lasso = GridSearchCV(estimator=lasso,
+                        param_grid=param_grid,
+                        scoring="neg_root_mean_squared_error", 
+                        cv=cv,
+                        n_jobs=-1,
+                        refit=True)
+
+gs_lasso.fit(X_train_reg_lr, y_train)
+
+print("10-Fold CV RMSE:", -gs_lasso.best_score_) 
+print("Optimal Parameter:", gs_lasso.best_params_)
+print("Optimal Estimator:", gs_lasso.best_estimator_)
+
+final_model_lasso = gs_lasso.best_estimator_
+
+# Extract the selected features based on non-zero coefficients from Lasso regression
+selected_features_lasso = X_train_reg_lr.columns[final_model_lasso.coef_.flatten() != 0]
+print("Selected features for Lasso:")
+print(selected_features_lasso)
+
+# Save the trained model for future use (stacking)
+with open("final_model_lasso.pkl", "wb") as f:
+    pickle.dump(final_model_lasso, f)
+print("Lasso model saved to final_model_lasso.pkl")
+
+X_train_reg_lr.to_csv("data/model_data/X_train_lasso.csv", index=False)
+y_train.to_csv("data/model_data/y_train_lasso.csv", index=False)
+X_val_reg_lr.to_csv("data/model_data/X_val_lasso.csv", index=False)
+
+############################# SVM #############################
+X_train = pd.read_csv("data/model_data/X_train_reg.csv")
+X_val = pd.read_csv("data/model_data/X_val_reg.csv")
+y_train = pd.read_csv("data/model_data/y_train_reg.csv")
+y_val = pd.read_csv("data/model_data/y_val_reg.csv")
+##### Feature Selection 5: VIF and Random Forest #####
 X_train = sm.add_constant(X_train)
 X_val = sm.add_constant(X_val)
 
+########## Separate Feature Selection for SVR ##########
 ############################## Feature Selection 1: VIF ##############################
 vif_data = pd.DataFrame()
 vif_data["feature"] = X_train.columns
@@ -87,112 +210,16 @@ ON cumulative_importance.row_number <= threshold_index.threshold_row;
 # Execute the query to get selected features
 selected_features_rf = conn.execute(query).fetch_df()["feature"].to_list()
 conn.close()
+#################################### combine all features ####################################
+# Combine the selected features from VIF, Random Forest, numeric features, and stepwise selection
+combined_features_svm = list(set(selected_features_vif + selected_features_rf + selected_numeric_features + selected_features_stepwise))
+combined_features_svm.sort()
 
+X_train_svm = X_train[combined_features_svm]
+X_val_svm = X_val[combined_features_svm]
 
-############################# Feature Selection 3: Stepwise Selection for OLS Regression #############################
-# Stepwise Selection for OLS Regression
-selected_features_stepwise = models.ols_stepwise_selection(X_train, y_train, threshold_in=0.01, threshold_out=0.05)
-
-############################# Feature Selection 4: Selected Numeric Variables based on Correlation Matrix and Domain Knowledge #############################
-selected_numeric_features = [
-    "log_LotArea", "cbrt_MasVnrArea", "sqrt_TotalBsmtSF", "log_1stFlrSF", 
-    "log_GrLivArea", "BsmtFullBath", "FullBath", "HalfBath", "BedroomAbvGr", 
-    "KitchenAbvGr", "Fireplaces", "GarageCars", "GarageArea", "sqrt_WoodDeckSF", 
-    "cbrt_OpenPorchSF", "EnclosedPorch", "Age_House", "TotRmsAbvGrd",
-    "Living_Rooms", "Garage_Space", "Garage_AgeCars", "Porch_Age", "log_Yrs_Since_Remodel", "Ratio_Bedroom_Rooms", "Ratio_2ndFlr_Living", "log_2ndFlrSF"
-]
-
-
-# Combine the four lists and remove duplicates using a set
-combined_features = list(set(selected_features_vif + selected_features_rf + selected_numeric_features + selected_features_stepwise))
-combined_features.sort()
-
-
-
-############################# Linear Regression #############################
-# Use only the selected features from stepwise selection method for the linear regression model
-X_train_regress = sm.add_constant(X_train[selected_features_stepwise])
-X_val_regress = sm.add_constant(X_val[selected_features_stepwise])
-
-ols_lr = models.sm_ols(X_train_regress, y_train)
-
-############################# Regularized Regression Models #############################
-X_train_ml = X_train[combined_features]
-X_val_ml = X_val[combined_features]
-
-############################# Ridge Regression #############################
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
-ridge = Ridge()
-
-param_grid = {
-    "alpha": [0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0] 
-}
-
-gs_ridge = GridSearchCV(estimator=ridge,
-                        param_grid=param_grid,
-                        scoring="neg_root_mean_squared_error", 
-                        cv=cv,
-                        n_jobs=-1,
-                        refit=True)
-
-gs_ridge.fit(X_train_ml, y_train)
-
-print("10-Fold CV RMSE (log-transformed scale):", -gs_ridge.best_score_) 
-print("Optimal Parameter:", gs_ridge.best_params_)
-print("Optimal Estimator:", gs_ridge.best_estimator_)
-
-final_model_ridge = gs_ridge.best_estimator_
-
-# Save the trained model for future use (stacking)
-with open("final_model_ridge.pkl", "wb") as f:
-    pickle.dump(final_model_ridge, f)
-print("Ridge model saved to final_model_ridge.pkl")
-
-X_train_ml.to_csv("data/model_data/X_train_ridge.csv", index=False)
-y_train.to_csv("data/model_data/y_train_ridge.csv", index=False)
-X_val_ml.to_csv("data/model_data/X_val_ridge.csv", index=False)
-
-############################# Lasso Regression #############################
-cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
-lasso = Lasso()
-
-param_grid = {
-    "alpha": [0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
-}
-
-# Hyperparameter tuning for Lasso Regression
-gs_lasso = GridSearchCV(estimator=lasso,
-                        param_grid=param_grid,
-                        scoring="neg_root_mean_squared_error", 
-                        cv=cv,
-                        n_jobs=-1,
-                        refit=True)
-
-gs_lasso.fit(X_train_ml, y_train)
-
-print("10-Fold CV RMSE:", -gs_lasso.best_score_) 
-print("Optimal Parameter:", gs_lasso.best_params_)
-print("Optimal Estimator:", gs_lasso.best_estimator_)
-
-final_model_lasso = gs_lasso.best_estimator_
-
-# Extract the selected features based on non-zero coefficients from Lasso regression
-selected_features_lasso = X_train_ml.columns[final_model_lasso.coef_.flatten() != 0]
-print("Selected features for Lasso:")
-print(selected_features_lasso)
-
-# Save the trained model for future use (stacking)
-with open("final_model_lasso.pkl", "wb") as f:
-    pickle.dump(final_model_lasso, f)
-print("Lasso model saved to final_model_lasso.pkl")
-
-X_train_ml.to_csv("data/model_data/X_train_lasso.csv", index=False)
-y_train.to_csv("data/model_data/y_train_lasso.csv", index=False)
-X_val_ml.to_csv("data/model_data/X_val_lasso.csv", index=False)
-
-############################# SVM #############################
-cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
-svm = SVR()
+svm = SVR(kernel="rbf")
 
 param_grid = {
     "C": [0.1, 1.0, 10.0, 100.0],  # Narrow range for regularization parameter
@@ -209,7 +236,7 @@ gs_svm = GridSearchCV(estimator=svm,
                       n_jobs=-1,
                       refit=True)
 
-gs_svm.fit(X_train_ml, y_train.values.ravel())
+gs_svm.fit(X_train_svm, y_train.values.ravel())
 
 print("10-Fold CV RMSE:", -gs_svm.best_score_) 
 print("Optimal Parameter:", gs_svm.best_params_)
@@ -222,9 +249,9 @@ with open("final_model_svm.pkl", "wb") as f:
     pickle.dump(final_model_svm, f)
 print("SVM model saved to final_model_svm.pkl")
 
-X_train_ml.to_csv("data/model_data/X_train_svm.csv", index=False)
+X_train_svm.to_csv("data/model_data/X_train_svm.csv", index=False)
 y_train.to_csv("data/model_data/y_train_svm.csv", index=False)
-X_val_ml.to_csv("data/model_data/X_val_svm.csv", index=False)
+X_val_svm.to_csv("data/model_data/X_val_svm.csv", index=False)
 
 ############################################## Models Generalization Performance ##############################################
 def evaluate_linear_model(model, X, y, name):
@@ -234,8 +261,8 @@ def evaluate_linear_model(model, X, y, name):
     print(f"Root Mean Squared Error: {rmse:.4f}")
 
 evaluate_linear_model(ols_lr, X_val_regress, y_val, "OLS Model")
-evaluate_linear_model(final_model_ridge, X_val_ml, y_val, "Ridge Model")
-evaluate_linear_model(final_model_lasso, X_val_ml, y_val, "Lasso Model")
-evaluate_linear_model(final_model_svm, X_val_ml, y_val, "SVM Model")
+evaluate_linear_model(final_model_ridge, X_val_reg_lr, y_val, "Ridge Model")
+evaluate_linear_model(final_model_lasso, X_val_reg_lr, y_val, "Lasso Model")
+evaluate_linear_model(final_model_svm, X_val_svm, y_val, "SVM Model")
 
 

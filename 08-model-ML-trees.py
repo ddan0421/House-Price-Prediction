@@ -40,55 +40,190 @@ X_val = create_interactions(X_val)
 test_final = create_interactions(test_final)
 test_final.to_csv("data/model_data/test_final_ml.csv", index=False)
 ###################################################################### Feature Selection ######################################################################
-# Train a Random Forest Regressor
-rf_model = RandomForestRegressor(n_estimators=200, random_state=random_state)
-rf_model.fit(X_train, y_train.values.ravel())
+# # Train a Random Forest Regressor
+# rf_model = RandomForestRegressor(n_estimators=200, random_state=random_state)
+# rf_model.fit(X_train, y_train.values.ravel())
 
-# Get feature importance
-feature_importance = pd.DataFrame({
-    "feature": X_train.columns,
-    "importance": rf_model.feature_importances_
-})
+# # Get feature importance
+# feature_importance = pd.DataFrame({
+#     "feature": X_train.columns,
+#     "importance": rf_model.feature_importances_
+# })
 
-conn = duckdb.connect()
-# Define the threshold for cumulative importance
-threshold = 0.95
+# conn = duckdb.connect()
+# # Define the threshold for cumulative importance
+# threshold = 0.95
 
-# Calculate cumulative importance and filter features
-# Keep enough features such that their cumulative importance adds up to 95% of the total importance.
-query = f"""
-WITH sorted_importance AS (
-    SELECT
-        feature,
-        importance
-    FROM feature_importance
-    ORDER BY importance DESC
-),
-cumulative_importance AS (
-    SELECT
-        feature,
-        importance,
-        SUM(importance) OVER (ORDER BY importance DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_importance,
-        ROW_NUMBER() OVER (ORDER BY importance DESC) AS row_number
-    FROM sorted_importance
-),
-threshold_index AS (
-    SELECT
-        MIN(row_number) AS threshold_row
-    FROM cumulative_importance
-    WHERE cumulative_importance >= {threshold}
-)
-SELECT
-    feature
-FROM cumulative_importance
-INNER JOIN threshold_index
-ON cumulative_importance.row_number <= threshold_index.threshold_row;
+# # Calculate cumulative importance and filter features
+# # Keep enough features such that their cumulative importance adds up to 95% of the total importance.
+# query = f"""
+# WITH sorted_importance AS (
+#     SELECT
+#         feature,
+#         importance
+#     FROM feature_importance
+#     ORDER BY importance DESC
+# ),
+# cumulative_importance AS (
+#     SELECT
+#         feature,
+#         importance,
+#         SUM(importance) OVER (ORDER BY importance DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_importance,
+#         ROW_NUMBER() OVER (ORDER BY importance DESC) AS row_number
+#     FROM sorted_importance
+# ),
+# threshold_index AS (
+#     SELECT
+#         MIN(row_number) AS threshold_row
+#     FROM cumulative_importance
+#     WHERE cumulative_importance >= {threshold}
+# )
+# SELECT
+#     feature
+# FROM cumulative_importance
+# INNER JOIN threshold_index
+# ON cumulative_importance.row_number <= threshold_index.threshold_row;
 
-"""
+# """
 
-# Execute the query to get selected features
-selected_features_basic_rf = conn.execute(query).fetch_df()["feature"].to_list()
-conn.close()
+# # Execute the query to get selected features
+# selected_features_basic_rf = conn.execute(query).fetch_df()["feature"].to_list()
+# conn.close()
+
+
+
+xgb_features = ['LotFrontage',
+ 'LotArea',
+ 'OverallQual',
+ 'OverallCond',
+ 'MasVnrArea',
+ 'BsmtFinSF1',
+ 'BsmtFinSF2',
+ 'BsmtUnfSF',
+ 'TotalBsmtSF',
+ '1stFlrSF',
+ '2ndFlrSF',
+ 'GrLivArea',
+ 'BsmtFullBath',
+ 'BsmtHalfBath',
+ 'FullBath',
+ 'HalfBath',
+ 'BedroomAbvGr',
+ 'KitchenAbvGr',
+ 'TotRmsAbvGrd',
+ 'Fireplaces',
+ 'GarageCars',
+ 'GarageArea',
+ 'WoodDeckSF',
+ 'OpenPorchSF',
+ 'EnclosedPorch',
+ '3SsnPorch',
+ 'ScreenPorch',
+ 'PoolArea',
+ 'Age_House',
+ 'Yrs_Since_Remodel',
+ 'Age_Garage',
+ 'MSSubClass_30',
+ 'MSSubClass_50',
+ 'MSSubClass_70',
+ 'MSSubClass_80',
+ 'MSSubClass_190',
+ 'MSZoning_FV',
+ 'MSZoning_RH',
+ 'MSZoning_RL',
+ 'MSZoning_RM',
+ 'LotConfig_CulDSac',
+ 'LotConfig_FR2',
+ 'LotConfig_Inside',
+ 'Condition1_Norm',
+ 'Condition1_PosN',
+ 'Condition1_RRAe',
+ 'Condition2_Norm',
+ 'Condition2_PosN',
+ 'Neighborhood_BrkSide',
+ 'Neighborhood_ClearCr',
+ 'Neighborhood_Crawfor',
+ 'Neighborhood_Edwards',
+ 'Neighborhood_MeadowV',
+ 'Neighborhood_Mitchel',
+ 'Neighborhood_NAmes',
+ 'Neighborhood_NWAmes',
+ 'Neighborhood_OldTown',
+ 'Neighborhood_SWISU',
+ 'Neighborhood_Sawyer',
+ 'Neighborhood_SawyerW',
+ 'Neighborhood_Somerst',
+ 'Neighborhood_StoneBr',
+ 'HouseStyle_1Story',
+ 'HouseStyle_2Story',
+ 'HouseStyle_SLvl',
+ 'Exterior1st_BrkComm',
+ 'Exterior1st_BrkFace',
+ 'Exterior1st_MetalSd',
+ 'Exterior1st_Plywood',
+ 'Exterior1st_VinylSd',
+ 'Exterior1st_Wd Sdng',
+ 'Exterior2nd_Plywood',
+ 'Exterior2nd_Stucco',
+ 'Exterior2nd_Wd Sdng',
+ 'Exterior2nd_Wd Shng',
+ 'CentralAir_Y',
+ 'Electrical_SBrkr',
+ 'LandContour_HLS',
+ 'LandContour_Lvl',
+ 'RoofStyle_Gable',
+ 'RoofStyle_Hip',
+ 'RoofMatl_CompShg',
+ 'RoofMatl_Tar&Grv',
+ 'Heating_GasA',
+ 'Heating_GasW',
+ 'Heating_Grav',
+ 'Alley_Pave',
+ 'MasVnrType_Stone',
+ 'Foundation_PConc',
+ 'Foundation_Wood',
+ 'Functional_Maj2',
+ 'Functional_Typ',
+ 'GarageType_Attchd',
+ 'GarageType_Basment',
+ 'GarageType_CarPort',
+ 'GarageType_Detchd',
+ 'PavedDrive_P',
+ 'Fence_GdWo',
+ 'Fence_MnPrv',
+ 'Fence_no_fence',
+ 'SaleType_ConLD',
+ 'SaleType_ConLI',
+ 'SaleType_New',
+ 'SaleType_WD',
+ 'SaleCondition_Alloca',
+ 'SaleCondition_Family',
+ 'SaleCondition_Normal',
+ 'Season_Sold_Spring',
+ 'Season_Sold_Summer',
+ 'Season_Sold_Winter',
+ 'LotShape_encoded',
+ 'HeatingQC_encoded',
+ 'ExterQual_encoded',
+ 'ExterCond_encoded',
+ 'BsmtQual_encoded',
+ 'BsmtCond_encoded',
+ 'BsmtExposure_encoded',
+ 'BsmtFinType1_encoded',
+ 'KitchenQual_encoded',
+ 'FireplaceQu_encoded',
+ 'GarageFinish_encoded',
+ 'GarageQual_encoded',
+ 'GarageCond_encoded',
+ 'PoolQC_encoded',
+ 'Living_Rooms',
+ 'Garage_Space',
+ 'Garage_AgeCars',
+ 'Porch_Age',
+ 'Ratio_Bedroom_Rooms',
+ 'Ratio_2ndFlr_Living']
+
+
 
 
 selected_numeric_features = [
@@ -101,7 +236,7 @@ selected_numeric_features = [
 
 
 # Combine the lists and remove duplicates using a set
-combined_features_tree = list(set(selected_features_basic_rf + selected_numeric_features))
+combined_features_tree = list(set(xgb_features + selected_numeric_features))
 combined_features_tree.sort()
 
 X_train_tree = X_train[combined_features_tree]
@@ -181,23 +316,25 @@ X_val_tree.to_csv("data/model_data/X_val_rf.csv", index=False)
 ############################################## XGBoost Regressor Model ############################################################
 # Feature Selection based on a basic XGBoost model
 basic_xgb = xgb.XGBRegressor(random_state=random_state, objective="reg:squarederror", n_estimators=200)
-basic_xgb.fit(X_train, y_train.values.ravel())
+basic_xgb.fit(X_train_tree, y_train.values.ravel())
 
 feature_importances = basic_xgb.feature_importances_
-selected_features_xgb = X_train.columns[np.array(feature_importances) > 0].to_list()  # Select non-zero importance features
+selected_features_xgb = X_train_tree.columns[np.array(feature_importances) > 0].to_list()  # Select non-zero importance features
 
-combined_features_xgb = list(set(selected_features_xgb + selected_numeric_features + selected_features_basic_rf))
+combined_features_xgb = list(set(selected_features_xgb + selected_numeric_features))
 combined_features_xgb.sort()
 
 X_train_xgb = X_train[combined_features_xgb]
 X_val_xgb = X_val[combined_features_xgb]
+# X_train_xgb = X_train[combined_features_tree]
+# X_val_xgb = X_val[combined_features_tree]
 print("Selected Features:", combined_features_xgb)
 
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 xgb_model = xgb.XGBRegressor(random_state=random_state, objective="reg:squarederror")
 
 param_grid = {
-    "n_estimators": [100, 200],  
+    "n_estimators": [50, 100, 200],  
     "learning_rate": [0.05, 0.1],        
     "max_depth": [3, 5],                     
     "min_child_weight": [1, 5],              
