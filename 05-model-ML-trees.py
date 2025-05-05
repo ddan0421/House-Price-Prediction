@@ -25,212 +25,6 @@ y_val = pd.read_csv("data/model_data/y_val_ml.csv")
 
 random_state = 42
 seed = 42
-###################################################################### Numerical Interaction ######################################################################
-# def create_interactions(df):
-#     df["Living_Rooms"] = df["GrLivArea"] * df["TotRmsAbvGrd"]
-#     df["Garage_Space"] = df["GarageArea"] * df["GarageCars"]
-#     df["Garage_AgeCars"] = df["Age_Garage"] * df["GarageCars"]
-#     df["Porch_Age"] = df["EnclosedPorch"] * df["Age_House"]
-#     df["Ratio_Bedroom_Rooms"] = df["BedroomAbvGr"] / (df["TotRmsAbvGrd"])
-#     df["Ratio_2ndFlr_Living"] = df["2ndFlrSF"] / (df["GrLivArea"])
-
-#     return df
-# X_train = create_interactions(X_train)
-# X_val = create_interactions(X_val)
-# test_final = create_interactions(test_final)
-# test_final.to_csv("data/model_data/test_final_ml.csv", index=False)
-###################################################################### Feature Selection ######################################################################
-# # Train a Random Forest Regressor
-# rf_model = RandomForestRegressor(n_estimators=200, random_state=random_state)
-# rf_model.fit(X_train, y_train.values.ravel())
-
-# # Get feature importance
-# feature_importance = pd.DataFrame({
-#     "feature": X_train.columns,
-#     "importance": rf_model.feature_importances_
-# })
-
-# conn = duckdb.connect()
-# # Define the threshold for cumulative importance
-# threshold = 0.95
-
-# # Calculate cumulative importance and filter features
-# # Keep enough features such that their cumulative importance adds up to 95% of the total importance.
-# query = f"""
-# WITH sorted_importance AS (
-#     SELECT
-#         feature,
-#         importance
-#     FROM feature_importance
-#     ORDER BY importance DESC
-# ),
-# cumulative_importance AS (
-#     SELECT
-#         feature,
-#         importance,
-#         SUM(importance) OVER (ORDER BY importance DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_importance,
-#         ROW_NUMBER() OVER (ORDER BY importance DESC) AS row_number
-#     FROM sorted_importance
-# ),
-# threshold_index AS (
-#     SELECT
-#         MIN(row_number) AS threshold_row
-#     FROM cumulative_importance
-#     WHERE cumulative_importance >= {threshold}
-# )
-# SELECT
-#     feature
-# FROM cumulative_importance
-# INNER JOIN threshold_index
-# ON cumulative_importance.row_number <= threshold_index.threshold_row;
-
-# """
-
-# # Execute the query to get selected features
-# selected_features_basic_rf = conn.execute(query).fetch_df()["feature"].to_list()
-# conn.close()
-
-
-
-# xgb_features = ['1stFlrSF',
-#  '2ndFlrSF',
-#  '3SsnPorch',
-#  'Age_Garage',
-#  'Age_House',
-#  'Alley_Pave',
-#  'BedroomAbvGr',
-#  'BsmtCond_encoded',
-#  'BsmtExposure_encoded',
-#  'BsmtFinSF1',
-#  'BsmtFinSF2',
-#  'BsmtFinType1_encoded',
-#  'BsmtFullBath',
-#  'BsmtHalfBath',
-#  'BsmtQual_encoded',
-#  'BsmtUnfSF',
-#  'CentralAir_Y',
-#  'Condition1_Norm',
-#  'Condition1_PosN',
-#  'Condition1_RRAe',
-#  'Condition2_Norm',
-#  'Electrical_SBrkr',
-#  'EnclosedPorch',
-#  'ExterCond_encoded',
-#  'ExterQual_encoded',
-#  'Exterior1st_BrkFace',
-#  'Exterior1st_MetalSd',
-#  'Exterior1st_Plywood',
-#  'Exterior1st_VinylSd',
-#  'Exterior1st_Wd Sdng',
-#  'Exterior2nd_Plywood',
-#  'Exterior2nd_Stucco',
-#  'Exterior2nd_Wd Sdng',
-#  'Exterior2nd_Wd Shng',
-#  'Fence_GdWo',
-#  'Fence_MnPrv',
-#  'Fence_no_fence',
-#  'FireplaceQu_encoded',
-#  'Fireplaces',
-#  'Foundation_PConc',
-#  'Foundation_Wood',
-#  'FullBath',
-#  'Functional_Maj2',
-#  'Functional_Typ',
-#  'GarageArea',
-#  'GarageCars',
-#  'GarageCond_encoded',
-#  'GarageFinish_encoded',
-#  'GarageQual_encoded',
-#  'GarageType_Attchd',
-#  'GarageType_Basment',
-#  'GarageType_CarPort',
-#  'GarageType_Detchd',
-#  'Age_Garage',
-#  'GarageArea',
-#  'GarageCars',
-#  'GrLivArea',
-#  'HalfBath',
-#  'HeatingQC_encoded',
-#  'Heating_GasA',
-#  'HouseStyle_1Story',
-#  'HouseStyle_2Story',
-#  'HouseStyle_SLvl',
-#  'KitchenAbvGr',
-#  'KitchenQual_encoded',
-#  'LandContour_HLS',
-#  'LandContour_Lvl',
-#  'GrLivArea',
-#  'TotRmsAbvGrd',
-#  'LotArea',
-#  'LotConfig_CulDSac',
-#  'LotConfig_FR2',
-#  'LotConfig_Inside',
-#  'LotFrontage',
-#  'LotShape_encoded',
-#  'MSSubClass_190',
-#  'MSSubClass_30',
-#  'MSSubClass_50',
-#  'MSSubClass_70',
-#  'MSSubClass_80',
-#  'MSZoning_FV',
-#  'MSZoning_RH',
-#  'MSZoning_RL',
-#  'MSZoning_RM',
-#  'MasVnrArea',
-#  'MasVnrType_Stone',
-#  'Neighborhood_BrkSide',
-#  'Neighborhood_ClearCr',
-#  'Neighborhood_Crawfor',
-#  'Neighborhood_Edwards',
-#  'Neighborhood_MeadowV',
-#  'Neighborhood_Mitchel',
-#  'Neighborhood_NAmes',
-#  'Neighborhood_NWAmes',
-#  'Neighborhood_OldTown',
-#  'Neighborhood_SWISU',
-#  'Neighborhood_Sawyer',
-#  'Neighborhood_SawyerW',
-#  'Neighborhood_Somerst',
-#  'Neighborhood_StoneBr',
-#  'OpenPorchSF',
-#  'OverallCond',
-#  'OverallQual',
-#  'PavedDrive_P',
-#  'PoolArea',
-#  'EnclosedPorch',
-#  'Age_House',
-#  '2ndFlrSF',
-#  'RoofMatl_CompShg',
-#  'RoofStyle_Gable',
-#  'RoofStyle_Hip',
-#  'SaleCondition_Family',
-#  'SaleCondition_Normal',
-#  'SaleType_New',
-#  'SaleType_WD',
-#  'ScreenPorch',
-#  'Season_Sold_Spring',
-#  'Season_Sold_Summer',
-#  'Season_Sold_Winter',
-#  'TotalBsmtSF',
-#  'WoodDeckSF',
-#  'BedroomAbvGr',
-#  'Yrs_Since_Remodel']
-
-
-
-
-# selected_numeric_features = [
-#     "LotArea", "MasVnrArea", "TotalBsmtSF", "1stFlrSF", 
-#     "GrLivArea", "BsmtFullBath", "FullBath", "HalfBath", "BedroomAbvGr", 
-#     "KitchenAbvGr", "Fireplaces", "GarageCars", "GarageArea", "WoodDeckSF", 
-#     "OpenPorchSF", "EnclosedPorch", "Age_House", "TotRmsAbvGrd",
-#     "Yrs_Since_Remodel", "2ndFlrSF"
-# ]
-
-
-# # Combine the lists and remove duplicates using a set
-# combined_features_tree = list(set(xgb_features + selected_numeric_features))
-# combined_features_tree.sort()
 
 X_train_tree = X_train.copy()
 X_val_tree = X_val.copy()
@@ -384,8 +178,154 @@ y_train.to_csv("data/model_data/y_train_et.csv", index=False)
 X_val_tree.to_csv("data/model_data/X_val_et.csv", index=False)
 
 ############################################## XGBoost Regressor Model ############################################################
-X_train_xgb = X_train.copy()
-X_val_xgb = X_val.copy()
+xgb_features = ['LotFrontage',
+ 'LotArea',
+ 'OverallQual',
+ 'OverallCond',
+ 'MasVnrArea',
+ 'BsmtFinSF1',
+ 'BsmtFinSF2',
+ 'BsmtUnfSF',
+ 'TotalBsmtSF',
+ '1stFlrSF',
+ '2ndFlrSF',
+ 'GrLivArea',
+ 'BsmtFullBath',
+ 'BsmtHalfBath',
+ 'FullBath',
+ 'HalfBath',
+ 'BedroomAbvGr',
+ 'KitchenAbvGr',
+ 'TotRmsAbvGrd',
+ 'Fireplaces',
+ 'GarageCars',
+ 'GarageArea',
+ 'WoodDeckSF',
+ 'OpenPorchSF',
+ 'EnclosedPorch',
+ '3SsnPorch',
+ 'ScreenPorch',
+ 'PoolArea',
+ 'MiscVal',
+ 'Age_House',
+ 'Yrs_Since_Remodel',
+ 'Age_Garage',
+ 'MSSubClass_30',
+ 'MSSubClass_50',
+ 'MSSubClass_60',
+ 'MSSubClass_70',
+ 'MSZoning_FV',
+ 'MSZoning_RH',
+ 'MSZoning_RL',
+ 'MSZoning_RM',
+ 'LotConfig_CulDSac',
+ 'LotConfig_FR2',
+ 'LotConfig_Inside',
+ 'Condition1_Feedr',
+ 'Condition1_Norm',
+ 'Condition1_PosA',
+ 'Condition1_RRAe',
+ 'Condition2_Norm',
+ 'Neighborhood_BrkSide',
+ 'Neighborhood_ClearCr',
+ 'Neighborhood_CollgCr',
+ 'Neighborhood_Crawfor',
+ 'Neighborhood_Edwards',
+ 'Neighborhood_Gilbert',
+ 'Neighborhood_IDOTRR',
+ 'Neighborhood_MeadowV',
+ 'Neighborhood_Mitchel',
+ 'Neighborhood_NAmes',
+ 'Neighborhood_NWAmes',
+ 'Neighborhood_NoRidge',
+ 'Neighborhood_NridgHt',
+ 'Neighborhood_OldTown',
+ 'Neighborhood_SWISU',
+ 'Neighborhood_Sawyer',
+ 'Neighborhood_SawyerW',
+ 'Neighborhood_Somerst',
+ 'Neighborhood_StoneBr',
+ 'Neighborhood_Timber',
+ 'BldgType_TwnhsE',
+ 'HouseStyle_1Story',
+ 'HouseStyle_2.5Unf',
+ 'HouseStyle_2Story',
+ 'HouseStyle_SLvl',
+ 'Exterior1st_BrkFace',
+ 'Exterior1st_CemntBd',
+ 'Exterior1st_HdBoard',
+ 'Exterior1st_MetalSd',
+ 'Exterior1st_Plywood',
+ 'Exterior1st_VinylSd',
+ 'Exterior1st_Wd Sdng',
+ 'Exterior1st_WdShing',
+ 'Exterior2nd_CmentBd',
+ 'Exterior2nd_HdBoard',
+ 'Exterior2nd_MetalSd',
+ 'Exterior2nd_Plywood',
+ 'Exterior2nd_Stucco',
+ 'Exterior2nd_VinylSd',
+ 'Exterior2nd_Wd Sdng',
+ 'Exterior2nd_Wd Shng',
+ 'CentralAir_Y',
+ 'Electrical_FuseF',
+ 'Electrical_SBrkr',
+ 'LandContour_HLS',
+ 'LandContour_Lvl',
+ 'RoofStyle_Gable',
+ 'RoofStyle_Hip',
+ 'RoofMatl_CompShg',
+ 'Alley_Pave',
+ 'Alley_no_alley',
+ 'MasVnrType_BrkFace',
+ 'MasVnrType_Stone',
+ 'MasVnrType_no_MasVnrType',
+ 'Foundation_CBlock',
+ 'Foundation_PConc',
+ 'Foundation_Slab',
+ 'Foundation_Wood',
+ 'Functional_Maj2',
+ 'Functional_Min1',
+ 'Functional_Min2',
+ 'Functional_Mod',
+ 'Functional_Typ',
+ 'GarageType_Attchd',
+ 'GarageType_Basment',
+ 'GarageType_BuiltIn',
+ 'GarageType_CarPort',
+ 'GarageType_Detchd',
+ 'GarageType_no_garage',
+ 'PavedDrive_P',
+ 'PavedDrive_Y',
+ 'Fence_GdWo',
+ 'Fence_MnPrv',
+ 'Fence_no_fence',
+ 'SaleType_New',
+ 'SaleType_WD',
+ 'SaleCondition_Family',
+ 'SaleCondition_Normal',
+ 'SaleCondition_Partial',
+ 'Season_Sold_Spring',
+ 'Season_Sold_Summer',
+ 'Season_Sold_Winter',
+ 'LandSlope_encoded',
+ 'LotShape_encoded',
+ 'HeatingQC_encoded',
+ 'ExterQual_encoded',
+ 'ExterCond_encoded',
+ 'BsmtQual_encoded',
+ 'BsmtCond_encoded',
+ 'BsmtExposure_encoded',
+ 'BsmtFinType1_encoded',
+ 'BsmtFinType2_encoded',
+ 'KitchenQual_encoded',
+ 'FireplaceQu_encoded',
+ 'GarageFinish_encoded',
+ 'GarageQual_encoded',
+ 'GarageCond_encoded']
+
+X_train_xgb = X_train[xgb_features]
+X_val_xgb = X_val[xgb_features]
 
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 xgb_model = xgb.XGBRegressor(random_state=random_state, objective="reg:squarederror")
@@ -432,9 +372,99 @@ X_val_xgb.to_csv("data/model_data/X_val_xgb.csv", index=False)
 
 
 ############################################## LightGBM Regressor Model ############################################################
-# Reduce the feature set using xgb's selected features
-X_train_lgbm = X_train.copy()
-X_val_lgbm = X_val.copy()
+# Reduce the feature set using lightgbm's selected features
+lightgbm_features = ['LotFrontage',
+ 'LotArea',
+ 'OverallQual',
+ 'OverallCond',
+ 'MasVnrArea',
+ 'BsmtFinSF1',
+ 'BsmtFinSF2',
+ 'BsmtUnfSF',
+ 'TotalBsmtSF',
+ '1stFlrSF',
+ '2ndFlrSF',
+ 'GrLivArea',
+ 'BsmtFullBath',
+ 'FullBath',
+ 'BedroomAbvGr',
+ 'TotRmsAbvGrd',
+ 'Fireplaces',
+ 'GarageCars',
+ 'GarageArea',
+ 'WoodDeckSF',
+ 'OpenPorchSF',
+ 'EnclosedPorch',
+ '3SsnPorch',
+ 'ScreenPorch',
+ 'Age_House',
+ 'Yrs_Since_Remodel',
+ 'Age_Garage',
+ 'MSSubClass_30',
+ 'MSSubClass_50',
+ 'MSSubClass_60',
+ 'MSSubClass_70',
+ 'MSZoning_FV',
+ 'MSZoning_RL',
+ 'MSZoning_RM',
+ 'LotConfig_CulDSac',
+ 'LotConfig_FR2',
+ 'Condition1_Norm',
+ 'Neighborhood_BrkSide',
+ 'Neighborhood_Crawfor',
+ 'Neighborhood_Edwards',
+ 'Neighborhood_Mitchel',
+ 'Neighborhood_NoRidge',
+ 'Neighborhood_NridgHt',
+ 'Neighborhood_OldTown',
+ 'Neighborhood_SWISU',
+ 'Neighborhood_Sawyer',
+ 'Neighborhood_SawyerW',
+ 'Neighborhood_StoneBr',
+ 'HouseStyle_1Story',
+ 'Exterior1st_BrkFace',
+ 'Exterior1st_HdBoard',
+ 'Exterior1st_MetalSd',
+ 'Exterior2nd_CmentBd',
+ 'Exterior2nd_Plywood',
+ 'Exterior2nd_Wd Sdng',
+ 'CentralAir_Y',
+ 'Electrical_SBrkr',
+ 'LandContour_HLS',
+ 'LandContour_Lvl',
+ 'Alley_Pave',
+ 'MasVnrType_BrkFace',
+ 'Foundation_CBlock',
+ 'Foundation_PConc',
+ 'Functional_Typ',
+ 'GarageType_Attchd',
+ 'GarageType_Detchd',
+ 'Fence_GdWo',
+ 'Fence_MnPrv',
+ 'Fence_no_fence',
+ 'SaleType_New',
+ 'SaleType_WD',
+ 'SaleCondition_Normal',
+ 'Season_Sold_Spring',
+ 'Season_Sold_Summer',
+ 'Season_Sold_Winter',
+ 'LotShape_encoded',
+ 'HeatingQC_encoded',
+ 'ExterQual_encoded',
+ 'ExterCond_encoded',
+ 'BsmtQual_encoded',
+ 'BsmtCond_encoded',
+ 'BsmtExposure_encoded',
+ 'BsmtFinType1_encoded',
+ 'BsmtFinType2_encoded',
+ 'KitchenQual_encoded',
+ 'FireplaceQu_encoded',
+ 'GarageFinish_encoded',
+ 'GarageQual_encoded',
+ 'GarageCond_encoded']
+
+X_train_lgbm = X_train[lightgbm_features]
+X_val_lgbm = X_val[lightgbm_features]
 
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 
