@@ -48,6 +48,8 @@ X_train_sdt = pd.read_csv("data/model_data/X_train_sdt.csv").values
 y_train_sdt = pd.read_csv("data/model_data/y_train_sdt.csv").values.flatten()
 X_train_enet = pd.read_csv("data/model_data/X_train_enet.csv").values
 y_train_enet = pd.read_csv("data/model_data/y_train_enet.csv").values.flatten()
+X_train_et = pd.read_csv("data/model_data/X_train_et.csv").values
+y_train_et = pd.read_csv("data/model_data/y_train_et.csv").values.flatten()
 
 
 # Load pre-trained base models
@@ -75,6 +77,8 @@ with open("final_model_sdt.pkl", "rb") as f:
     sdt_model = pickle.load(f)
 with open("final_model_enet.pkl", "rb") as f:
     enet_model = pickle.load(f)
+with open("final_model_et.pkl", "rb") as f:
+    et_model = pickle.load(f)
 
 base_models = [
     ("xgb", xgb_model, X_train_xgb, y_train_xgb),
@@ -85,10 +89,11 @@ base_models = [
     ("xgb_bayes", xgb_bayes_model, X_train_xgb_bayes, y_train_xgb_bayes),
     ("lgbm", lgbm_model, X_train_lgbm, y_train_lgbm),
     ("rf", rf_model, X_train_rf, y_train_rf),
-    # ("knn", knn_model, X_train_knn, y_train_knn),
-    # ("dt", dt_model, X_train_dt, y_train_dt),
+    ("knn", knn_model, X_train_knn, y_train_knn),
+    ("dt", dt_model, X_train_dt, y_train_dt),
     # ("sdt", sdt_model, X_train_sdt, y_train_sdt),
     ("enet", enet_model, X_train_enet, y_train_enet),
+    ("et", et_model, X_train_et, y_train_et),
 ]
 
 # Create an empty array to store OOF predictions
@@ -153,6 +158,7 @@ X_val_knn = pd.read_csv("data/model_data/X_val_knn.csv")
 X_val_dt = pd.read_csv("data/model_data/X_val_dt.csv")
 X_val_sdt = pd.read_csv("data/model_data/X_val_sdt.csv")
 X_val_enet = pd.read_csv("data/model_data/X_val_enet.csv")
+X_val_et = pd.read_csv("data/model_data/X_val_et.csv")
 
 y_val = pd.read_csv("data/model_data/y_val_ml.csv")
 
@@ -183,6 +189,8 @@ for i, (name, model, _, _) in enumerate(base_models):
         test_preds[:, i] = model.predict(X_val_sdt)
     elif name == "enet":
         test_preds[:, i] = model.predict(X_val_enet)
+    elif name == "et":
+        test_preds[:, i] = model.predict(X_val_et)
 
 # Final predictions using meta-learner
 test_preds = sm.add_constant(test_preds)

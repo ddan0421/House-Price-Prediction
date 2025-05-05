@@ -21,7 +21,18 @@ X_train_xgb_bayes = pd.read_csv("data/model_data/X_train_xgb_bayes.csv").values
 y_train_xgb_bayes = pd.read_csv("data/model_data/y_train_xgb_bayes.csv").values.flatten()
 X_train_lgbm = pd.read_csv("data/model_data/X_train_lgbm.csv").values
 y_train_lgbm = pd.read_csv("data/model_data/y_train_lgbm.csv").values.flatten()
-
+X_train_rf = pd.read_csv("data/model_data/X_train_rf.csv").values
+y_train_rf = pd.read_csv("data/model_data/y_train_rf.csv").values.flatten()
+X_train_knn = pd.read_csv("data/model_data/X_train_knn.csv").values
+y_train_knn = pd.read_csv("data/model_data/y_train_knn.csv").values.flatten()
+X_train_dt = pd.read_csv("data/model_data/X_train_dt.csv").values
+y_train_dt = pd.read_csv("data/model_data/y_train_dt.csv").values.flatten()
+X_train_sdt = pd.read_csv("data/model_data/X_train_sdt.csv").values
+y_train_sdt = pd.read_csv("data/model_data/y_train_sdt.csv").values.flatten()
+X_train_enet = pd.read_csv("data/model_data/X_train_enet.csv").values
+y_train_enet = pd.read_csv("data/model_data/y_train_enet.csv").values.flatten()
+X_train_et = pd.read_csv("data/model_data/X_train_et.csv").values
+y_train_et = pd.read_csv("data/model_data/y_train_et.csv").values.flatten()
 
 X_val_xgb = pd.read_csv("data/model_data/X_val_xgb.csv").values
 X_val_ridge = pd.read_csv("data/model_data/X_val_ridge.csv").values
@@ -30,6 +41,12 @@ X_val_lasso = pd.read_csv("data/model_data/X_val_lasso.csv").values
 X_val_lgbm_bayes = pd.read_csv("data/model_data/X_val_lgbm_bayes.csv").values
 X_val_xgb_bayes = pd.read_csv("data/model_data/X_val_xgb_bayes.csv").values
 X_val_lgbm = pd.read_csv("data/model_data/X_val_lgbm.csv").values
+X_val_rf = pd.read_csv("data/model_data/X_val_rf.csv").values
+X_val_knn = pd.read_csv("data/model_data/X_val_knn.csv").values
+X_val_dt = pd.read_csv("data/model_data/X_val_dt.csv").values
+X_val_sdt = pd.read_csv("data/model_data/X_val_sdt.csv").values
+X_val_enet = pd.read_csv("data/model_data/X_val_enet.csv").values
+X_val_et = pd.read_csv("data/model_data/X_val_et.csv").values
 
 y_val = pd.read_csv("data/model_data/y_val_ml.csv").values.flatten()
 
@@ -56,6 +73,24 @@ y_xgb_bayes = np.concatenate([y_train_xgb_bayes, y_val])
 X_lgbm = np.vstack([X_train_lgbm, X_val_lgbm])
 y_lgbm = np.concatenate([y_train_lgbm, y_val])
 
+X_rf = np.vstack([X_train_rf, X_val_rf])
+y_rf = np.concatenate([y_train_rf, y_val])
+
+X_knn = np.vstack([X_train_knn, X_val_knn])
+y_knn = np.concatenate([y_train_knn, y_val])
+
+X_dt = np.vstack([X_train_dt, X_val_dt])
+y_dt = np.concatenate([y_train_dt, y_val])
+
+X_sdt = np.vstack([X_train_sdt, X_val_sdt])
+y_sdt = np.concatenate([y_train_sdt, y_val])
+
+X_enet = np.vstack([X_train_enet, X_val_enet])
+y_enet = np.concatenate([y_train_enet, y_val])
+
+X_et = np.vstack([X_train_et, X_val_et])
+y_et = np.concatenate([y_train_et, y_val])
+
 
 # Load pre-trained base models
 with open("final_model_xgb.pkl", "rb") as f:
@@ -72,7 +107,18 @@ with open("final_model_xgb_bayes.pkl", "rb") as f:
     xgb_bayes_model = pickle.load(f)
 with open("final_model_lgbm.pkl", "rb") as f:
     lgbm_model = pickle.load(f)
-
+with open("final_model_rf.pkl", "rb") as f:
+    rf_model = pickle.load(f)
+with open("final_model_knn.pkl", "rb") as f:
+    knn_model = pickle.load(f)
+with open("final_model_dt.pkl", "rb") as f:
+    dt_model = pickle.load(f)
+with open("final_model_sdt.pkl", "rb") as f:
+    sdt_model = pickle.load(f)
+with open("final_model_enet.pkl", "rb") as f:
+    enet_model = pickle.load(f)
+with open("final_model_et.pkl", "rb") as f:
+    et_model = pickle.load(f)
 
 base_models = [
     ("xgb", xgb_model, X_xgb, y_xgb),
@@ -81,7 +127,13 @@ base_models = [
     ("lasso", lasso_model, X_lasso, y_lasso),
     ("lgbm_bayes", lgbm_bayes_model, X_lgbm_bayes, y_lgbm_bayes),
     ("xgb_bayes", xgb_bayes_model, X_xgb_bayes, y_xgb_bayes),
-    ("lgbm", lgbm_model, X_lgbm, y_lgbm),
+    ("lgbm", lgbm_model, X_lgbm, y_lgbm), 
+    ("rf", rf_model, X_rf, y_rf),
+    ("knn", knn_model, X_knn, y_knn),
+    ("dt", dt_model, X_dt, y_dt),
+    # ("sdt", sdt_model, X_sdt, y_sdt),
+    ("enet", enet_model, X_enet, y_enet),
+    ("et", et_model, X_et, y_et)
 ]
 
 
@@ -106,6 +158,12 @@ X_val_lasso = pd.read_csv("data/model_data/X_val_lasso.csv")
 X_val_lgbm_bayes = pd.read_csv("data/model_data/X_val_lgbm_bayes.csv")
 X_val_xgb_bayes = pd.read_csv("data/model_data/X_val_xgb_bayes.csv")
 X_val_lgbm = pd.read_csv("data/model_data/X_val_lgbm.csv")
+X_val_rf = pd.read_csv("data/model_data/X_val_rf.csv")
+X_val_knn = pd.read_csv("data/model_data/X_val_knn.csv")
+X_val_dt = pd.read_csv("data/model_data/X_val_dt.csv")
+X_val_sdt = pd.read_csv("data/model_data/X_val_sdt.csv")
+X_val_enet = pd.read_csv("data/model_data/X_val_enet.csv")
+X_val_et = pd.read_csv("data/model_data/X_val_et.csv")
 
 y_val = pd.read_csv("data/model_data/y_val_ml.csv")
 
@@ -117,6 +175,12 @@ X_test_lasso = test_final_regress[X_val_lasso.columns].values
 X_test_lgbm_bayes = test_final_ml[X_val_lgbm_bayes.columns].values
 X_test_xgb_bayes = test_final_ml[X_val_xgb_bayes.columns].values
 X_test_lgbm = test_final_ml[X_val_lgbm.columns].values
+X_test_rf = test_final_ml[X_val_rf.columns].values
+X_test_knn = test_final_regress[X_val_knn.columns].values
+X_test_dt = test_final_ml[X_val_dt.columns].values
+X_test_sdt = test_final_ml[X_val_sdt.columns].values
+X_test_enet = test_final_regress[X_val_enet.columns].values
+X_test_et = test_final_ml[X_val_et.columns].values
 
 
 
@@ -138,6 +202,18 @@ for i, (name, model,) in enumerate(trained_base_models.items()):
         test_preds[:, i] = model.predict(X_test_xgb_bayes)
     elif name == "lgbm":
         test_preds[:, i] = model.predict(X_test_lgbm)
+    elif name == "rf":
+        test_preds[:, i] = model.predict(X_test_rf)
+    elif name == "knn":
+        test_preds[:, i] = model.predict(X_test_knn)
+    elif name == "dt":
+        test_preds[:, i] = model.predict(X_test_dt)
+    elif name == "sdt":
+        test_preds[:, i] = model.predict(X_test_sdt)
+    elif name == "enet":
+        test_preds[:, i] = model.predict(X_test_enet)
+    elif name == "et":
+        test_preds[:, i] = model.predict(X_test_et)
 
 
 # Load meta-learner model

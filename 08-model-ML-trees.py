@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import duckdb
 from sklearn.tree import DecisionTreeRegressor
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, ExtraTreesRegressor
 from sklearn.model_selection import KFold, GridSearchCV
 from sklearn.metrics import root_mean_squared_error
 import xgboost as xgb
@@ -26,19 +26,19 @@ y_val = pd.read_csv("data/model_data/y_val_ml.csv")
 random_state = 42
 seed = 42
 ###################################################################### Numerical Interaction ######################################################################
-def create_interactions(df):
-    df["Living_Rooms"] = df["GrLivArea"] * df["TotRmsAbvGrd"]
-    df["Garage_Space"] = df["GarageArea"] * df["GarageCars"]
-    df["Garage_AgeCars"] = df["Age_Garage"] * df["GarageCars"]
-    df["Porch_Age"] = df["EnclosedPorch"] * df["Age_House"]
-    df["Ratio_Bedroom_Rooms"] = df["BedroomAbvGr"] / (df["TotRmsAbvGrd"])
-    df["Ratio_2ndFlr_Living"] = df["2ndFlrSF"] / (df["GrLivArea"])
+# def create_interactions(df):
+#     df["Living_Rooms"] = df["GrLivArea"] * df["TotRmsAbvGrd"]
+#     df["Garage_Space"] = df["GarageArea"] * df["GarageCars"]
+#     df["Garage_AgeCars"] = df["Age_Garage"] * df["GarageCars"]
+#     df["Porch_Age"] = df["EnclosedPorch"] * df["Age_House"]
+#     df["Ratio_Bedroom_Rooms"] = df["BedroomAbvGr"] / (df["TotRmsAbvGrd"])
+#     df["Ratio_2ndFlr_Living"] = df["2ndFlrSF"] / (df["GrLivArea"])
 
-    return df
-X_train = create_interactions(X_train)
-X_val = create_interactions(X_val)
-test_final = create_interactions(test_final)
-test_final.to_csv("data/model_data/test_final_ml.csv", index=False)
+#     return df
+# X_train = create_interactions(X_train)
+# X_val = create_interactions(X_val)
+# test_final = create_interactions(test_final)
+# test_final.to_csv("data/model_data/test_final_ml.csv", index=False)
 ###################################################################### Feature Selection ######################################################################
 # # Train a Random Forest Regressor
 # rf_model = RandomForestRegressor(n_estimators=200, random_state=random_state)
@@ -92,146 +92,148 @@ test_final.to_csv("data/model_data/test_final_ml.csv", index=False)
 
 
 
-xgb_features = ['1stFlrSF',
- '2ndFlrSF',
- '3SsnPorch',
- 'Age_Garage',
- 'Age_House',
- 'Alley_Pave',
- 'BedroomAbvGr',
- 'BsmtCond_encoded',
- 'BsmtExposure_encoded',
- 'BsmtFinSF1',
- 'BsmtFinSF2',
- 'BsmtFinType1_encoded',
- 'BsmtFullBath',
- 'BsmtHalfBath',
- 'BsmtQual_encoded',
- 'BsmtUnfSF',
- 'CentralAir_Y',
- 'Condition1_Norm',
- 'Condition1_PosN',
- 'Condition1_RRAe',
- 'Condition2_Norm',
- 'Electrical_SBrkr',
- 'EnclosedPorch',
- 'ExterCond_encoded',
- 'ExterQual_encoded',
- 'Exterior1st_BrkFace',
- 'Exterior1st_MetalSd',
- 'Exterior1st_Plywood',
- 'Exterior1st_VinylSd',
- 'Exterior1st_Wd Sdng',
- 'Exterior2nd_Plywood',
- 'Exterior2nd_Stucco',
- 'Exterior2nd_Wd Sdng',
- 'Exterior2nd_Wd Shng',
- 'Fence_GdWo',
- 'Fence_MnPrv',
- 'Fence_no_fence',
- 'FireplaceQu_encoded',
- 'Fireplaces',
- 'Foundation_PConc',
- 'Foundation_Wood',
- 'FullBath',
- 'Functional_Maj2',
- 'Functional_Typ',
- 'GarageArea',
- 'GarageCars',
- 'GarageCond_encoded',
- 'GarageFinish_encoded',
- 'GarageQual_encoded',
- 'GarageType_Attchd',
- 'GarageType_Basment',
- 'GarageType_CarPort',
- 'GarageType_Detchd',
- 'Garage_AgeCars',
- 'Garage_Space',
- 'GrLivArea',
- 'HalfBath',
- 'HeatingQC_encoded',
- 'Heating_GasA',
- 'HouseStyle_1Story',
- 'HouseStyle_2Story',
- 'HouseStyle_SLvl',
- 'KitchenAbvGr',
- 'KitchenQual_encoded',
- 'LandContour_HLS',
- 'LandContour_Lvl',
- 'Living_Rooms',
- 'LotArea',
- 'LotConfig_CulDSac',
- 'LotConfig_FR2',
- 'LotConfig_Inside',
- 'LotFrontage',
- 'LotShape_encoded',
- 'MSSubClass_190',
- 'MSSubClass_30',
- 'MSSubClass_50',
- 'MSSubClass_70',
- 'MSSubClass_80',
- 'MSZoning_FV',
- 'MSZoning_RH',
- 'MSZoning_RL',
- 'MSZoning_RM',
- 'MasVnrArea',
- 'MasVnrType_Stone',
- 'Neighborhood_BrkSide',
- 'Neighborhood_ClearCr',
- 'Neighborhood_Crawfor',
- 'Neighborhood_Edwards',
- 'Neighborhood_MeadowV',
- 'Neighborhood_Mitchel',
- 'Neighborhood_NAmes',
- 'Neighborhood_NWAmes',
- 'Neighborhood_OldTown',
- 'Neighborhood_SWISU',
- 'Neighborhood_Sawyer',
- 'Neighborhood_SawyerW',
- 'Neighborhood_Somerst',
- 'Neighborhood_StoneBr',
- 'OpenPorchSF',
- 'OverallCond',
- 'OverallQual',
- 'PavedDrive_P',
- 'PoolArea',
- 'Porch_Age',
- 'Ratio_2ndFlr_Living',
- 'Ratio_Bedroom_Rooms',
- 'RoofMatl_CompShg',
- 'RoofStyle_Gable',
- 'RoofStyle_Hip',
- 'SaleCondition_Family',
- 'SaleCondition_Normal',
- 'SaleType_New',
- 'SaleType_WD',
- 'ScreenPorch',
- 'Season_Sold_Spring',
- 'Season_Sold_Summer',
- 'Season_Sold_Winter',
- 'TotRmsAbvGrd',
- 'TotalBsmtSF',
- 'WoodDeckSF',
- 'Yrs_Since_Remodel']
+# xgb_features = ['1stFlrSF',
+#  '2ndFlrSF',
+#  '3SsnPorch',
+#  'Age_Garage',
+#  'Age_House',
+#  'Alley_Pave',
+#  'BedroomAbvGr',
+#  'BsmtCond_encoded',
+#  'BsmtExposure_encoded',
+#  'BsmtFinSF1',
+#  'BsmtFinSF2',
+#  'BsmtFinType1_encoded',
+#  'BsmtFullBath',
+#  'BsmtHalfBath',
+#  'BsmtQual_encoded',
+#  'BsmtUnfSF',
+#  'CentralAir_Y',
+#  'Condition1_Norm',
+#  'Condition1_PosN',
+#  'Condition1_RRAe',
+#  'Condition2_Norm',
+#  'Electrical_SBrkr',
+#  'EnclosedPorch',
+#  'ExterCond_encoded',
+#  'ExterQual_encoded',
+#  'Exterior1st_BrkFace',
+#  'Exterior1st_MetalSd',
+#  'Exterior1st_Plywood',
+#  'Exterior1st_VinylSd',
+#  'Exterior1st_Wd Sdng',
+#  'Exterior2nd_Plywood',
+#  'Exterior2nd_Stucco',
+#  'Exterior2nd_Wd Sdng',
+#  'Exterior2nd_Wd Shng',
+#  'Fence_GdWo',
+#  'Fence_MnPrv',
+#  'Fence_no_fence',
+#  'FireplaceQu_encoded',
+#  'Fireplaces',
+#  'Foundation_PConc',
+#  'Foundation_Wood',
+#  'FullBath',
+#  'Functional_Maj2',
+#  'Functional_Typ',
+#  'GarageArea',
+#  'GarageCars',
+#  'GarageCond_encoded',
+#  'GarageFinish_encoded',
+#  'GarageQual_encoded',
+#  'GarageType_Attchd',
+#  'GarageType_Basment',
+#  'GarageType_CarPort',
+#  'GarageType_Detchd',
+#  'Age_Garage',
+#  'GarageArea',
+#  'GarageCars',
+#  'GrLivArea',
+#  'HalfBath',
+#  'HeatingQC_encoded',
+#  'Heating_GasA',
+#  'HouseStyle_1Story',
+#  'HouseStyle_2Story',
+#  'HouseStyle_SLvl',
+#  'KitchenAbvGr',
+#  'KitchenQual_encoded',
+#  'LandContour_HLS',
+#  'LandContour_Lvl',
+#  'GrLivArea',
+#  'TotRmsAbvGrd',
+#  'LotArea',
+#  'LotConfig_CulDSac',
+#  'LotConfig_FR2',
+#  'LotConfig_Inside',
+#  'LotFrontage',
+#  'LotShape_encoded',
+#  'MSSubClass_190',
+#  'MSSubClass_30',
+#  'MSSubClass_50',
+#  'MSSubClass_70',
+#  'MSSubClass_80',
+#  'MSZoning_FV',
+#  'MSZoning_RH',
+#  'MSZoning_RL',
+#  'MSZoning_RM',
+#  'MasVnrArea',
+#  'MasVnrType_Stone',
+#  'Neighborhood_BrkSide',
+#  'Neighborhood_ClearCr',
+#  'Neighborhood_Crawfor',
+#  'Neighborhood_Edwards',
+#  'Neighborhood_MeadowV',
+#  'Neighborhood_Mitchel',
+#  'Neighborhood_NAmes',
+#  'Neighborhood_NWAmes',
+#  'Neighborhood_OldTown',
+#  'Neighborhood_SWISU',
+#  'Neighborhood_Sawyer',
+#  'Neighborhood_SawyerW',
+#  'Neighborhood_Somerst',
+#  'Neighborhood_StoneBr',
+#  'OpenPorchSF',
+#  'OverallCond',
+#  'OverallQual',
+#  'PavedDrive_P',
+#  'PoolArea',
+#  'EnclosedPorch',
+#  'Age_House',
+#  '2ndFlrSF',
+#  'RoofMatl_CompShg',
+#  'RoofStyle_Gable',
+#  'RoofStyle_Hip',
+#  'SaleCondition_Family',
+#  'SaleCondition_Normal',
+#  'SaleType_New',
+#  'SaleType_WD',
+#  'ScreenPorch',
+#  'Season_Sold_Spring',
+#  'Season_Sold_Summer',
+#  'Season_Sold_Winter',
+#  'TotalBsmtSF',
+#  'WoodDeckSF',
+#  'BedroomAbvGr',
+#  'Yrs_Since_Remodel']
 
 
 
 
-selected_numeric_features = [
-    "LotArea", "MasVnrArea", "TotalBsmtSF", "1stFlrSF", 
-    "GrLivArea", "BsmtFullBath", "FullBath", "HalfBath", "BedroomAbvGr", 
-    "KitchenAbvGr", "Fireplaces", "GarageCars", "GarageArea", "WoodDeckSF", 
-    "OpenPorchSF", "EnclosedPorch", "Age_House", "TotRmsAbvGrd",
-    "Living_Rooms", "Garage_Space", "Garage_AgeCars", "Porch_Age", "Yrs_Since_Remodel", "Ratio_Bedroom_Rooms", "Ratio_2ndFlr_Living", "2ndFlrSF"
-]
+# selected_numeric_features = [
+#     "LotArea", "MasVnrArea", "TotalBsmtSF", "1stFlrSF", 
+#     "GrLivArea", "BsmtFullBath", "FullBath", "HalfBath", "BedroomAbvGr", 
+#     "KitchenAbvGr", "Fireplaces", "GarageCars", "GarageArea", "WoodDeckSF", 
+#     "OpenPorchSF", "EnclosedPorch", "Age_House", "TotRmsAbvGrd",
+#     "Yrs_Since_Remodel", "2ndFlrSF"
+# ]
 
 
-# Combine the lists and remove duplicates using a set
-combined_features_tree = list(set(xgb_features + selected_numeric_features))
-combined_features_tree.sort()
+# # Combine the lists and remove duplicates using a set
+# combined_features_tree = list(set(xgb_features + selected_numeric_features))
+# combined_features_tree.sort()
 
-X_train_tree = X_train[combined_features_tree]
-X_val_tree = X_val[combined_features_tree]
+X_train_tree = X_train.copy()
+X_val_tree = X_val.copy()
 
 ############################################## Decision Tree Regressor Model ############################################################
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
@@ -344,9 +346,46 @@ X_train_tree.to_csv("data/model_data/X_train_rf.csv", index=False)
 y_train.to_csv("data/model_data/y_train_rf.csv", index=False)
 X_val_tree.to_csv("data/model_data/X_val_rf.csv", index=False)
 
+
+############################################## ExtraTreesRegressor Model ############################################################
+cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
+et = ExtraTreesRegressor(random_state=random_state, criterion='squared_error')
+
+param_grid = {
+    "n_estimators": [50, 100, 200],  # Number of trees in the forest
+    "max_depth": [3, 5, 10],  # Maximum depth of the trees to avoid overfitting
+    "min_samples_split": [2, 5],  # Minimum number of samples required to split a node
+    "min_samples_leaf": [1, 2],  # Minimum number of samples required at a leaf node
+    "max_features": ["sqrt", "log2", None],  # The number of features to consider at each split
+    "bootstrap": [True, False]  # Whether bootstrap samples are used when building trees
+}
+
+gs_et = GridSearchCV(estimator=et, 
+                     param_grid=param_grid, 
+                     scoring="neg_root_mean_squared_error", 
+                     cv=cv, 
+                     n_jobs=-1, 
+                     refit=True)
+
+gs_et.fit(X_train_tree, y_train.values.ravel())
+
+print("10-Fold CV RMSE:", -gs_et.best_score_)  # RMSE is the negative value from GridSearchCV
+print("Optimal Parameters:", gs_et.best_params_)
+print("Optimal Estimator:", gs_et.best_estimator_)
+
+final_model_et = gs_et.best_estimator_
+
+
+with open("final_model_et.pkl", "wb") as f:
+    pickle.dump(final_model_et, f)
+
+X_train_tree.to_csv("data/model_data/X_train_et.csv", index=False)
+y_train.to_csv("data/model_data/y_train_et.csv", index=False)
+X_val_tree.to_csv("data/model_data/X_val_et.csv", index=False)
+
 ############################################## XGBoost Regressor Model ############################################################
-X_train_xgb = X_train[combined_features_tree]
-X_val_xgb = X_val[combined_features_tree]
+X_train_xgb = X_train.copy()
+X_val_xgb = X_val.copy()
 
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 xgb_model = xgb.XGBRegressor(random_state=random_state, objective="reg:squarederror")
@@ -394,8 +433,8 @@ X_val_xgb.to_csv("data/model_data/X_val_xgb.csv", index=False)
 
 ############################################## LightGBM Regressor Model ############################################################
 # Reduce the feature set using xgb's selected features
-X_train_lgbm = X_train[combined_features_tree]
-X_val_lgbm = X_val[combined_features_tree]
+X_train_lgbm = X_train.copy()
+X_val_lgbm = X_val.copy()
 
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 
@@ -658,6 +697,7 @@ print("############################################## 10-Fold CV Hyperparameter-
 evaluate_tree_model(final_model_dt, X_val_tree, y_val, "Decision Tree Regressor")
 evaluate_tree_model(final_model_sdt, X_val_tree, y_val, "Shallow Decision Tree Regressor")
 evaluate_tree_model(final_model_rf, X_val_tree, y_val, "Random Forest Regressor")
+evaluate_tree_model(final_model_et, X_val_tree, y_val, "Extra Trees Regressor")
 evaluate_tree_model(final_model_xgb, X_val_xgb, y_val, "XGBoost Regressor")
 evaluate_tree_model(final_model_lgbm, X_val_lgbm, y_val, "LightGBM Regressor")
 
