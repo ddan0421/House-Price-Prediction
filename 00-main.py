@@ -29,7 +29,7 @@ SCRIPTS = [
     "04-model-regressions-svr.py",
     "05-model-ML-trees.py",
     "06-model-ML-stacking.py",
-    "19-prediction.py"
+    "09-prediction.py"
 ]
 
 # Function to execute a Python script
