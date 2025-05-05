@@ -24,8 +24,8 @@ logging.basicConfig(
 # List of files to run in sequence
 SCRIPTS = [
     "01-data-preparation-contextual-imputation.py",
-    "02-data-preparation.py",
-    "03-data-preparation-interactions.py",
+    "02-data-preparation-imputation-encoding.py",
+    "03-data-preparation-standardization.py",
     "04-model-regressions-svr.py",
     "05-model-ML-trees.py",
     "06-model-ML-stacking.py",
