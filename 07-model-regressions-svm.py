@@ -6,7 +6,8 @@ import duckdb
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from sklearn.metrics import root_mean_squared_error
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.linear_model import Ridge, Lasso
+from sklearn.linear_model import Ridge, Lasso, ElasticNet
+from sklearn.neighbors import KNeighborsRegressor
 from sklearn.model_selection import GridSearchCV, KFold
 from sklearn.svm import SVR
 import pickle
@@ -136,6 +137,37 @@ X_train_reg_lr.to_csv("data/model_data/X_train_lasso.csv", index=False)
 y_train.to_csv("data/model_data/y_train_lasso.csv", index=False)
 X_val_reg_lr.to_csv("data/model_data/X_val_lasso.csv", index=False)
 
+############################# ElasticNet #############################
+cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
+enet = ElasticNet(random_state=random_state)
+
+param_grid = {
+    "alpha": [0.001, 0.01, 0.1, 1.0, 10.0, 100.0], 
+    "l1_ratio": [0.1, 0.3, 0.5, 0.7, 0.9]
+}
+
+gs_enet = GridSearchCV(estimator=enet, 
+                       param_grid=param_grid, 
+                       scoring="neg_root_mean_squared_error", 
+                       cv=cv, 
+                       n_jobs=-1, 
+                       refit=True)
+
+gs_enet.fit(X_train_reg_lr, y_train.values.ravel())
+
+print("10-Fold CV RMSE:", -gs_enet.best_score_) 
+print("Optimal Parameter:", gs_enet.best_params_)
+print("Optimal Estimator:", gs_enet.best_estimator_)
+
+final_model_enet = gs_enet.best_estimator_
+
+with open("final_model_enet.pkl", "wb") as f:
+    pickle.dump(final_model_enet, f)
+
+X_train_reg_lr.to_csv("data/model_data/X_train_enet.csv", index=False)
+y_train.to_csv("data/model_data/y_train_enet.csv", index=False)
+X_val_reg_lr.to_csv("data/model_data/X_val_enet.csv", index=False)
+
 ############################# SVM #############################
 X_train = pd.read_csv("data/model_data/X_train_reg.csv")
 X_val = pd.read_csv("data/model_data/X_val_reg.csv")
@@ -253,6 +285,47 @@ X_train_svm.to_csv("data/model_data/X_train_svm.csv", index=False)
 y_train.to_csv("data/model_data/y_train_svm.csv", index=False)
 X_val_svm.to_csv("data/model_data/X_val_svm.csv", index=False)
 
+
+
+############################# KNN #############################
+X_train_knn = X_train[combined_features_svm]
+X_val_knn = X_val[combined_features_svm]
+
+cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
+knn = KNeighborsRegressor()
+
+param_grid = {
+    "n_neighbors": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],  # Includes more odd/even values for comparison
+    "weights": ["uniform", "distance"],
+    "p": [1, 2],  # Manhattan and Euclidean
+    "algorithm": ["auto", "ball_tree", "kd_tree"],  # Optional, but useful to test tree methods
+    "leaf_size": [20, 30, 40]  # Can impact tree-based performance
+}
+gs_knn = GridSearchCV(estimator=knn,
+                      param_grid=param_grid,
+                      scoring="neg_root_mean_squared_error",
+                      cv=cv,
+                      n_jobs=-1,
+                      refit=True)
+
+gs_knn.fit(X_train_knn, y_train.values.ravel())
+
+print("10-Fold CV RMSE:", -gs_knn.best_score_)
+print("Optimal Parameter:", gs_knn.best_params_)
+print("Optimal Estimator:", gs_knn.best_estimator_)
+
+final_model_knn = gs_knn.best_estimator_
+
+# Save the trained KNN model
+with open("final_model_knn.pkl", "wb") as f:
+    pickle.dump(final_model_knn, f)
+print("KNN model saved to final_model_knn.pkl")
+
+# Save training/validation data
+X_train_svm.to_csv("data/model_data/X_train_knn.csv", index=False)
+y_train.to_csv("data/model_data/y_train_knn.csv", index=False)
+X_val_knn.to_csv("data/model_data/X_val_knn.csv", index=False)
+
 ############################################## Models Generalization Performance ##############################################
 def evaluate_linear_model(model, X, y, name):
     predictions = model.predict(X)
@@ -263,6 +336,9 @@ def evaluate_linear_model(model, X, y, name):
 evaluate_linear_model(ols_lr, X_val_regress, y_val, "OLS Model")
 evaluate_linear_model(final_model_ridge, X_val_reg_lr, y_val, "Ridge Model")
 evaluate_linear_model(final_model_lasso, X_val_reg_lr, y_val, "Lasso Model")
+evaluate_linear_model(final_model_enet, X_val_reg_lr, y_val, "ElasticNet Model")
 evaluate_linear_model(final_model_svm, X_val_svm, y_val, "SVM Model")
+evaluate_linear_model(final_model_knn, X_val_knn, y_val, "KNN Model")
+
 
 

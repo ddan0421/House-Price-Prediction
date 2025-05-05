@@ -18,6 +18,8 @@ Lasso Model
 LightGBM Regressor (Bayesian Optimized)
 XGBBoost Regressor (Bayesian Optimized)
 LightGBM Regressor (Hyperparameter Tuned)
+random forest regressor (Hyperparameter Tuned)
+KNN Regressor (Hyperparameter Tuned)
 """
 
 ################################################# Stacking Models #######################################################
@@ -36,6 +38,16 @@ X_train_xgb_bayes = pd.read_csv("data/model_data/X_train_xgb_bayes.csv").values
 y_train_xgb_bayes = pd.read_csv("data/model_data/y_train_xgb_bayes.csv").values.flatten()
 X_train_lgbm = pd.read_csv("data/model_data/X_train_lgbm.csv").values
 y_train_lgbm = pd.read_csv("data/model_data/y_train_lgbm.csv").values.flatten()
+X_train_rf = pd.read_csv("data/model_data/X_train_rf.csv").values
+y_train_rf = pd.read_csv("data/model_data/y_train_rf.csv").values.flatten()
+X_train_knn = pd.read_csv("data/model_data/X_train_knn.csv").values
+y_train_knn = pd.read_csv("data/model_data/y_train_knn.csv").values.flatten()
+X_train_dt = pd.read_csv("data/model_data/X_train_dt.csv").values
+y_train_dt = pd.read_csv("data/model_data/y_train_dt.csv").values.flatten()
+X_train_sdt = pd.read_csv("data/model_data/X_train_sdt.csv").values
+y_train_sdt = pd.read_csv("data/model_data/y_train_sdt.csv").values.flatten()
+X_train_enet = pd.read_csv("data/model_data/X_train_enet.csv").values
+y_train_enet = pd.read_csv("data/model_data/y_train_enet.csv").values.flatten()
 
 
 # Load pre-trained base models
@@ -53,6 +65,16 @@ with open("final_model_xgb_bayes.pkl", "rb") as f:
     xgb_bayes_model = pickle.load(f)
 with open("final_model_lgbm.pkl", "rb") as f:
     lgbm_model = pickle.load(f)
+with open("final_model_rf.pkl", "rb") as f:
+    rf_model = pickle.load(f)
+with open("final_model_knn.pkl", "rb") as f:
+    knn_model = pickle.load(f)
+with open("final_model_dt.pkl", "rb") as f:
+    dt_model = pickle.load(f)
+with open("final_model_sdt.pkl", "rb") as f:
+    sdt_model = pickle.load(f)
+with open("final_model_enet.pkl", "rb") as f:
+    enet_model = pickle.load(f)
 
 base_models = [
     ("xgb", xgb_model, X_train_xgb, y_train_xgb),
@@ -61,7 +83,12 @@ base_models = [
     ("lasso", lasso_model, X_train_lasso, y_train_lasso),
     ("lgbm_bayes", lgbm_bayes_model, X_train_lgbm_bayes, y_train_lgbm_bayes),
     ("xgb_bayes", xgb_bayes_model, X_train_xgb_bayes, y_train_xgb_bayes),
-    ("lgbm", lgbm_model, X_train_lgbm, y_train_lgbm)
+    ("lgbm", lgbm_model, X_train_lgbm, y_train_lgbm),
+    ("rf", rf_model, X_train_rf, y_train_rf),
+    # ("knn", knn_model, X_train_knn, y_train_knn),
+    # ("dt", dt_model, X_train_dt, y_train_dt),
+    # ("sdt", sdt_model, X_train_sdt, y_train_sdt),
+    ("enet", enet_model, X_train_enet, y_train_enet),
 ]
 
 # Create an empty array to store OOF predictions
@@ -121,6 +148,11 @@ X_val_lasso = pd.read_csv("data/model_data/X_val_lasso.csv")
 X_val_lgbm_bayes = pd.read_csv("data/model_data/X_val_lgbm_bayes.csv")
 X_val_xgb_bayes = pd.read_csv("data/model_data/X_val_xgb_bayes.csv")
 X_val_lgbm = pd.read_csv("data/model_data/X_val_lgbm.csv")
+X_val_rf = pd.read_csv("data/model_data/X_val_rf.csv")
+X_val_knn = pd.read_csv("data/model_data/X_val_knn.csv")
+X_val_dt = pd.read_csv("data/model_data/X_val_dt.csv")
+X_val_sdt = pd.read_csv("data/model_data/X_val_sdt.csv")
+X_val_enet = pd.read_csv("data/model_data/X_val_enet.csv")
 
 y_val = pd.read_csv("data/model_data/y_val_ml.csv")
 
@@ -141,6 +173,16 @@ for i, (name, model, _, _) in enumerate(base_models):
         test_preds[:, i] = model.predict(X_val_xgb_bayes)
     elif name == "lgbm":
         test_preds[:, i] = model.predict(X_val_lgbm)
+    elif name == "rf":
+        test_preds[:, i] = model.predict(X_val_rf)
+    elif name == "knn":
+        test_preds[:, i] = model.predict(X_val_knn)
+    elif name == "dt":
+        test_preds[:, i] = model.predict(X_val_dt)
+    elif name == "sdt":
+        test_preds[:, i] = model.predict(X_val_sdt)
+    elif name == "enet":
+        test_preds[:, i] = model.predict(X_val_enet)
 
 # Final predictions using meta-learner
 test_preds = sm.add_constant(test_preds)
