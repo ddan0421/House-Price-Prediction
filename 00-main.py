@@ -24,15 +24,12 @@ logging.basicConfig(
 # List of files to run in sequence
 SCRIPTS = [
     "01-data-preparation-contextual-imputation.py",
-    "02-data-preparation-imputation-encoding.py",
-    "03-EDA-charts-before-interactions.py",
-    "04-data-preparation-interactions.py",
-    "05-EDA-charts-after-interactions.py",
-    "06-data-preparation-standardization.py",
-    "07-model-regressions-svm.py",
-    "08-model-ML-trees.py",
-    "09-model-ML-stacking.py",
-    "12-prediction.py"
+    "02-data-preparation.py",
+    "03-data-preparation-interactions.py",
+    "04-model-regressions-svr.py",
+    "05-model-ML-trees.py",
+    "06-model-ML-stacking.py",
+    "19-prediction.py"
 ]
 
 # Function to execute a Python script
