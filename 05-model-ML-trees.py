@@ -515,7 +515,7 @@ X_val_lgbm.to_csv("data/model_data/X_val_lgbm.csv", index=False)
 ############################################## LGBM Models with Bayesian Optimization ############################################################
 # Learn about this (Bayesian Optimization)
 # https://medium.com/analytics-vidhya/hyperparameters-optimization-for-lightgbm-catboost-and-xgboost-regressors-using-bayesian-6e7c495947a9
-def bayesian_opt_lgbm(X, y, init_iter=40, n_iters=50, random_state=random_state, seed=seed):
+def bayesian_opt_lgbm(X, y, init_iter=50, n_iters=100, random_state=random_state, seed=seed):
     # Prepare LightGBM dataset
     dtrain = lgb.Dataset(data=X, label=y)
 
@@ -563,19 +563,19 @@ def bayesian_opt_lgbm(X, y, init_iter=40, n_iters=50, random_state=random_state,
 
     # Define hyperparameter search space
     pds = {
-        "num_boost_round": (150, 250),  # Focused around optimal results
-        "learning_rate": (0.08, 0.15),  # Centered on optimal values
-        "max_depth": (3, 10),  # Tightened range based on grid and Bayesian results
-        "num_leaves": (15, 128),  # Balanced between grid search and Bayesian ranges
-        "min_child_samples": (10, 25),  # Focused around optimal values
-        "min_sum_hessian_in_leaf": (1e-3, 7),  # Narrowed based on Bayesian result
-        "feature_fraction_bynode": (0.3, 0.7),  # Focused around Bayesian results
-        "reg_alpha": (0, 1),  # Balanced between grid and Bayesian ranges
-        "reg_lambda": (1, 2),  # Focused on higher values suggested by Bayesian
-        "min_split_gain": (0.0, 0.1),  # Tightened range based on Bayesian results
-        "feature_fraction": (0.6, 0.8),  # Focused on the Bayesian result
-        "bagging_fraction": (0.7, 0.9),  # Centered around Bayesian optimal
-        "bagging_freq": (3, 7),  # Tightened range based on Bayesian results
+        "num_boost_round": (180, 220),  # Narrow range close to optimal 200
+        "learning_rate": (0.08, 0.12),  # Focused on values around 0.1
+        "max_depth": (3, 5),  # Tightened range around optimal depth
+        "num_leaves": (25, 40),  # Constrained to values near the default 31
+        "min_child_samples": (15, 25),  # Narrowed around the optimal 20
+        "min_sum_hessian_in_leaf": (1e-3, 3),  # Constrained for stability
+        "feature_fraction_bynode": (0.6, 0.8),  # Slightly narrower range
+        "reg_alpha": (0.0, 0.5),  # Focused around lower values
+        "reg_lambda": (0.8, 1.2),  # Tightened around 1.0
+        "min_split_gain": (0.0, 0.05),  # Narrower range for stability
+        "feature_fraction": (0.7, 0.9),  # Slightly higher to include 0.8
+        "bagging_fraction": (0.7, 0.85),  # Centered around 0.8
+        "bagging_freq": (3, 6),  # Focused on 3-7
     }
 
     # Initialize Bayesian Optimization
@@ -629,7 +629,7 @@ y_train.to_csv("data/model_data/y_train_lgbm_bayes.csv", index=False)
 X_val_lgbm.to_csv("data/model_data/X_val_lgbm_bayes.csv", index=False)
 
 ############################################## XGB Models with Bayesian Optimization ############################################################
-def bayesian_opt_xgb(X, y, init_iter=40, n_iters=50, random_state=random_state, seed=seed):
+def bayesian_opt_xgb(X, y, init_iter=50, n_iters=100, random_state=random_state, seed=seed):
     # Objective Function for Bayesian Optimization
     def hyp_xgb(n_estimators, learning_rate, max_depth, min_child_weight, subsample, colsample_bytree, reg_alpha, reg_lambda):
         params = {
@@ -663,14 +663,14 @@ def bayesian_opt_xgb(X, y, init_iter=40, n_iters=50, random_state=random_state, 
 
     # Define hyperparameter search space
     pds = {
-        "n_estimators": (150, 200),  # Increased range
-        "learning_rate": (0.07, 0.12),  # Expanded learning rate range
-        "max_depth": (3, 5),  # Increased max depth
-        "min_child_weight": (1, 3),  # Expanded min child weight
-        "subsample": (0.7, 0.85),  # Fraction of samples per tree
-        "colsample_bytree": (0.6, 0.8),  # Fraction of features per tree
-        "reg_alpha": (0.5, 1.0),  # L1 regularization
-        "reg_lambda": (0.2, 1.0),  # L2 regularization
+        "n_estimators": (180, 200),  # Increased range
+        "learning_rate": (0.08, 0.12),  # Expanded learning rate range
+        "max_depth": (2, 4),  # Increased max depth
+        "min_child_weight": (2, 4),  # Expanded min child weight
+        "subsample": (0.75, 0.85),  # Fraction of samples per tree
+        "colsample_bytree": (0.7, 0.8),  # Fraction of features per tree
+        "reg_alpha": (0, 0.2),  # L1 regularization
+        "reg_lambda": (0.8, 1.2),  # L2 regularization
     }
 
     # Initialize Bayesian Optimization
