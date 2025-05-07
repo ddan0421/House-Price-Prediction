@@ -2,7 +2,6 @@
 # use non-scaled data
 import pandas as pd
 import numpy as np
-import duckdb
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor, ExtraTreesRegressor
 from sklearn.model_selection import KFold, GridSearchCV
@@ -11,6 +10,8 @@ import xgboost as xgb
 import lightgbm as lgb
 from bayes_opt import BayesianOptimization
 import pickle
+import optuna
+import catboost as cb
 
 
 import warnings
@@ -716,6 +717,73 @@ X_train_xgb.to_csv("data/model_data/X_train_xgb_bayes.csv", index=False)
 y_train.to_csv("data/model_data/y_train_xgb_bayes.csv", index=False)
 X_val_xgb.to_csv("data/model_data/X_val_xgb_bayes.csv", index=False)
 
+############################################## CatBoost Models with Optuna Optimization ############################################################
+# Load data
+X_train_cat = pd.read_csv("data/model_data/X_train_cat.csv")
+X_val_cat = pd.read_csv("data/model_data/X_val_cat.csv")
+test_final_cat = pd.read_csv("data/model_data/test_final_cat.csv")
+y_train_cat = pd.read_csv("data/model_data/y_train_cat.csv")
+y_val_cat = pd.read_csv("data/model_data/y_val_cat.csv")
+
+# Identify categorical columns
+cat_columns = X_train_cat.select_dtypes(include="object").columns.tolist()
+cat_columns.append("MSSubClass")
+
+# Prepare Pool
+train_pool = cb.Pool(data=X_train_cat, label=y_train_cat, cat_features=cat_columns)
+val_pool = cb.Pool(data=X_val_cat, label=y_val_cat, cat_features=cat_columns)
+
+# Define objective function for Optuna
+def objective(trial):
+    params = {
+        "iterations": 1000,
+        "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.1, log=True),
+        "depth": trial.suggest_int("depth", 1, 10),
+        "subsample": trial.suggest_float("subsample", 0.05, 1.0),
+        "colsample_bylevel": trial.suggest_float("colsample_bylevel", 0.05, 1.0),
+        "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 1, 100),
+        "random_seed": seed,
+        "loss_function": "RMSE",
+        "early_stopping_rounds": 50,
+    }
+
+    # Perform cross-validation
+    cv_results = cb.cv(
+        params=params,
+        pool=train_pool,
+        fold_count=10,  # 10-fold cross-validation
+        verbose=False,
+        early_stopping_rounds=50,
+        stratified=False,
+    )
+
+    # Return best RMSE from cross-validation
+    best_rmse = cv_results["test-RMSE-mean"].min()
+    return best_rmse
+
+# Run Optuna study
+study = optuna.create_study(direction="minimize")
+study.optimize(objective, n_trials=50)
+
+# Display the best results
+print("Best trial RMSE:", study.best_value)
+print("Optimal Parameters:", study.best_params)
+
+# Train final model with the best parameters
+best_params = study.best_params
+final_model_cat = cb.CatBoostRegressor(**best_params, random_seed=42, cat_features=cat_columns, silent=True)
+
+
+final_model_cat.fit(train_pool, eval_set=val_pool, verbose=True)
+
+# Save the final model
+with open("final_model_catboost.pkl", "wb") as f:
+    pickle.dump(final_model_cat, f)
+print("CatBoost model saved to final_model_catboost.pkl")
+
+final_model_cat.save_model("final_model_catboost.cbm", format="cbm")
+print("CatBoost model saved to final_model_catboost.cbm")
+
 ############################################## Models Generalization Performance ##############################################
 def evaluate_tree_model(model, X, y, name):
     predictions = model.predict(X)
@@ -735,3 +803,5 @@ print("############################################## 10-Fold CV Hyperparameter-
 evaluate_tree_model(xgb_bayes_model, X_val_xgb, y_val, "XGBoost Regressor (Bayesian Optimizied)")
 evaluate_tree_model(lgbm_bayes_model, X_val_lgbm, y_val, "LightGBM Regressor (Bayesian Optimizied)")
 
+print("############################################## 10-Fold CV Optuna-Tuned ##############################################")
+evaluate_tree_model(final_model_cat, val_pool, y_val_cat, "CatBoost Regressor")
