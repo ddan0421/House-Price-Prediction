@@ -102,9 +102,9 @@ def feature_engineering(df):
            WHEN MoSold IN (6, 7, 8) THEN 'Summer'
            ELSE 'Fall'
         END AS Season_Sold,
-        IF((YrSold - YearBuilt) < 0, 0, (YrSold - YearBuilt)) AS Age_House,
-        IF((YrSold - YearRemodAdd) < 0, 0, (YrSold - YearRemodAdd)) AS Yrs_Since_Remodel,
-        IF((YrSold - GarageYrBlt) < 0, 0, (YrSold - GarageYrBlt)) AS Age_Garage
+        IF((YrSold - YearBuilt) < 0 OR YrSold IS NULL OR YearBuilt IS NULL, 0, (YrSold - YearBuilt)) AS Age_House,
+        IF((YrSold - YearRemodAdd) < 0 OR YrSold IS NULL OR YearRemodAdd IS NULL, 0, (YrSold - YearRemodAdd)) AS Yrs_Since_Remodel,
+        IF((YrSold - GarageYrBlt) < 0 OR GarageYrBlt IS NULL OR GarageType = 'no_garage', 0, (YrSold - GarageYrBlt)) AS Age_Garage
     FROM original_df;
     """
     result = conn.execute(query).fetch_df()
@@ -465,7 +465,7 @@ test_final.to_csv("data/test_final_reg.csv", index=False)
 
 
 
-#################################################################### ML Data Preparation ####################################################################
+#################################################################### General ML Data Preparation ####################################################################
 """
 ML Model Data Preparation Workflow:
 Step 1: Split the train dataset into train and validation set
@@ -510,9 +510,9 @@ def feature_engineering(df):
            WHEN MoSold IN (6, 7, 8) THEN 'Summer'
            ELSE 'Fall'
         END AS Season_Sold,
-        IF((YrSold - YearBuilt) < 0, 0, (YrSold - YearBuilt)) AS Age_House,
-        IF((YrSold - YearRemodAdd) < 0, 0, (YrSold - YearRemodAdd)) AS Yrs_Since_Remodel,
-        IF((YrSold - GarageYrBlt) < 0, 0, (YrSold - GarageYrBlt)) AS Age_Garage
+        IF((YrSold - YearBuilt) < 0 OR YrSold IS NULL OR YearBuilt IS NULL, 0, (YrSold - YearBuilt)) AS Age_House,
+        IF((YrSold - YearRemodAdd) < 0 OR YrSold IS NULL OR YearRemodAdd IS NULL, 0, (YrSold - YearRemodAdd)) AS Yrs_Since_Remodel,
+        IF((YrSold - GarageYrBlt) < 0 OR GarageYrBlt IS NULL OR GarageType = 'no_garage', 0, (YrSold - GarageYrBlt)) AS Age_Garage
     FROM original_df;
     """
     result = conn.execute(query).fetch_df()
@@ -733,3 +733,95 @@ X_val_ml.drop("Id", axis=1).to_csv("data/model_data/X_val_ml.csv", index=False)
 test_final_ml.to_csv("data/model_data/test_final_ml.csv", index=False)
 y_train_ml.to_csv("data/model_data/y_train_ml.csv", index=False)
 y_val_ml.to_csv("data/model_data/y_val_ml.csv", index=False)
+
+
+
+
+#################################################################### CatBoost ML Data Preparation ####################################################################
+"""
+CatBoost ML Model Data Preparation Workflow:
+Step 1: Split the train dataset into train and validation set
+Step 2: Impute categorical missing data in train, validation, and test sets with the mode from training set to prevent data leakage
+Step 3: Creating time variables
+Step 4: Impute missing continuous numerical data in the training set using the data from Regresion model data preparation step
+Step 5: Impute missing continuous numerical data in the validation set using the data from Regresion model data preparation step
+Step 6: Impute missing continuous numerical data in the test set using the data from Regresion model data preparation step
+"""
+
+train = pd.read_csv("data/train_clean_01.csv")
+test = pd.read_csv("data/test_clean_01.csv")
+
+# Step 1: Split the train dataset into train and validation set
+X = train.drop(columns=["SalePrice"], axis=1)
+y = train["SalePrice"]
+
+from sklearn.model_selection import train_test_split
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+
+
+# Step 2: Impute categorical missing data in train, validation, and test sets with the mode from training set to prevent data leakage
+X_train["Electrical"].fillna(X_train["Electrical"].mode()[0], inplace=True)
+# validation set has no missing values except LotFrontage
+test["MSZoning"].fillna(X_train["MSZoning"].mode()[0], inplace=True)
+test["Utilities"].fillna(X_train["Utilities"].mode()[0], inplace=True)
+test["KitchenQual"].fillna(X_train["KitchenQual"].mode()[0], inplace=True)
+test["Functional"].fillna(X_train["Functional"].mode()[0], inplace=True)
+
+
+# Step 3: Creating time variables
+def feature_engineering(df):
+    conn = duckdb.connect()
+    conn.register("original_df", df)
+    query = """
+    SELECT 
+        *,
+        CASE
+           WHEN MoSold IN (12, 1, 2) THEN 'Winter'
+           WHEN MoSold IN (3, 4, 5) THEN 'Spring'
+           WHEN MoSold IN (6, 7, 8) THEN 'Summer'
+           ELSE 'Fall'
+        END AS Season_Sold,
+        IF((YrSold - YearBuilt) < 0 OR YrSold IS NULL OR YearBuilt IS NULL, 0, (YrSold - YearBuilt)) AS Age_House,
+        IF((YrSold - YearRemodAdd) < 0 OR YrSold IS NULL OR YearRemodAdd IS NULL, 0, (YrSold - YearRemodAdd)) AS Yrs_Since_Remodel,
+        IF((YrSold - GarageYrBlt) < 0 OR GarageYrBlt IS NULL OR GarageType = 'no_garage', 0, (YrSold - GarageYrBlt)) AS Age_Garage
+    FROM original_df;
+    """
+    result = conn.execute(query).fetch_df()
+    columns_to_drop = [
+        "MoSold", "YearBuilt", "YearRemodAdd", "GarageYrBlt", "YrSold"
+    ]
+    result = result.drop(columns=columns_to_drop)
+    conn.close()
+    return result
+
+
+X_train = feature_engineering(X_train)
+X_val = feature_engineering(X_val)
+test = feature_engineering(test)
+
+
+# Step 4: Impute missing continuous numerical data in the training set using the data from Regresion model data preparation step
+X_train_cat = X_train.copy()  
+X_train_cat["LotFrontage"] = X_train_imputed["LotFrontage"]
+
+# Step 5: Impute missing continuous numerical data in the validation set using the data from Regresion model data preparation step
+X_val_cat = X_val.copy()  
+X_val_cat["LotFrontage"] = X_val_imputed["LotFrontage"]
+
+# Step 6: Impute missing continuous numerical data in the test set using the data from Regresion model data preparation step
+test_final_cat = test.copy()  
+test_final_cat["LotFrontage"] = test_imputed["LotFrontage"]
+
+############################### Export non-transformed and non-scaled data for non-linear modeling ###############################
+if not os.path.exists("data/model_data"):
+    os.makedirs("data/model_data")
+
+# Transform SalePrice
+y_train_cat = np.log(y_train)
+y_val_cat = np.log(y_val)
+
+X_train_cat.drop("Id", axis=1).to_csv("data/model_data/X_train_cat.csv", index=False)
+X_val_cat.drop("Id", axis=1).to_csv("data/model_data/X_val_cat.csv", index=False)
+test_final_cat.to_csv("data/model_data/test_final_cat.csv", index=False)
+y_train_cat.to_csv("data/model_data/y_train_cat.csv", index=False)
+y_val_cat.to_csv("data/model_data/y_val_cat.csv", index=False)
