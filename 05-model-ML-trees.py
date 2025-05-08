@@ -179,154 +179,8 @@ y_train.to_csv("data/model_data/y_train_et.csv", index=False)
 X_val_tree.to_csv("data/model_data/X_val_et.csv", index=False)
 
 ############################################## XGBoost Regressor Model ############################################################
-xgb_features = ['LotFrontage',
- 'LotArea',
- 'OverallQual',
- 'OverallCond',
- 'MasVnrArea',
- 'BsmtFinSF1',
- 'BsmtFinSF2',
- 'BsmtUnfSF',
- 'TotalBsmtSF',
- '1stFlrSF',
- '2ndFlrSF',
- 'GrLivArea',
- 'BsmtFullBath',
- 'BsmtHalfBath',
- 'FullBath',
- 'HalfBath',
- 'BedroomAbvGr',
- 'KitchenAbvGr',
- 'TotRmsAbvGrd',
- 'Fireplaces',
- 'GarageCars',
- 'GarageArea',
- 'WoodDeckSF',
- 'OpenPorchSF',
- 'EnclosedPorch',
- '3SsnPorch',
- 'ScreenPorch',
- 'PoolArea',
- 'MiscVal',
- 'Age_House',
- 'Yrs_Since_Remodel',
- 'Age_Garage',
- 'MSSubClass_30',
- 'MSSubClass_50',
- 'MSSubClass_60',
- 'MSSubClass_70',
- 'MSZoning_FV',
- 'MSZoning_RH',
- 'MSZoning_RL',
- 'MSZoning_RM',
- 'LotConfig_CulDSac',
- 'LotConfig_FR2',
- 'LotConfig_Inside',
- 'Condition1_Feedr',
- 'Condition1_Norm',
- 'Condition1_PosA',
- 'Condition1_RRAe',
- 'Condition2_Norm',
- 'Neighborhood_BrkSide',
- 'Neighborhood_ClearCr',
- 'Neighborhood_CollgCr',
- 'Neighborhood_Crawfor',
- 'Neighborhood_Edwards',
- 'Neighborhood_Gilbert',
- 'Neighborhood_IDOTRR',
- 'Neighborhood_MeadowV',
- 'Neighborhood_Mitchel',
- 'Neighborhood_NAmes',
- 'Neighborhood_NWAmes',
- 'Neighborhood_NoRidge',
- 'Neighborhood_NridgHt',
- 'Neighborhood_OldTown',
- 'Neighborhood_SWISU',
- 'Neighborhood_Sawyer',
- 'Neighborhood_SawyerW',
- 'Neighborhood_Somerst',
- 'Neighborhood_StoneBr',
- 'Neighborhood_Timber',
- 'BldgType_TwnhsE',
- 'HouseStyle_1Story',
- 'HouseStyle_2.5Unf',
- 'HouseStyle_2Story',
- 'HouseStyle_SLvl',
- 'Exterior1st_BrkFace',
- 'Exterior1st_CemntBd',
- 'Exterior1st_HdBoard',
- 'Exterior1st_MetalSd',
- 'Exterior1st_Plywood',
- 'Exterior1st_VinylSd',
- 'Exterior1st_Wd Sdng',
- 'Exterior1st_WdShing',
- 'Exterior2nd_CmentBd',
- 'Exterior2nd_HdBoard',
- 'Exterior2nd_MetalSd',
- 'Exterior2nd_Plywood',
- 'Exterior2nd_Stucco',
- 'Exterior2nd_VinylSd',
- 'Exterior2nd_Wd Sdng',
- 'Exterior2nd_Wd Shng',
- 'CentralAir_Y',
- 'Electrical_FuseF',
- 'Electrical_SBrkr',
- 'LandContour_HLS',
- 'LandContour_Lvl',
- 'RoofStyle_Gable',
- 'RoofStyle_Hip',
- 'RoofMatl_CompShg',
- 'Alley_Pave',
- 'Alley_no_alley',
- 'MasVnrType_BrkFace',
- 'MasVnrType_Stone',
- 'MasVnrType_no_MasVnrType',
- 'Foundation_CBlock',
- 'Foundation_PConc',
- 'Foundation_Slab',
- 'Foundation_Wood',
- 'Functional_Maj2',
- 'Functional_Min1',
- 'Functional_Min2',
- 'Functional_Mod',
- 'Functional_Typ',
- 'GarageType_Attchd',
- 'GarageType_Basment',
- 'GarageType_BuiltIn',
- 'GarageType_CarPort',
- 'GarageType_Detchd',
- 'GarageType_no_garage',
- 'PavedDrive_P',
- 'PavedDrive_Y',
- 'Fence_GdWo',
- 'Fence_MnPrv',
- 'Fence_no_fence',
- 'SaleType_New',
- 'SaleType_WD',
- 'SaleCondition_Family',
- 'SaleCondition_Normal',
- 'SaleCondition_Partial',
- 'Season_Sold_Spring',
- 'Season_Sold_Summer',
- 'Season_Sold_Winter',
- 'LandSlope_encoded',
- 'LotShape_encoded',
- 'HeatingQC_encoded',
- 'ExterQual_encoded',
- 'ExterCond_encoded',
- 'BsmtQual_encoded',
- 'BsmtCond_encoded',
- 'BsmtExposure_encoded',
- 'BsmtFinType1_encoded',
- 'BsmtFinType2_encoded',
- 'KitchenQual_encoded',
- 'FireplaceQu_encoded',
- 'GarageFinish_encoded',
- 'GarageQual_encoded',
- 'GarageCond_encoded']
-
-X_train_xgb = X_train[xgb_features]
-X_val_xgb = X_val[xgb_features]
+X_train_xgb = X_train.copy()
+X_val_xgb = X_val.copy()
 
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 xgb_model = xgb.XGBRegressor(random_state=random_state, objective="reg:squarederror")
@@ -373,99 +227,8 @@ X_val_xgb.to_csv("data/model_data/X_val_xgb.csv", index=False)
 
 
 ############################################## LightGBM Regressor Model ############################################################
-# Reduce the feature set using lightgbm's selected features
-lightgbm_features = ['LotFrontage',
- 'LotArea',
- 'OverallQual',
- 'OverallCond',
- 'MasVnrArea',
- 'BsmtFinSF1',
- 'BsmtFinSF2',
- 'BsmtUnfSF',
- 'TotalBsmtSF',
- '1stFlrSF',
- '2ndFlrSF',
- 'GrLivArea',
- 'BsmtFullBath',
- 'FullBath',
- 'BedroomAbvGr',
- 'TotRmsAbvGrd',
- 'Fireplaces',
- 'GarageCars',
- 'GarageArea',
- 'WoodDeckSF',
- 'OpenPorchSF',
- 'EnclosedPorch',
- '3SsnPorch',
- 'ScreenPorch',
- 'Age_House',
- 'Yrs_Since_Remodel',
- 'Age_Garage',
- 'MSSubClass_30',
- 'MSSubClass_50',
- 'MSSubClass_60',
- 'MSSubClass_70',
- 'MSZoning_FV',
- 'MSZoning_RL',
- 'MSZoning_RM',
- 'LotConfig_CulDSac',
- 'LotConfig_FR2',
- 'Condition1_Norm',
- 'Neighborhood_BrkSide',
- 'Neighborhood_Crawfor',
- 'Neighborhood_Edwards',
- 'Neighborhood_Mitchel',
- 'Neighborhood_NoRidge',
- 'Neighborhood_NridgHt',
- 'Neighborhood_OldTown',
- 'Neighborhood_SWISU',
- 'Neighborhood_Sawyer',
- 'Neighborhood_SawyerW',
- 'Neighborhood_StoneBr',
- 'HouseStyle_1Story',
- 'Exterior1st_BrkFace',
- 'Exterior1st_HdBoard',
- 'Exterior1st_MetalSd',
- 'Exterior2nd_CmentBd',
- 'Exterior2nd_Plywood',
- 'Exterior2nd_Wd Sdng',
- 'CentralAir_Y',
- 'Electrical_SBrkr',
- 'LandContour_HLS',
- 'LandContour_Lvl',
- 'Alley_Pave',
- 'MasVnrType_BrkFace',
- 'Foundation_CBlock',
- 'Foundation_PConc',
- 'Functional_Typ',
- 'GarageType_Attchd',
- 'GarageType_Detchd',
- 'Fence_GdWo',
- 'Fence_MnPrv',
- 'Fence_no_fence',
- 'SaleType_New',
- 'SaleType_WD',
- 'SaleCondition_Normal',
- 'Season_Sold_Spring',
- 'Season_Sold_Summer',
- 'Season_Sold_Winter',
- 'LotShape_encoded',
- 'HeatingQC_encoded',
- 'ExterQual_encoded',
- 'ExterCond_encoded',
- 'BsmtQual_encoded',
- 'BsmtCond_encoded',
- 'BsmtExposure_encoded',
- 'BsmtFinType1_encoded',
- 'BsmtFinType2_encoded',
- 'KitchenQual_encoded',
- 'FireplaceQu_encoded',
- 'GarageFinish_encoded',
- 'GarageQual_encoded',
- 'GarageCond_encoded']
-
-X_train_lgbm = X_train[lightgbm_features]
-X_val_lgbm = X_val[lightgbm_features]
+X_train_lgbm = X_train.copy()
+X_val_lgbm = X_val.copy()
 
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 
@@ -736,16 +499,23 @@ val_pool = cb.Pool(data=X_val_cat, label=y_val_cat, cat_features=cat_columns)
 # Define objective function for Optuna
 def objective(trial):
     params = {
-        "iterations": 1000,
-        "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.1, log=True),
-        "depth": trial.suggest_int("depth", 1, 10),
-        "subsample": trial.suggest_float("subsample", 0.05, 1.0),
-        "colsample_bylevel": trial.suggest_float("colsample_bylevel", 0.05, 1.0),
-        "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 1, 100),
-        "random_seed": seed,
+        "iterations": 1000,  # Fixed based on best model
+        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.1, log=True),  # Narrow range around 0.052
+        "depth": trial.suggest_int("depth", 4, 8),  # Slightly around the best depth of 6
+        "subsample": trial.suggest_float("subsample", 0.7, 0.9),  # Around the best value of 0.8
+        "colsample_bylevel": trial.suggest_float("colsample_bylevel", 0.6, 1.0),  # Allows moderate exploration
+        "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 1, 10),  # Focus on smaller leaf sizes
+        "l2_leaf_reg": trial.suggest_float("l2_leaf_reg", 1.0, 5.0),  # Regularization close to 3
+        "random_strength": trial.suggest_float("random_strength", 0.5, 1.5),  # Add variability in random strength
+        "bootstrap_type": trial.suggest_categorical("bootstrap_type", ["MVS", "Bernoulli"]),
         "loss_function": "RMSE",
         "early_stopping_rounds": 50,
+        "random_seed": 42,  # Fixed for reproducibility
     }
+
+    # Adjust bootstrap-specific parameters
+    if params["bootstrap_type"] == "Bernoulli":
+        params["subsample"] = trial.suggest_float("subsample", 0.5, 1.0)
 
     # Perform cross-validation
     cv_results = cb.cv(
@@ -771,18 +541,81 @@ print("Optimal Parameters:", study.best_params)
 
 # Train final model with the best parameters
 best_params = study.best_params
-final_model_cat = cb.CatBoostRegressor(**best_params, random_seed=42, cat_features=cat_columns, silent=True)
+final_model_cat_optuna = cb.CatBoostRegressor(**best_params, random_seed=42, cat_features=cat_columns, silent=True)
 
 
-final_model_cat.fit(train_pool, eval_set=val_pool, verbose=True)
+final_model_cat_optuna.fit(train_pool, eval_set=val_pool, verbose=True)
 
 # Save the final model
-with open("final_model_catboost.pkl", "wb") as f:
-    pickle.dump(final_model_cat, f)
-print("CatBoost model saved to final_model_catboost.pkl")
+with open("final_model_catboost_optuna.pkl", "wb") as f:
+    pickle.dump(final_model_cat_optuna, f)
+print("CatBoost model saved to final_model_catboost_optuna.pkl")
 
-final_model_cat.save_model("final_model_catboost.cbm", format="cbm")
-print("CatBoost model saved to final_model_catboost.cbm")
+final_model_cat_optuna.save_model("final_model_catboost_optuna.cbm", format="cbm")
+print("CatBoost model saved to final_model_catboost_optuna.cbm")
+
+
+
+############################################## CatBoost Models with Grid Search CV ############################################################
+# Load data
+X_train_cat = pd.read_csv("data/model_data/X_train_cat.csv")
+X_val_cat = pd.read_csv("data/model_data/X_val_cat.csv")
+test_final_cat = pd.read_csv("data/model_data/test_final_cat.csv")
+y_train_cat = pd.read_csv("data/model_data/y_train_cat.csv")
+y_val_cat = pd.read_csv("data/model_data/y_val_cat.csv")
+
+# Identify categorical columns
+cat_columns = X_train_cat.select_dtypes(include="object").columns.tolist()
+cat_columns.append("MSSubClass")
+
+# Prepare Pool
+train_pool = cb.Pool(data=X_train_cat, label=y_train_cat, cat_features=cat_columns)
+val_pool = cb.Pool(data=X_val_cat, label=y_val_cat, cat_features=cat_columns)
+
+# Define parameter grid for GridSearchCV
+param_grid = {
+    "iterations": [1000],  # Keep constant as your best model uses 1000 iterations
+    "learning_rate": [0.05, 0.052, 0.055],  # Narrow range around the best learning rate
+    "depth": [5, 6, 7],  # Test depth slightly lower and higher than the best depth
+    "subsample": [0.75, 0.8, 0.85],  # Refine around the best subsample
+    "bootstrap_type": ["MVS", "Bernoulli"],  # Test different bootstrap types
+    "l2_leaf_reg": [3, 4, 5],  # Slightly vary the regularization strength
+    "random_strength": [0.8, 1, 1.2],  # Adjust randomness for tree splits
+    "min_data_in_leaf": [1, 2, 3],  # Minimal data in leaf nodes
+    "leaf_estimation_iterations": [1, 2],  # Small range for leaf estimation iterations
+    "max_ctr_complexity": [3, 4, 5],  # Fine-tune CTR complexity
+}
+
+# Initialize CatBoostRegressor
+model = cb.CatBoostRegressor(loss_function="RMSE", random_seed=seed, cat_features=cat_columns, silent=True)
+
+# Perform GridSearchCV
+grid_search_result = model.grid_search(param_grid, 
+                                       pool=train_pool, 
+                                       fold_count=10,  # 10-fold cross-validation
+                                       verbose=True, 
+                                       early_stopping_rounds=50,  # Early stopping rounds
+                                       eval_set=val_pool)  # Use val_pool for evaluation during tuning
+
+# Display the best results from GridSearchCV
+print("Best RMSE:", grid_search_result["best_score"])
+print("Best Parameters:", grid_search_result["params"])
+
+# Train the final model using the best parameters found by grid search
+best_params = grid_search_result["params"]
+final_model_cat_gridsearch = cb.CatBoostRegressor(**best_params, random_seed=seed, cat_features=cat_columns, silent=True)
+
+final_model_cat_gridsearch.fit(train_pool, eval_set=val_pool, verbose=True)
+
+# Save the final model
+with open("final_model_catboost_gridsearch.pkl", "wb") as f:
+    pickle.dump(final_model_cat_gridsearch, f)
+print("CatBoost model saved to final_model_catboost_gridsearch.pkl")
+
+# Save model in CatBoost's own format
+final_model_cat_gridsearch.save_model("final_model_catboost_gridsearch.cbm", format="cbm")
+print("CatBoost model saved to final_model_catboost_gridsearch.cbm")
+
 
 ############################################## Models Generalization Performance ##############################################
 def evaluate_tree_model(model, X, y, name):
@@ -803,5 +636,7 @@ print("############################################## 10-Fold CV Hyperparameter-
 evaluate_tree_model(xgb_bayes_model, X_val_xgb, y_val, "XGBoost Regressor (Bayesian Optimizied)")
 evaluate_tree_model(lgbm_bayes_model, X_val_lgbm, y_val, "LightGBM Regressor (Bayesian Optimizied)")
 
-print("############################################## 10-Fold CV Optuna-Tuned ##############################################")
-evaluate_tree_model(final_model_cat, val_pool, y_val_cat, "CatBoost Regressor")
+print("############################################## 10-Fold CatBoost CV Optuna-Tuned ##############################################")
+evaluate_tree_model(final_model_cat_optuna, val_pool, y_val_cat, "CatBoost Regressor (Optuna-Tuned)")
+print("############################################## 10-Fold CatBoost CV Grid Search ##############################################")
+evaluate_tree_model(final_model_cat_gridsearch, val_pool, y_val_cat, "CatBoost Regressor (Grid Search)")
