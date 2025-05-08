@@ -742,7 +742,7 @@ def objective(trial):
 
 # Run Optuna study
 study = optuna.create_study(direction="minimize")
-study.optimize(objective, n_trials=50)
+study.optimize(objective, n_trials=50, n_job=-1)
 
 print("Best trial RMSE:", study.best_value)
 print("Optimal Parameters:", study.best_params)
