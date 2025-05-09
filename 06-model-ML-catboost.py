@@ -31,7 +31,8 @@ def objective(trial):
         "depth": trial.suggest_int("depth", 5, 7),  
         "subsample": trial.suggest_float("subsample", 0.7, 0.85),  
         "colsample_bylevel": trial.suggest_float("colsample_bylevel", 0.6, 1.0),  
-        "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 1, 3)
+        "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 1, 3),
+        "loss_function": "RMSE",
     }
 
     cv_results = cb.cv(
@@ -48,7 +49,7 @@ def objective(trial):
     return best_rmse
 
 # Run Optuna study
-study = optuna.create_study(direction="minimize")
+study = optuna.create_study(direction="minimize", study_name="catboost_optuna")
 study.optimize(objective, n_trials=50, n_jobs=-1)
 
 print("Best trial RMSE:", study.best_value)
