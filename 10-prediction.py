@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import pickle
 import statsmodels.api as sm
-import models
+import catboost as cb
 
 
 
@@ -33,6 +33,11 @@ X_train_enet = pd.read_csv("data/model_data/X_train_enet.csv").values
 y_train_enet = pd.read_csv("data/model_data/y_train_enet.csv").values.flatten()
 X_train_et = pd.read_csv("data/model_data/X_train_et.csv").values
 y_train_et = pd.read_csv("data/model_data/y_train_et.csv").values.flatten()
+X_train_cat = pd.read_csv("data/model_data/X_train_cat.csv")
+y_train_cat = pd.read_csv("data/model_data/y_train_cat.csv").values.flatten()
+
+cat_columns = X_train_cat.select_dtypes(include="object").columns.tolist()
+cat_columns.append("MSSubClass")
 
 X_val_xgb = pd.read_csv("data/model_data/X_val_xgb.csv").values
 X_val_ridge = pd.read_csv("data/model_data/X_val_ridge.csv").values
@@ -47,6 +52,7 @@ X_val_dt = pd.read_csv("data/model_data/X_val_dt.csv").values
 X_val_sdt = pd.read_csv("data/model_data/X_val_sdt.csv").values
 X_val_enet = pd.read_csv("data/model_data/X_val_enet.csv").values
 X_val_et = pd.read_csv("data/model_data/X_val_et.csv").values
+X_val_cat = pd.read_csv("data/model_data/X_val_cat.csv")
 
 y_val = pd.read_csv("data/model_data/y_val_ml.csv").values.flatten()
 
@@ -91,6 +97,8 @@ y_enet = np.concatenate([y_train_enet, y_val])
 X_et = np.vstack([X_train_et, X_val_et])
 y_et = np.concatenate([y_train_et, y_val])
 
+X_cat = pd.concat([X_train_cat, X_val_cat], axis=0, ignore_index=True)
+y_cat = np.concatenate([y_train_cat, y_val])
 
 # Load pre-trained base models
 with open("final_model_xgb.pkl", "rb") as f:
@@ -120,6 +128,15 @@ with open("final_model_enet.pkl", "rb") as f:
 with open("final_model_et.pkl", "rb") as f:
     et_model = pickle.load(f)
 
+final_model_cat_optuna = cb.CatBoostRegressor(cat_features=cat_columns)
+final_model_cat_optuna.load_model("final_model_catboost_optuna.cbm")
+
+final_model_cat_gridsearch = cb.CatBoostRegressor(cat_features=cat_columns)
+final_model_cat_gridsearch.load_model("final_model_catboost_gridsearch.cbm")
+
+final_model_cat_basic = cb.CatBoostRegressor(cat_features=cat_columns)
+final_model_cat_basic.load_model("final_model_catboost_basic.cbm")
+
 base_models = [
     ("xgb", xgb_model, X_xgb, y_xgb),
     ("ridge", ridge_model, X_ridge, y_ridge),
@@ -133,7 +150,10 @@ base_models = [
     ("dt", dt_model, X_dt, y_dt),
     # ("sdt", sdt_model, X_sdt, y_sdt),
     ("enet", enet_model, X_enet, y_enet),
-    ("et", et_model, X_et, y_et)
+    ("et", et_model, X_et, y_et),
+    # ("cat_optuna", final_model_cat_optuna, X_cat, y_cat),
+    # ("cat_gridsearch", final_model_cat_gridsearch, X_cat, y_cat),
+    ("cat_basic", final_model_cat_basic, X_cat, y_cat)
 ]
 
 
@@ -141,15 +161,19 @@ trained_base_models = {}
 
 # Train base models with the entire training set
 for name, model, X, y in base_models:
-    trained_model = model.fit(X, y)
-    trained_base_models[name] = trained_model
-
+    if "cat" in name:
+        train_pool = cb.Pool(data=X, label=y, cat_features=cat_columns)
+        model.fit(train_pool, verbose=False)
+    else:
+        model.fit(X, y)
+    trained_base_models[name] = model
 
 
 # Predict on test data
 test_final_ml = pd.read_csv("data/model_data/test_final_ml.csv")
 test_final_regress = pd.read_csv("data/model_data/test_final_reg.csv")
 test_final_regress = sm.add_constant(test_final_regress)
+test_final_cat = pd.read_csv("data/model_data/test_final_cat.csv")
 
 X_val_xgb = pd.read_csv("data/model_data/X_val_xgb.csv")
 X_val_ridge = pd.read_csv("data/model_data/X_val_ridge.csv")
@@ -181,6 +205,7 @@ X_test_dt = test_final_ml[X_val_dt.columns].values
 X_test_sdt = test_final_ml[X_val_sdt.columns].values
 X_test_enet = test_final_regress[X_val_enet.columns].values
 X_test_et = test_final_ml[X_val_et.columns].values
+X_test_cat = test_final_cat.drop(columns=["Id"], axis=1)
 
 
 
@@ -214,7 +239,16 @@ for i, (name, model,) in enumerate(trained_base_models.items()):
         test_preds[:, i] = model.predict(X_test_enet)
     elif name == "et":
         test_preds[:, i] = model.predict(X_test_et)
-
+    elif name == "cat_optuna":
+        test_pool = cb.Pool(data=X_test_cat, cat_features=cat_columns)
+        test_preds[:, i] = model.predict(test_pool)
+    elif name == "cat_gridsearch":
+        test_pool = cb.Pool(data=X_test_cat, cat_features=cat_columns)
+        test_preds[:, i] = model.predict(test_pool)
+    elif name == "cat_basic":
+        test_pool = cb.Pool(data=X_test_cat, cat_features=cat_columns)
+        test_preds[:, i] = model.predict(test_pool)
+    
 
 # Load meta-learner model
 with open("meta_learner_ols.pkl", "rb") as f:

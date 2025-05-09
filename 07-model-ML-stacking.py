@@ -6,6 +6,7 @@ import pickle
 import models
 import statsmodels.api as sm
 import models 
+import catboost as cb
 
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -20,6 +21,13 @@ XGBBoost Regressor (Bayesian Optimized)
 LightGBM Regressor (Hyperparameter Tuned)
 random forest regressor (Hyperparameter Tuned)
 KNN Regressor (Hyperparameter Tuned)
+Decision Tree Regressor (Hyperparameter Tuned)
+Shallow decision tree regressor (Hyperparameter Tuned)
+Elastic Net Regressor (Hyperparameter Tuned)
+Extra Trees Regressor (Hyperparameter Tuned)
+CatBoost Regressor (Hyperparameter Tuned)
+CatBoost Regressor (Optuna Optimized)
+Basic CatBoost Regressor
 """
 
 ################################################# Stacking Models #######################################################
@@ -50,7 +58,11 @@ X_train_enet = pd.read_csv("data/model_data/X_train_enet.csv").values
 y_train_enet = pd.read_csv("data/model_data/y_train_enet.csv").values.flatten()
 X_train_et = pd.read_csv("data/model_data/X_train_et.csv").values
 y_train_et = pd.read_csv("data/model_data/y_train_et.csv").values.flatten()
+X_train_cat = pd.read_csv("data/model_data/X_train_cat.csv")
+y_train_cat = pd.read_csv("data/model_data/y_train_cat.csv").values.flatten()
 
+cat_columns = X_train_cat.select_dtypes(include="object").columns.tolist()
+cat_columns.append("MSSubClass")
 
 # Load pre-trained base models
 with open("final_model_xgb.pkl", "rb") as f:
@@ -80,6 +92,16 @@ with open("final_model_enet.pkl", "rb") as f:
 with open("final_model_et.pkl", "rb") as f:
     et_model = pickle.load(f)
 
+final_model_cat_optuna = cb.CatBoostRegressor(cat_features=cat_columns)
+final_model_cat_optuna.load_model("final_model_catboost_optuna.cbm")
+
+final_model_cat_gridsearch = cb.CatBoostRegressor(cat_features=cat_columns)
+final_model_cat_gridsearch.load_model("final_model_catboost_gridsearch.cbm")
+
+final_model_cat_basic = cb.CatBoostRegressor(cat_features=cat_columns)
+final_model_cat_basic.load_model("final_model_catboost_basic.cbm")
+
+
 base_models = [
     ("xgb", xgb_model, X_train_xgb, y_train_xgb),
     ("ridge", ridge_model, X_train_ridge, y_train_ridge),
@@ -94,6 +116,9 @@ base_models = [
     # ("sdt", sdt_model, X_train_sdt, y_train_sdt),
     ("enet", enet_model, X_train_enet, y_train_enet),
     ("et", et_model, X_train_et, y_train_et),
+    # ("cat_optuna", final_model_cat_optuna, X_train_cat, y_train_cat),
+    # ("cat_gridsearch", final_model_cat_gridsearch, X_train_cat, y_train_cat),
+    ("cat_basic", final_model_cat_basic, X_train_cat, y_train_cat)
 ]
 
 # Create an empty array to store OOF predictions
@@ -118,11 +143,21 @@ This ensures the OOF predictions are unbiased estimates of the model's performan
 
 """
 for fold, (train_idx, val_idx) in enumerate(kf.split(X_train_xgb)):
+    print(f"Processing Fold {fold + 1}...")
     for i, (name, model, X_train, y_train) in enumerate(base_models):
-        X_fold_train, X_fold_val = X_train[train_idx], X_train[val_idx]
-        y_fold_train, y_fold_val = y_train[train_idx], y_train[val_idx]
-        
-        model.fit(X_fold_train, y_fold_train)  # Train on fold-specific data
+        if "cat" in name:
+            X_fold_train = X_train.iloc[train_idx]
+            X_fold_val = X_train.iloc[val_idx]
+            y_fold_train = y_train[train_idx]
+
+            train_pool = cb.Pool(data=X_fold_train, label=y_fold_train, cat_features=cat_columns)
+
+            model.fit(train_pool, verbose=False)
+        else:
+            X_fold_train, X_fold_val = X_train[train_idx], X_train[val_idx]
+            y_fold_train, y_fold_val = y_train[train_idx], y_train[val_idx]
+
+            model.fit(X_fold_train, y_fold_train)
 
         oof_preds[val_idx, i] = model.predict(X_fold_val)  
 
@@ -159,6 +194,7 @@ X_val_dt = pd.read_csv("data/model_data/X_val_dt.csv")
 X_val_sdt = pd.read_csv("data/model_data/X_val_sdt.csv")
 X_val_enet = pd.read_csv("data/model_data/X_val_enet.csv")
 X_val_et = pd.read_csv("data/model_data/X_val_et.csv")
+X_val_cat = pd.read_csv("data/model_data/X_val_cat.csv")
 
 y_val = pd.read_csv("data/model_data/y_val_ml.csv")
 
@@ -191,6 +227,13 @@ for i, (name, model, _, _) in enumerate(base_models):
         test_preds[:, i] = model.predict(X_val_enet)
     elif name == "et":
         test_preds[:, i] = model.predict(X_val_et)
+    elif name == "cat_optuna":
+        test_preds[:, i] = model.predict(X_val_cat)
+    elif name == "cat_gridsearch":
+        test_preds[:, i] = model.predict(X_val_cat)
+    elif name == "cat_basic":
+        test_preds[:, i] = model.predict(X_val_cat)
+
 
 # Final predictions using meta-learner
 test_preds = sm.add_constant(test_preds)

@@ -28,8 +28,11 @@ SCRIPTS = [
     "03-data-preparation-standardization.py",
     "04-model-regressions-svr.py",
     "05-model-ML-trees.py",
-    "06-model-ML-stacking.py",
-    "09-prediction.py"
+    "06-model-ML-catboost.py",
+    "07-model-ML-stacking.py",
+    "08-model-NN.py",
+    "09-model-NN-stacking.py",
+    "10-prediction.py"
 ]
 
 # Function to execute a Python script
