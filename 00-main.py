@@ -30,8 +30,8 @@ SCRIPTS = [
     "05-model-ML-trees.py",
     "06-model-ML-catboost.py",
     "07-model-ML-stacking.py",
-    "08-model-NN.py",
-    "09-model-NN-stacking.py",
+    # "08-model-NN.py",
+    # "09-model-NN-stacking.py",
     "10-prediction.py"
 ]
 

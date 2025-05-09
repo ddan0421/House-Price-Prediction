@@ -178,16 +178,10 @@ def ols_stepwise_selection(x_data,
             Whether to print the sequence of inclusions and exclusions.
 
     Returns:
-        list
-            The list of selected features.
+        list: The list of selected features.
 
     Note: Always set threshold_in < threshold_out to avoid infinite loops.
     """
-
-    # required imports
-    import statsmodels.api as sm
-    import pandas as pd
-
 
     # setting placeholer list
     included = list(initial_list)
@@ -199,7 +193,7 @@ def ols_stepwise_selection(x_data,
 
         # forward step: adding an x-feature
         excluded = [col for col in x_data.columns if col not in included]
-        new_pvals = pd.Series(dtype = float, index = excluded)
+        new_pvals = pd.Series(dtype=float, index=excluded)
 
 
         # fitting model with additional candidate feature
