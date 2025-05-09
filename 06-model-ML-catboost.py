@@ -32,8 +32,14 @@ def objective(trial):
         "subsample": trial.suggest_float("subsample", 0.7, 0.85),  
         "colsample_bylevel": trial.suggest_float("colsample_bylevel", 0.6, 1.0),  
         "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 1, 3),
+        "l2_leaf_reg": trial.suggest_float("l2_leaf_reg", 1.0, 5.0), 
+        "random_strength": trial.suggest_float("random_strength", 0.5, 1.5), 
+        "bootstrap_type": "MVS",
         "loss_function": "RMSE",
-        "train_dir": f"catboost_info_trial_{trial.number}"  
+        "random_seed": seed, 
+        "early_stopping_rounds": 50,
+        "train_dir": f"catboost_info_trial_{trial.number}"
+
     }
 
     cv_results = cb.cv(
@@ -57,7 +63,7 @@ print("Best trial RMSE:", study.best_value)
 print("Optimal Parameters:", study.best_params)
 
 best_params = study.best_params
-final_model_cat_optuna = cb.CatBoostRegressor(**best_params, silent=True, random_seed=42, train_dir="catboost_optuna")
+final_model_cat_optuna = cb.CatBoostRegressor(**best_params, silent=True, train_dir="catboost_optuna")
 final_model_cat_optuna.fit(train_pool, verbose=False)
 
 with open("final_model_catboost_optuna.pkl", "wb") as f:
