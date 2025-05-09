@@ -33,6 +33,7 @@ def objective(trial):
         "colsample_bylevel": trial.suggest_float("colsample_bylevel", 0.6, 1.0),  
         "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 1, 3),
         "loss_function": "RMSE",
+        "train_dir": f"catboost_info_trial_{trial.number}"  
     }
 
     cv_results = cb.cv(
