@@ -107,7 +107,6 @@ param_grid = {
     "alpha": [0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
 }
 
-# Hyperparameter tuning for Lasso Regression
 gs_lasso = GridSearchCV(estimator=lasso,
                         param_grid=param_grid,
                         scoring="neg_root_mean_squared_error", 
@@ -193,7 +192,6 @@ X_val = pd.read_csv("data/model_data/X_val_reg.csv")
 y_train = pd.read_csv("data/model_data/y_train_reg.csv")
 y_val = pd.read_csv("data/model_data/y_val_reg.csv")
 
-# Train a Random Forest Regressor
 rf_model = RandomForestRegressor(n_estimators=200, random_state=random_state)
 rf_model.fit(X_train, y_train.values.ravel())
 
@@ -254,10 +252,10 @@ cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 svm = SVR(kernel="rbf")
 
 param_grid = {
-    "C": [0.1, 1.0, 10.0, 100.0],  # Narrow range for regularization parameter
+    "C": [0.1, 1.0, 10.0, 100.0], 
     "epsilon": [0.01, 0.1, 1.0],
-    "gamma": ["scale", "auto", 0.01, 0.1, 1.0],  # Limited gamma range
-    "tol": [1e-4, 1e-3]  # Reduced tolerance values
+    "gamma": ["scale", "auto", 0.01, 0.1, 1.0], 
+    "tol": [1e-4, 1e-3] 
 }
 
 
@@ -295,11 +293,11 @@ cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 knn = KNeighborsRegressor()
 
 param_grid = {
-    "n_neighbors": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],  # Includes more odd/even values for comparison
+    "n_neighbors": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],  
     "weights": ["uniform", "distance"],
-    "p": [1, 2],  # Manhattan and Euclidean
-    "algorithm": ["auto", "ball_tree", "kd_tree"],  # Optional, but useful to test tree methods
-    "leaf_size": [20, 30, 40]  # Can impact tree-based performance
+    "p": [1, 2], 
+    "algorithm": ["auto", "ball_tree", "kd_tree"],  
+    "leaf_size": [20, 30, 40]  
 }
 gs_knn = GridSearchCV(estimator=knn,
                       param_grid=param_grid,
@@ -316,12 +314,10 @@ print("Optimal Estimator:", gs_knn.best_estimator_)
 
 final_model_knn = gs_knn.best_estimator_
 
-# Save the trained KNN model
 with open("final_model_knn.pkl", "wb") as f:
     pickle.dump(final_model_knn, f)
 print("KNN model saved to final_model_knn.pkl")
 
-# Save training/validation data
 X_train_svm.to_csv("data/model_data/X_train_knn.csv", index=False)
 y_train.to_csv("data/model_data/y_train_knn.csv", index=False)
 X_val_knn.to_csv("data/model_data/X_val_knn.csv", index=False)

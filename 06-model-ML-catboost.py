@@ -28,20 +28,11 @@ def objective(trial):
     params = {
         "iterations": 1000,  
         "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.1, log=True),  
-        "depth": trial.suggest_int("depth", 4, 8),  
-        "subsample": trial.suggest_float("subsample", 0.7, 0.9),  
+        "depth": trial.suggest_int("depth", 5, 7),  
+        "subsample": trial.suggest_float("subsample", 0.7, 0.85),  
         "colsample_bylevel": trial.suggest_float("colsample_bylevel", 0.6, 1.0),  
-        "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 1, 10), 
-        "l2_leaf_reg": trial.suggest_float("l2_leaf_reg", 1.0, 5.0),  
-        "random_strength": trial.suggest_float("random_strength", 0.5, 1.5), 
-        "bootstrap_type": trial.suggest_categorical("bootstrap_type", ["MVS", "Bernoulli"]),
-        "loss_function": "RMSE",
-        "early_stopping_rounds": 50,
-        "random_seed": 42,  
+        "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 1, 3)
     }
-
-    if params["bootstrap_type"] == "Bernoulli":
-        params["subsample"] = trial.suggest_float("subsample", 0.5, 1.0)
 
     cv_results = cb.cv(
         params=params,
@@ -50,7 +41,7 @@ def objective(trial):
         fold_count=10, 
         verbose=False,
         early_stopping_rounds=50,
-        stratified=False,
+        stratified=True,
     )
 
     best_rmse = cv_results["test-RMSE-mean"].min()
@@ -64,10 +55,9 @@ print("Best trial RMSE:", study.best_value)
 print("Optimal Parameters:", study.best_params)
 
 best_params = study.best_params
-final_model_cat_optuna = cb.CatBoostRegressor(**best_params, random_seed=42)
-final_model_cat_optuna.fit(train_pool, eval_set=val_pool, verbose=True)
+final_model_cat_optuna = cb.CatBoostRegressor(**best_params, silent=True, random_seed=42, train_dir="catboost_optuna")
+final_model_cat_optuna.fit(train_pool, verbose=False)
 
-# Save the final model
 with open("final_model_catboost_optuna.pkl", "wb") as f:
     pickle.dump(final_model_cat_optuna, f)
 print("CatBoost model saved to final_model_catboost_optuna.pkl")
@@ -83,14 +73,14 @@ param_grid = {
     "depth": [3, 5, 7, 9] 
 }
 
-final_model_cat_gridsearch = cb.CatBoostRegressor(loss_function="RMSE", random_seed=seed, cat_features=cat_columns)
+final_model_cat_gridsearch = cb.CatBoostRegressor(loss_function="RMSE", silent=True, random_seed=seed, train_dir="catboost_gridsearchcv", cat_features=cat_columns)
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 grid_search_result = final_model_cat_gridsearch.grid_search(param_grid=param_grid, 
                                        X=X_train_cat,
                                        y=y_train_cat,
                                        partition_random_seed=seed, 
                                        cv=cv,  
-                                       verbose=True,  
+                                       verbose=False,  
                                        plot=False,
                                        refit=True
                                        )
@@ -98,7 +88,6 @@ grid_search_result = final_model_cat_gridsearch.grid_search(param_grid=param_gri
 print("Best RMSE:", min(grid_search_result["cv_results"]["test-RMSE-mean"]))
 print("Best Parameters:", grid_search_result["params"])
 
-# Save the final model
 with open("final_model_catboost_gridsearch.pkl", "wb") as f:
     pickle.dump(final_model_cat_gridsearch, f)
 print("CatBoost model saved to final_model_catboost_gridsearch.pkl")
@@ -107,18 +96,15 @@ final_model_cat_gridsearch.save_model("final_model_catboost_gridsearch.cbm", for
 print("CatBoost model saved to final_model_catboost_gridsearch.cbm")
 
 ############################################## Basic CatBoost Model ############################################################
-final_model_cat_basic = cb.CatBoostRegressor(loss_function="RMSE", random_seed=42)
+final_model_cat_basic = cb.CatBoostRegressor(loss_function="RMSE", random_seed=42, train_dir="catboost_basic")
 final_model_cat_basic.fit(train_pool, eval_set=val_pool, verbose=True)
 
-# Save the final model
 with open("final_model_catboost_basic.pkl", "wb") as f:
     pickle.dump(final_model_cat_basic, f)
 print("CatBoost model saved to final_model_catboost_basic.pkl")
 
-# Save model in CatBoost's own format
 final_model_cat_basic.save_model("final_model_catboost_basic.cbm", format="cbm")
 print("CatBoost model saved to final_model_catboost_basic.cbm")
-
 
 ############################################## Models Generalization Performance ##############################################
 def evaluate_tree_model(model, X, y, name):

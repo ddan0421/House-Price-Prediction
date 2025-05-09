@@ -32,22 +32,22 @@ cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 dt = DecisionTreeRegressor(random_state=random_state, criterion="squared_error")
 
 param_grid = {
-    "max_depth": [10, 20, 30, 40, None],  # Maximum depth of the tree
-    "min_samples_split": [2, 5, 10, 20],  # Minimum number of samples required to split a node
-    "min_samples_leaf": [1, 2, 5, 10],  # Minimum number of samples required at a leaf node
-    "min_weight_fraction_leaf": [0.0, 0.01, 0.05],  # Minimum weighted fraction of the sum of weights at a leaf node
+    "max_depth": [10, 20, 30, 40, None],  
+    "min_samples_split": [2, 5, 10, 20],  
+    "min_samples_leaf": [1, 2, 5, 10],  
+    "min_weight_fraction_leaf": [0.0, 0.01, 0.05],  
 }
 
 gs_dt = GridSearchCV(estimator=dt,
                      param_grid=param_grid,
-                     scoring="neg_root_mean_squared_error",  # Using RMSE as the evaluation metric
+                     scoring="neg_root_mean_squared_error", 
                      cv=cv,
                      n_jobs=-1,
                      refit=True)
 
 gs_dt.fit(X_train_tree, y_train.values.ravel())
 
-print("10-Fold CV RMSE:", -gs_dt.best_score_)  # RMSE is the negative value from GridSearchCV
+print("10-Fold CV RMSE:", -gs_dt.best_score_)  
 print("Optimal Parameters:", gs_dt.best_params_)
 print("Optimal Estimator:", gs_dt.best_estimator_)
 
@@ -85,7 +85,7 @@ gs_sdt = GridSearchCV(estimator=sdt,
 
 gs_sdt.fit(X_train_tree, y_train.values.ravel())
 
-print("10-Fold CV RMSE:", -gs_sdt.best_score_)  # RMSE is the negative value from GridSearchCV
+print("10-Fold CV RMSE:", -gs_sdt.best_score_) 
 print("Optimal Parameters:", gs_sdt.best_params_)
 print("Optimal Estimator:", gs_sdt.best_estimator_)
 
@@ -103,23 +103,23 @@ cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 rf = RandomForestRegressor(random_state=random_state, bootstrap=True)
 
 param_grid = {
-    "n_estimators": [50, 100, 200],  # Fewer trees for faster training
-    "max_depth": [3, 5, 10],  # Restrict depth to limit complexity
-    "min_samples_split": [2, 5],  # Reduce the range for faster grid search
-    "min_samples_leaf": [1, 2],  # Keep leaf size small for better granularity
-    "max_features": ["sqrt", "log2"],  # Subset of features considered at each split
+    "n_estimators": [50, 100, 200], 
+    "max_depth": [3, 5, 10], 
+    "min_samples_split": [2, 5],  
+    "min_samples_leaf": [1, 2], 
+    "max_features": ["sqrt", "log2"],  
 }
 
 gs_rf = GridSearchCV(estimator=rf,
                      param_grid=param_grid,
-                     scoring="neg_root_mean_squared_error",  # Using RMSE as the evaluation metric
+                     scoring="neg_root_mean_squared_error", 
                      cv=cv,
                      n_jobs=-1,
                      refit=True)
 
 gs_rf.fit(X_train_tree, y_train.values.ravel())
 
-print("10-Fold CV RMSE:", -gs_rf.best_score_)  # RMSE is the negative value from GridSearchCV
+print("10-Fold CV RMSE:", -gs_rf.best_score_) 
 print("Optimal Parameters:", gs_rf.best_params_)
 print("Optimal Estimator:", gs_rf.best_estimator_)
 
@@ -144,12 +144,12 @@ cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 et = ExtraTreesRegressor(random_state=random_state, criterion='squared_error')
 
 param_grid = {
-    "n_estimators": [50, 100, 200],  # Number of trees in the forest
-    "max_depth": [3, 5, 10],  # Maximum depth of the trees to avoid overfitting
-    "min_samples_split": [2, 5],  # Minimum number of samples required to split a node
-    "min_samples_leaf": [1, 2],  # Minimum number of samples required at a leaf node
-    "max_features": ["sqrt", "log2", None],  # The number of features to consider at each split
-    "bootstrap": [True, False]  # Whether bootstrap samples are used when building trees
+    "n_estimators": [50, 100, 200],  
+    "max_depth": [3, 5, 10],  
+    "min_samples_split": [2, 5],  
+    "min_samples_leaf": [1, 2], 
+    "max_features": ["sqrt", "log2", None], 
+    "bootstrap": [True, False]  
 }
 
 gs_et = GridSearchCV(estimator=et, 
@@ -161,7 +161,7 @@ gs_et = GridSearchCV(estimator=et,
 
 gs_et.fit(X_train_tree, y_train.values.ravel())
 
-print("10-Fold CV RMSE:", -gs_et.best_score_)  # RMSE is the negative value from GridSearchCV
+print("10-Fold CV RMSE:", -gs_et.best_score_)  
 print("Optimal Parameters:", gs_et.best_params_)
 print("Optimal Estimator:", gs_et.best_estimator_)
 
@@ -299,14 +299,14 @@ cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 xgb_model = xgb.XGBRegressor(random_state=random_state, objective="reg:squarederror")
 
 param_grid = {
-    "n_estimators": [180, 200],  # Best: ~180.3
-    "learning_rate": [0.07, 0.10],  # Best: ~0.074
-    "max_depth": [2, 3, 4],  # Best: ~3.3
-    "min_child_weight": [2, 3],  # Best: ~2.8
-    "subsample": [0.78, 0.8,],  # Best: ~0.7995
-    "colsample_bytree": [0.728, 0.75],  # Best: ~0.728
-    "reg_alpha": [0, 0.5],  # Best: ~0.5046
-    "reg_lambda": [0.281, 1]  # Best: ~0.281
+    "n_estimators": [180, 200],  
+    "learning_rate": [0.07, 0.10], 
+    "max_depth": [2, 3, 4],  
+    "min_child_weight": [2, 3], 
+    "subsample": [0.78, 0.8,],  
+    "colsample_bytree": [0.728, 0.75],  
+    "reg_alpha": [0, 0.5],  
+    "reg_lambda": [0.281, 1]  
 }
 
 gs_xgb = GridSearchCV(
@@ -504,9 +504,9 @@ def bayesian_opt_lgbm(X, y, init_iter=50, n_iters=100, random_state=random_state
     def hyp_lgbm(num_boost_round, learning_rate, max_depth, num_leaves, min_child_samples, min_sum_hessian_in_leaf, feature_fraction_bynode, reg_alpha, reg_lambda, min_split_gain, feature_fraction, bagging_fraction, bagging_freq):
         params = {
             "objective": "regression",
-            "metric": "rmse",  # Use RMSE for evaluation
-            "verbosity": -1,   # Suppress LightGBM logs
-            "feature_pre_filter": False,  # Prevent pre-filtering of features when adjusting min_data_in_leaf
+            "metric": "rmse", 
+            "verbosity": -1,   
+            "feature_pre_filter": False,  
             "seed": seed,
             "n_jobs": -1,
             "boosting_type": "gbdt", 
@@ -534,23 +534,23 @@ def bayesian_opt_lgbm(X, y, init_iter=50, n_iters=100, random_state=random_state
             stratified=False,
             feval=lgb_rmse_score,
         )
-        return -np.min(cv_results["valid rmse-mean"])  # Return negative RMSE for maximization
+        return -np.min(cv_results["valid rmse-mean"])  
 
     # Define hyperparameter search space
     pds = {
-        "num_boost_round": (180, 220),  # Narrow range close to optimal 200
-        "learning_rate": (0.08, 0.12),  # Focused on values around 0.1
-        "max_depth": (3, 5),  # Tightened range around optimal depth
-        "num_leaves": (25, 40),  # Constrained to values near the default 31
-        "min_child_samples": (15, 25),  # Narrowed around the optimal 20
-        "min_sum_hessian_in_leaf": (1e-3, 3),  # Constrained for stability
-        "feature_fraction_bynode": (0.6, 0.8),  # Slightly narrower range
-        "reg_alpha": (0.0, 0.5),  # Focused around lower values
-        "reg_lambda": (0.8, 1.2),  # Tightened around 1.0
-        "min_split_gain": (0.0, 0.05),  # Narrower range for stability
-        "feature_fraction": (0.7, 0.9),  # Slightly higher to include 0.8
-        "bagging_fraction": (0.7, 0.85),  # Centered around 0.8
-        "bagging_freq": (3, 6),  # Focused on 3-7
+        "num_boost_round": (180, 220), 
+        "learning_rate": (0.08, 0.12), 
+        "max_depth": (3, 5),  
+        "num_leaves": (25, 40),  
+        "min_child_samples": (15, 25),  
+        "min_sum_hessian_in_leaf": (1e-3, 3),  
+        "feature_fraction_bynode": (0.6, 0.8), 
+        "reg_alpha": (0.0, 0.5), 
+        "reg_lambda": (0.8, 1.2),  
+        "min_split_gain": (0.0, 0.05),  
+        "feature_fraction": (0.7, 0.9),  
+        "bagging_fraction": (0.7, 0.85),  
+        "bagging_freq": (3, 6),  
     }
 
     # Initialize Bayesian Optimization
@@ -565,7 +565,7 @@ results = bayesian_opt_lgbm(X_train_lgbm, y_train)
 
 # Print the best parameters and best score
 print("Best Parameters:", results.max["params"])
-print("Best RMSE Score:", -results.max["target"])  # Convert back to positive RMSE
+print("Best RMSE Score:", -results.max["target"])  
 
 
 best_params = results.max["params"]
@@ -634,18 +634,18 @@ def bayesian_opt_xgb(X, y, init_iter=50, n_iters=100, random_state=random_state,
             early_stopping_rounds=10,
             metrics="rmse"
         )
-        return -cv_results["test-rmse-mean"].min()  # Return negative RMSE for maximization
+        return -cv_results["test-rmse-mean"].min() 
 
     # Define hyperparameter search space
     pds = {
-        "n_estimators": (180, 200),  # Increased range
-        "learning_rate": (0.08, 0.12),  # Expanded learning rate range
-        "max_depth": (2, 4),  # Increased max depth
-        "min_child_weight": (2, 4),  # Expanded min child weight
-        "subsample": (0.75, 0.85),  # Fraction of samples per tree
-        "colsample_bytree": (0.7, 0.8),  # Fraction of features per tree
-        "reg_alpha": (0, 0.2),  # L1 regularization
-        "reg_lambda": (0.8, 1.2),  # L2 regularization
+        "n_estimators": (180, 200),  
+        "learning_rate": (0.08, 0.12),  
+        "max_depth": (2, 4),  
+        "min_child_weight": (2, 4),  
+        "subsample": (0.75, 0.85), 
+        "colsample_bytree": (0.7, 0.8),  
+        "reg_alpha": (0, 0.2),  
+        "reg_lambda": (0.8, 1.2)  
     }
 
     # Initialize Bayesian Optimization
@@ -660,7 +660,7 @@ def bayesian_opt_xgb(X, y, init_iter=50, n_iters=100, random_state=random_state,
 results = bayesian_opt_xgb(X_train_xgb, y_train)
 # Print the best parameters and best score
 print("Best Parameters:", results.max["params"])
-print("Best RMSE Score:", -results.max["target"])  # Convert back to positive RMSE
+print("Best RMSE Score:", -results.max["target"])  
 
 
 best_params = results.max["params"]
