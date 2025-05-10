@@ -491,14 +491,8 @@ X_val_lgbm.to_csv("data/model_data/X_val_lgbm.csv", index=False)
 # Learn about this (Bayesian Optimization)
 # https://medium.com/analytics-vidhya/hyperparameters-optimization-for-lightgbm-catboost-and-xgboost-regressors-using-bayesian-6e7c495947a9
 def bayesian_opt_lgbm(X, y, init_iter=50, n_iters=100, random_state=random_state, seed=seed):
-    # Prepare LightGBM dataset
-    dtrain = lgb.Dataset(data=X, label=y)
 
-    # Custom RMSE evaluation function
-    def lgb_rmse_score(preds, dtrain):
-        labels = dtrain.get_label()
-        rmse = root_mean_squared_error(labels, preds)
-        return "rmse", rmse, False  # False indicates lower is better
+    dtrain = lgb.Dataset(data=X, label=y)
 
     # Objective Function for Bayesian Optimization
     def hyp_lgbm(num_boost_round, learning_rate, max_depth, num_leaves, min_child_samples, min_sum_hessian_in_leaf, feature_fraction_bynode, reg_alpha, reg_lambda, min_split_gain, feature_fraction, bagging_fraction, bagging_freq):
@@ -525,14 +519,13 @@ def bayesian_opt_lgbm(X, y, init_iter=50, n_iters=100, random_state=random_state
         params["bagging_fraction"] = max(min(bagging_fraction, 1), 0)
         params["bagging_freq"] = int(round(bagging_freq))
 
-        # Perform cross-validation using RMSE
+        # Perform cross-validation
         cv_results = lgb.cv(
             params,
             dtrain,
             nfold=10,
             seed=seed,
             stratified=False,
-            feval=lgb_rmse_score,
         )
         return -np.min(cv_results["valid rmse-mean"])  
 
@@ -553,17 +546,12 @@ def bayesian_opt_lgbm(X, y, init_iter=50, n_iters=100, random_state=random_state
         "bagging_freq": (3, 6),  
     }
 
-    # Initialize Bayesian Optimization
-    optimizer = BayesianOptimization(hyp_lgbm, pds, random_state=random_state)
-
-    # Perform optimization
+    optimizer = BayesianOptimization(f=hyp_lgbm, pbounds=pds, random_state=random_state)
     optimizer.maximize(init_points=init_iter, n_iter=n_iters)
 
     return optimizer
 
 results = bayesian_opt_lgbm(X_train_lgbm, y_train)
-
-# Print the best parameters and best score
 print("Best Parameters:", results.max["params"])
 print("Best RMSE Score:", -results.max["target"])  
 
@@ -605,6 +593,9 @@ X_val_lgbm.to_csv("data/model_data/X_val_lgbm_bayes.csv", index=False)
 
 ############################################## XGB Models with Bayesian Optimization ############################################################
 def bayesian_opt_xgb(X, y, init_iter=50, n_iters=100, random_state=random_state, seed=seed):
+    
+    dtrain = xgb.DMatrix(data=X, label=y)
+
     # Objective Function for Bayesian Optimization
     def hyp_xgb(n_estimators, learning_rate, max_depth, min_child_weight, subsample, colsample_bytree, reg_alpha, reg_lambda):
         params = {
@@ -612,6 +603,7 @@ def bayesian_opt_xgb(X, y, init_iter=50, n_iters=100, random_state=random_state,
             "eval_metric": "rmse",
             "seed": seed,
             "n_jobs": -1,
+            "booster": "gbtree",
         }
         params["n_estimators"] = int(round(n_estimators))
         params["learning_rate"] = learning_rate
@@ -622,8 +614,6 @@ def bayesian_opt_xgb(X, y, init_iter=50, n_iters=100, random_state=random_state,
         params["reg_alpha"] = max(reg_alpha, 0)
         params["reg_lambda"] = max(reg_lambda, 0)
 
-        # Perform cross-validation using RMSE
-        dtrain = xgb.DMatrix(data=X, label=y)
         cv_results = xgb.cv(
             params,
             dtrain,
@@ -648,17 +638,12 @@ def bayesian_opt_xgb(X, y, init_iter=50, n_iters=100, random_state=random_state,
         "reg_lambda": (0.8, 1.2)  
     }
 
-    # Initialize Bayesian Optimization
-    optimizer = BayesianOptimization(hyp_xgb, pds, random_state=random_state)
-
-    # Perform optimization
+    optimizer = BayesianOptimization(f=hyp_xgb, pbounds=pds, random_state=random_state)
     optimizer.maximize(init_points=init_iter, n_iter=n_iters)
 
     return optimizer
 
-# Run Bayesian Optimization
 results = bayesian_opt_xgb(X_train_xgb, y_train)
-# Print the best parameters and best score
 print("Best Parameters:", results.max["params"])
 print("Best RMSE Score:", -results.max["target"])  
 
@@ -678,6 +663,7 @@ best_params["eval_metric"] = "rmse"
 best_params["seed"] = seed
 best_params["n_jobs"] = -1
 best_params["random_state"] = random_state
+best_params["booster"] = "gbtree"
 
 xgb_bayes_model = xgb.XGBRegressor(**best_params)
 xgb_bayes_model.fit(X_train_xgb, y_train)

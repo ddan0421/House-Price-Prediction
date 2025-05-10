@@ -49,11 +49,10 @@ def objective(trial):
         fold_count=10, 
         verbose=False,
         early_stopping_rounds=50,
-        stratified=True,
+        stratified=False,
     )
 
-    best_rmse = cv_results["test-RMSE-mean"].min()
-    return best_rmse
+    return cv_results["test-RMSE-mean"].min()
 
 # Run Optuna study
 study = optuna.create_study(direction="minimize", study_name="catboost_optuna")
