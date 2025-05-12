@@ -192,7 +192,6 @@ xgb_features = ['LotFrontage',
  'FullBath',
  'HalfBath',
  'BedroomAbvGr',
- 'KitchenAbvGr',
  'TotRmsAbvGrd',
  'Fireplaces',
  'GarageCars',
@@ -200,78 +199,96 @@ xgb_features = ['LotFrontage',
  'WoodDeckSF',
  'OpenPorchSF',
  'EnclosedPorch',
+ '3SsnPorch',
  'ScreenPorch',
  'PoolArea',
- 'MiscVal',
  'Age_House',
  'Yrs_Since_Remodel',
  'Age_Garage',
+ 'MSSubClass_20',
  'MSSubClass_30',
  'MSSubClass_50',
- 'MSSubClass_60',
- 'MSSubClass_70',
  'MSSubClass_80',
- 'MSSubClass_120',
- 'MSSubClass_190',
+ 'MSSubClass_90',
+ 'MSZoning_C (all)',
  'MSZoning_FV',
+ 'MSZoning_RH',
  'MSZoning_RL',
  'MSZoning_RM',
+ 'LotConfig_Corner',
  'LotConfig_CulDSac',
  'LotConfig_FR2',
  'LotConfig_Inside',
+ 'Condition1_Artery',
  'Condition1_Feedr',
  'Condition1_Norm',
+ 'Condition1_RRAe',
  'Condition2_Norm',
  'Neighborhood_BrkSide',
  'Neighborhood_ClearCr',
  'Neighborhood_Crawfor',
  'Neighborhood_Edwards',
  'Neighborhood_MeadowV',
+ 'Neighborhood_Mitchel',
  'Neighborhood_NAmes',
  'Neighborhood_NWAmes',
+ 'Neighborhood_NoRidge',
  'Neighborhood_NridgHt',
  'Neighborhood_OldTown',
+ 'Neighborhood_SWISU',
  'Neighborhood_Sawyer',
+ 'Neighborhood_SawyerW',
  'Neighborhood_Somerst',
  'Neighborhood_StoneBr',
- 'BldgType_TwnhsE',
+ 'BldgType_1Fam',
  'HouseStyle_1Story',
  'HouseStyle_2Story',
- 'HouseStyle_SLvl',
+ 'Exterior1st_AsbShng',
  'Exterior1st_BrkFace',
+ 'Exterior1st_CemntBd',
+ 'Exterior1st_HdBoard',
  'Exterior1st_MetalSd',
- 'Exterior1st_Plywood',
+ 'Exterior1st_Stucco',
  'Exterior1st_VinylSd',
- 'Exterior1st_Wd Sdng',
  'Exterior2nd_Plywood',
- 'Exterior2nd_Wd Shng',
+ 'Exterior2nd_Stucco',
+ 'Exterior2nd_Wd Sdng',
+ 'CentralAir_N',
  'CentralAir_Y',
- 'Electrical_SBrkr',
+ 'Electrical_FuseA',
+ 'LandContour_Bnk',
  'LandContour_HLS',
  'LandContour_Lvl',
  'RoofStyle_Gable',
+ 'RoofStyle_Hip',
+ 'RoofMatl_CompShg',
  'Heating_GasA',
+ 'Heating_Grav',
  'Alley_Pave',
  'Alley_no_alley',
  'MasVnrType_BrkFace',
  'MasVnrType_Stone',
- 'Foundation_CBlock',
  'Foundation_PConc',
  'Functional_Maj2',
- 'Functional_Min1',
  'Functional_Mod',
  'Functional_Typ',
  'GarageType_Attchd',
  'GarageType_Basment',
  'GarageType_CarPort',
  'GarageType_Detchd',
+ 'PavedDrive_N',
+ 'PavedDrive_Y',
  'Fence_GdWo',
+ 'Fence_MnPrv',
  'Fence_no_fence',
+ 'SaleType_COD',
  'SaleType_New',
  'SaleType_WD',
- 'SaleCondition_Alloca',
+ 'SaleCondition_Abnorml',
  'SaleCondition_Family',
  'SaleCondition_Normal',
+ 'SaleCondition_Partial',
+ 'Season_Sold_Fall',
  'Season_Sold_Spring',
  'Season_Sold_Summer',
  'Season_Sold_Winter',
@@ -290,7 +307,6 @@ xgb_features = ['LotFrontage',
  'GarageFinish_encoded',
  'GarageQual_encoded',
  'GarageCond_encoded']
-
 
 X_train_xgb = X_train[xgb_features]
 X_val_xgb = X_val[xgb_features]
@@ -340,106 +356,19 @@ X_val_xgb.to_csv("data/model_data/X_val_xgb.csv", index=False)
 
 
 ############################################## LightGBM Regressor Model ############################################################
-lgbm_features = ['LotFrontage',
- 'LotArea',
- 'OverallQual',
- 'OverallCond',
- 'MasVnrArea',
- 'BsmtFinSF1',
- 'BsmtFinSF2',
- 'BsmtUnfSF',
- 'TotalBsmtSF',
- '1stFlrSF',
- '2ndFlrSF',
- 'GrLivArea',
- 'BsmtFullBath',
- 'FullBath',
- 'HalfBath',
- 'BedroomAbvGr',
- 'KitchenAbvGr',
- 'TotRmsAbvGrd',
- 'Fireplaces',
- 'GarageCars',
- 'GarageArea',
- 'WoodDeckSF',
- 'OpenPorchSF',
- 'EnclosedPorch',
- '3SsnPorch',
- 'ScreenPorch',
- 'Age_House',
- 'Yrs_Since_Remodel',
- 'Age_Garage',
- 'MSSubClass_30',
- 'MSSubClass_60',
- 'MSSubClass_70',
- 'MSZoning_FV',
- 'MSZoning_RL',
- 'MSZoning_RM',
- 'LotConfig_CulDSac',
- 'LotConfig_FR2',
- 'LotConfig_Inside',
- 'Condition1_Feedr',
- 'Condition1_Norm',
- 'Neighborhood_BrkSide',
- 'Neighborhood_Crawfor',
- 'Neighborhood_Edwards',
- 'Neighborhood_IDOTRR',
- 'Neighborhood_Mitchel',
- 'Neighborhood_NWAmes',
- 'Neighborhood_NoRidge',
- 'Neighborhood_OldTown',
- 'Neighborhood_SWISU',
- 'Neighborhood_Sawyer',
- 'Neighborhood_SawyerW',
- 'Neighborhood_Somerst',
- 'Neighborhood_StoneBr',
- 'Exterior1st_BrkFace',
- 'Exterior1st_HdBoard',
- 'Exterior1st_MetalSd',
- 'Exterior1st_Plywood',
- 'Exterior1st_Stucco',
- 'Exterior2nd_CmentBd',
- 'Exterior2nd_Plywood',
- 'Exterior2nd_Wd Sdng',
- 'Exterior2nd_Wd Shng',
- 'CentralAir_Y',
- 'LandContour_HLS',
- 'LandContour_Lvl',
- 'RoofStyle_Gable',
- 'RoofStyle_Hip',
- 'Heating_GasA',
- 'MasVnrType_BrkFace',
- 'MasVnrType_Stone',
- 'MasVnrType_no_MasVnrType',
- 'Foundation_PConc',
- 'Functional_Typ',
- 'GarageType_Attchd',
- 'GarageType_Detchd',
- 'PavedDrive_Y',
- 'Fence_GdWo',
- 'SaleType_New',
- 'SaleCondition_Normal',
- 'SaleCondition_Partial',
- 'Season_Sold_Summer',
- 'Season_Sold_Winter',
- 'LandSlope_encoded',
- 'LotShape_encoded',
- 'HeatingQC_encoded',
- 'ExterQual_encoded',
- 'ExterCond_encoded',
- 'BsmtQual_encoded',
- 'BsmtCond_encoded',
- 'BsmtExposure_encoded',
- 'BsmtFinType1_encoded',
- 'BsmtFinType2_encoded',
- 'KitchenQual_encoded',
- 'FireplaceQu_encoded',
- 'GarageFinish_encoded',
- 'GarageQual_encoded',
- 'GarageCond_encoded']
+X_train_cat = pd.read_csv("data/model_data/X_train_cat.csv")
+X_val_cat = pd.read_csv("data/model_data/X_val_cat.csv")
+y_train_cat = pd.read_csv("data/model_data/y_train_cat.csv")
 
-X_train_lgbm = X_train[lgbm_features]
-X_val_lgbm = X_val[lgbm_features]
+cat_columns = X_train_cat.select_dtypes(include="object").columns.tolist()
+cat_columns.append("MSSubClass")
+
+X_train_lgbm = X_train_cat.copy()
+X_val_lgbm = X_val_cat.copy()
+y_train_lgbm = y_train_cat.copy()
+
+X_train_lgbm[cat_columns] = X_train_lgbm[cat_columns].astype("category")
+X_val_lgbm[cat_columns] = X_val_lgbm[cat_columns].astype("category")
 
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 
@@ -465,7 +394,7 @@ gs_lgbm = GridSearchCV(
     n_jobs=-1,
     refit=True)
 
-gs_lgbm.fit(X_train_lgbm, y_train.values.ravel())
+gs_lgbm.fit(X_train_lgbm, y_train_lgbm.values.ravel(), categorical_feature=cat_columns)
 
 print("10-Fold CV RMSE:", -gs_lgbm.best_score_) 
 print("Optimal Parameters:", gs_lgbm.best_params_)
@@ -483,16 +412,16 @@ with open("final_model_lgbm.pkl", "wb") as f:
 print("lgbm model saved to final_model_lgbm.pkl")
 
 X_train_lgbm.to_csv("data/model_data/X_train_lgbm.csv", index=False)
-y_train.to_csv("data/model_data/y_train_lgbm.csv", index=False)
+y_train_lgbm.to_csv("data/model_data/y_train_lgbm.csv", index=False)
 X_val_lgbm.to_csv("data/model_data/X_val_lgbm.csv", index=False)
 
 
 ############################################## LGBM Models with Bayesian Optimization ############################################################
 # Learn about this (Bayesian Optimization)
 # https://medium.com/analytics-vidhya/hyperparameters-optimization-for-lightgbm-catboost-and-xgboost-regressors-using-bayesian-6e7c495947a9
-def bayesian_opt_lgbm(X, y, init_iter=50, n_iters=100, random_state=random_state, seed=seed):
+def bayesian_opt_lgbm(X, y, cat_features, init_iter=50, n_iters=100, random_state=random_state, seed=seed):
 
-    dtrain = lgb.Dataset(data=X, label=y)
+    dtrain = lgb.Dataset(data=X, label=y, categorical_feature=cat_features)
 
     # Objective Function for Bayesian Optimization
     def hyp_lgbm(num_boost_round, learning_rate, max_depth, num_leaves, min_child_samples, min_sum_hessian_in_leaf, feature_fraction_bynode, reg_alpha, reg_lambda, min_split_gain, feature_fraction, bagging_fraction, bagging_freq):
@@ -551,7 +480,7 @@ def bayesian_opt_lgbm(X, y, init_iter=50, n_iters=100, random_state=random_state
 
     return optimizer
 
-results = bayesian_opt_lgbm(X_train_lgbm, y_train)
+results = bayesian_opt_lgbm(X_train_lgbm, y_train_lgbm, cat_features=cat_columns)
 print("Best Parameters:", results.max["params"])
 print("Best RMSE Score:", -results.max["target"])  
 
@@ -580,7 +509,7 @@ best_params["feature_pre_filter"] = False
 best_params["boosting_type"] = "gbdt"
 
 lgbm_bayes_model = lgb.LGBMRegressor(**best_params)
-lgbm_bayes_model.fit(X_train_lgbm, y_train)
+lgbm_bayes_model.fit(X_train_lgbm, y_train_lgbm.ravel(), categorical_feature=cat_columns)
 
 # Save the trained model for future use (stacking)
 with open("final_model_LGBM_bayes.pkl", "wb") as f:
@@ -588,7 +517,7 @@ with open("final_model_LGBM_bayes.pkl", "wb") as f:
 print("LGBM Bayes model saved to final_model_LGBM_bayes.pkl")
 
 X_train_lgbm.to_csv("data/model_data/X_train_lgbm_bayes.csv", index=False)
-y_train.to_csv("data/model_data/y_train_lgbm_bayes.csv", index=False)
+y_train_lgbm.to_csv("data/model_data/y_train_lgbm_bayes.csv", index=False)
 X_val_lgbm.to_csv("data/model_data/X_val_lgbm_bayes.csv", index=False)
 
 ############################################## XGB Models with Bayesian Optimization ############################################################

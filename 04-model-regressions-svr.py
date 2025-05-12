@@ -286,9 +286,8 @@ X_val_svm.to_csv("data/model_data/X_val_svm.csv", index=False)
 
 
 ############################# KNN #############################
-X_train_knn = X_train[combined_features_svm]
-X_val_knn = X_val[combined_features_svm]
-
+X_train_knn = pd.read_csv("data/model_data/X_train_knn.csv")
+X_val_knn = pd.read_csv("data/model_data/X_val_knn.csv")
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 knn = KNeighborsRegressor()
 
@@ -317,10 +316,6 @@ final_model_knn = gs_knn.best_estimator_
 with open("final_model_knn.pkl", "wb") as f:
     pickle.dump(final_model_knn, f)
 print("KNN model saved to final_model_knn.pkl")
-
-X_train_svm.to_csv("data/model_data/X_train_knn.csv", index=False)
-y_train.to_csv("data/model_data/y_train_knn.csv", index=False)
-X_val_knn.to_csv("data/model_data/X_val_knn.csv", index=False)
 
 ############################################## Models Generalization Performance ##############################################
 def evaluate_linear_model(model, X, y, name):

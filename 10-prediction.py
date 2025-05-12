@@ -15,11 +15,11 @@ X_train_svm = pd.read_csv("data/model_data/X_train_svm.csv").values
 y_train_svm = pd.read_csv("data/model_data/y_train_svm.csv").values.flatten()
 X_train_lasso = pd.read_csv("data/model_data/X_train_lasso.csv").values
 y_train_lasso = pd.read_csv("data/model_data/y_train_lasso.csv").values.flatten()
-X_train_lgbm_bayes = pd.read_csv("data/model_data/X_train_lgbm_bayes.csv").values
+X_train_lgbm_bayes = pd.read_csv("data/model_data/X_train_lgbm_bayes.csv")
 y_train_lgbm_bayes = pd.read_csv("data/model_data/y_train_lgbm_bayes.csv").values.flatten()
 X_train_xgb_bayes = pd.read_csv("data/model_data/X_train_xgb_bayes.csv").values
 y_train_xgb_bayes = pd.read_csv("data/model_data/y_train_xgb_bayes.csv").values.flatten()
-X_train_lgbm = pd.read_csv("data/model_data/X_train_lgbm.csv").values
+X_train_lgbm = pd.read_csv("data/model_data/X_train_lgbm.csv")
 y_train_lgbm = pd.read_csv("data/model_data/y_train_lgbm.csv").values.flatten()
 X_train_rf = pd.read_csv("data/model_data/X_train_rf.csv").values
 y_train_rf = pd.read_csv("data/model_data/y_train_rf.csv").values.flatten()
@@ -43,9 +43,9 @@ X_val_xgb = pd.read_csv("data/model_data/X_val_xgb.csv").values
 X_val_ridge = pd.read_csv("data/model_data/X_val_ridge.csv").values
 X_val_svm = pd.read_csv("data/model_data/X_val_svm.csv").values
 X_val_lasso = pd.read_csv("data/model_data/X_val_lasso.csv").values
-X_val_lgbm_bayes = pd.read_csv("data/model_data/X_val_lgbm_bayes.csv").values
+X_val_lgbm_bayes = pd.read_csv("data/model_data/X_val_lgbm_bayes.csv")
 X_val_xgb_bayes = pd.read_csv("data/model_data/X_val_xgb_bayes.csv").values
-X_val_lgbm = pd.read_csv("data/model_data/X_val_lgbm.csv").values
+X_val_lgbm = pd.read_csv("data/model_data/X_val_lgbm.csv")
 X_val_rf = pd.read_csv("data/model_data/X_val_rf.csv").values
 X_val_knn = pd.read_csv("data/model_data/X_val_knn.csv").values
 X_val_dt = pd.read_csv("data/model_data/X_val_dt.csv").values
@@ -56,6 +56,11 @@ X_val_cat = pd.read_csv("data/model_data/X_val_cat.csv")
 
 y_val = pd.read_csv("data/model_data/y_val_ml.csv").values.flatten()
 
+# convert categorical columns to category type
+X_train_lgbm[cat_columns] = X_train_lgbm[cat_columns].astype("category")
+X_train_lgbm_bayes[cat_columns] = X_train_lgbm_bayes[cat_columns].astype("category")
+X_val_lgbm[cat_columns] = X_val_lgbm[cat_columns].astype("category")
+X_val_lgbm_bayes[cat_columns] = X_val_lgbm_bayes[cat_columns].astype("category")
 
 # Combine train and validation sets
 X_xgb = np.vstack([X_train_xgb, X_val_xgb])
@@ -70,13 +75,13 @@ y_svm = np.concatenate([y_train_svm, y_val])
 X_lasso = np.vstack([X_train_lasso, X_val_lasso])
 y_lasso = np.concatenate([y_train_lasso, y_val])
 
-X_lgbm_bayes = np.vstack([X_train_lgbm_bayes, X_val_lgbm_bayes])
+X_lgbm_bayes = pd.concat([X_train_lgbm_bayes, X_val_lgbm_bayes], axis=0, ignore_index=True)
 y_lgbm_bayes = np.concatenate([y_train_lgbm_bayes, y_val])
 
 X_xgb_bayes = np.vstack([X_train_xgb_bayes, X_val_xgb_bayes])
 y_xgb_bayes = np.concatenate([y_train_xgb_bayes, y_val])
 
-X_lgbm = np.vstack([X_train_lgbm, X_val_lgbm])
+X_lgbm = pd.concat([X_train_lgbm, X_val_lgbm], axis=0, ignore_index=True)
 y_lgbm = np.concatenate([y_train_lgbm, y_val])
 
 X_rf = np.vstack([X_train_rf, X_val_rf])
@@ -164,6 +169,8 @@ for name, model, X, y in base_models:
     if "cat" in name:
         train_pool = cb.Pool(data=X, label=y, cat_features=cat_columns)
         model.fit(train_pool, verbose=False)
+    elif "lgbm" in name:
+        model.fit(X, y, categorical_feature=cat_columns)
     else:
         model.fit(X, y)
     trained_base_models[name] = model
@@ -172,8 +179,9 @@ for name, model, X, y in base_models:
 # Predict on test data
 test_final_ml = pd.read_csv("data/model_data/test_final_ml.csv")
 test_final_regress = pd.read_csv("data/model_data/test_final_reg.csv")
-test_final_regress = sm.add_constant(test_final_regress)
 test_final_cat = pd.read_csv("data/model_data/test_final_cat.csv")
+test_final_knn = pd.read_csv("data/model_data/test_final_knn.csv")
+test_final_lgbm = test_final_cat.copy()
 
 X_val_xgb = pd.read_csv("data/model_data/X_val_xgb.csv")
 X_val_ridge = pd.read_csv("data/model_data/X_val_ridge.csv")
@@ -196,19 +204,20 @@ X_test_xgb = test_final_ml[X_val_xgb.columns].values
 X_test_ridge = test_final_regress[X_val_ridge.columns].values
 X_test_svm = test_final_regress[X_val_svm.columns].values
 X_test_lasso = test_final_regress[X_val_lasso.columns].values
-X_test_lgbm_bayes = test_final_ml[X_val_lgbm_bayes.columns].values
+X_test_lgbm_bayes = test_final_lgbm[X_val_lgbm_bayes.columns].values
 X_test_xgb_bayes = test_final_ml[X_val_xgb_bayes.columns].values
-X_test_lgbm = test_final_ml[X_val_lgbm.columns].values
+X_test_lgbm = test_final_lgbm[X_val_lgbm.columns].values
 X_test_rf = test_final_ml[X_val_rf.columns].values
-X_test_knn = test_final_regress[X_val_knn.columns].values
+X_test_knn = test_final_knn[X_val_knn.columns].values
 X_test_dt = test_final_ml[X_val_dt.columns].values
 X_test_sdt = test_final_ml[X_val_sdt.columns].values
 X_test_enet = test_final_regress[X_val_enet.columns].values
 X_test_et = test_final_ml[X_val_et.columns].values
 X_test_cat = test_final_cat.drop(columns=["Id"], axis=1)
 
-
-
+# Convert categorical columns to category type
+X_test_lgbm[cat_columns] = X_test_lgbm[cat_columns].astype("category")
+X_test_lgbm_bayes[cat_columns] = X_test_lgbm_bayes[cat_columns].astype("category")
 
 test_preds = np.zeros((X_test_xgb.shape[0], len(trained_base_models)))
 

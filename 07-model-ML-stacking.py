@@ -40,11 +40,11 @@ X_train_svm = pd.read_csv("data/model_data/X_train_svm.csv").values
 y_train_svm = pd.read_csv("data/model_data/y_train_svm.csv").values.flatten()
 X_train_lasso = pd.read_csv("data/model_data/X_train_lasso.csv").values
 y_train_lasso = pd.read_csv("data/model_data/y_train_lasso.csv").values.flatten()
-X_train_lgbm_bayes = pd.read_csv("data/model_data/X_train_lgbm_bayes.csv").values
+X_train_lgbm_bayes = pd.read_csv("data/model_data/X_train_lgbm_bayes.csv")
 y_train_lgbm_bayes = pd.read_csv("data/model_data/y_train_lgbm_bayes.csv").values.flatten()
 X_train_xgb_bayes = pd.read_csv("data/model_data/X_train_xgb_bayes.csv").values
 y_train_xgb_bayes = pd.read_csv("data/model_data/y_train_xgb_bayes.csv").values.flatten()
-X_train_lgbm = pd.read_csv("data/model_data/X_train_lgbm.csv").values
+X_train_lgbm = pd.read_csv("data/model_data/X_train_lgbm.csv")
 y_train_lgbm = pd.read_csv("data/model_data/y_train_lgbm.csv").values.flatten()
 X_train_rf = pd.read_csv("data/model_data/X_train_rf.csv").values
 y_train_rf = pd.read_csv("data/model_data/y_train_rf.csv").values.flatten()
@@ -63,6 +63,11 @@ y_train_cat = pd.read_csv("data/model_data/y_train_cat.csv").values.flatten()
 
 cat_columns = X_train_cat.select_dtypes(include="object").columns.tolist()
 cat_columns.append("MSSubClass")
+
+# convert categorical columns to category type
+X_train_lgbm[cat_columns] = X_train_lgbm[cat_columns].astype("category")
+X_train_lgbm_bayes[cat_columns] = X_train_lgbm_bayes[cat_columns].astype("category")
+
 
 # Load pre-trained base models
 with open("final_model_xgb.pkl", "rb") as f:
@@ -153,6 +158,13 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X_train_xgb)):
             train_pool = cb.Pool(data=X_fold_train, label=y_fold_train, cat_features=cat_columns)
 
             model.fit(train_pool, verbose=False)
+        elif "lgbm" in name:
+            X_fold_train = X_train.iloc[train_idx]
+            X_fold_val = X_train.iloc[val_idx]
+            y_fold_train = y_train[train_idx]      
+
+            model.fit(X_fold_train, y_fold_train, categorical_feature=cat_columns)      
+            
         else:
             X_fold_train, X_fold_val = X_train[train_idx], X_train[val_idx]
             y_fold_train, y_fold_val = y_train[train_idx], y_train[val_idx]
@@ -197,6 +209,11 @@ X_val_et = pd.read_csv("data/model_data/X_val_et.csv")
 X_val_cat = pd.read_csv("data/model_data/X_val_cat.csv")
 
 y_val = pd.read_csv("data/model_data/y_val_ml.csv")
+
+
+# Convert categorical columns to category type
+X_val_lgbm[cat_columns] = X_val_lgbm[cat_columns].astype("category")
+X_val_lgbm_bayes[cat_columns] = X_val_lgbm_bayes[cat_columns].astype("category")
 
 test_preds = np.zeros((X_val_xgb.shape[0], len(base_models)))
 
