@@ -360,15 +360,11 @@ X_train_cat = pd.read_csv("data/model_data/X_train_cat.csv")
 X_val_cat = pd.read_csv("data/model_data/X_val_cat.csv")
 y_train_cat = pd.read_csv("data/model_data/y_train_cat.csv")
 
-cat_columns = X_train_cat.select_dtypes(include="object").columns.tolist()
-cat_columns.append("MSSubClass")
+
 
 X_train_lgbm = X_train_cat.copy()
 X_val_lgbm = X_val_cat.copy()
 y_train_lgbm = y_train_cat.copy()
-
-X_train_lgbm[cat_columns] = X_train_lgbm[cat_columns].astype("category")
-X_val_lgbm[cat_columns] = X_val_lgbm[cat_columns].astype("category")
 
 lgbm_features = ['MSSubClass', 'LotFrontage', 'LotArea', 'LotShape', 'LotConfig',
        'LandSlope', 'Neighborhood', 'Condition1', 'HouseStyle', 'OverallQual',
@@ -385,6 +381,12 @@ lgbm_features = ['MSSubClass', 'LotFrontage', 'LotArea', 'LotShape', 'LotConfig'
 
 X_train_lgbm = X_train_lgbm[lgbm_features]
 X_val_lgbm = X_val_lgbm[lgbm_features]
+
+cat_columns = X_train_lgbm.select_dtypes(include="object").columns.tolist()
+cat_columns.append("MSSubClass")
+
+X_train_lgbm[cat_columns] = X_train_lgbm[cat_columns].astype("category")
+X_val_lgbm[cat_columns] = X_val_lgbm[cat_columns].astype("category")
 
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 

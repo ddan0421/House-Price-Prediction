@@ -64,9 +64,12 @@ y_train_cat = pd.read_csv("data/model_data/y_train_cat.csv").values.flatten()
 cat_columns = X_train_cat.select_dtypes(include="object").columns.tolist()
 cat_columns.append("MSSubClass")
 
+lgbm_cat_columns = X_train_lgbm.select_dtypes(include="object").columns.tolist()
+lgbm_cat_columns.append("MSSubClass")
+
 # convert categorical columns to category type
-X_train_lgbm[cat_columns] = X_train_lgbm[cat_columns].astype("category")
-X_train_lgbm_bayes[cat_columns] = X_train_lgbm_bayes[cat_columns].astype("category")
+X_train_lgbm[lgbm_cat_columns] = X_train_lgbm[lgbm_cat_columns].astype("category")
+X_train_lgbm_bayes[lgbm_cat_columns] = X_train_lgbm_bayes[lgbm_cat_columns].astype("category")
 
 
 # Load pre-trained base models
@@ -212,8 +215,8 @@ y_val = pd.read_csv("data/model_data/y_val_ml.csv")
 
 
 # Convert categorical columns to category type
-X_val_lgbm[cat_columns] = X_val_lgbm[cat_columns].astype("category")
-X_val_lgbm_bayes[cat_columns] = X_val_lgbm_bayes[cat_columns].astype("category")
+X_val_lgbm[lgbm_cat_columns] = X_val_lgbm[lgbm_cat_columns].astype("category")
+X_val_lgbm_bayes[lgbm_cat_columns] = X_val_lgbm_bayes[lgbm_cat_columns].astype("category")
 
 test_preds = np.zeros((X_val_xgb.shape[0], len(base_models)))
 
