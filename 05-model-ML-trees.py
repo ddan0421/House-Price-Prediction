@@ -53,7 +53,7 @@ print("Optimal Estimator:", gs_dt.best_estimator_)
 
 final_model_dt = gs_dt.best_estimator_
 
-selected_features_dt = X_train_tree.columns[final_model_dt.feature_importances_ > 0]
+selected_features_dt = X_train_tree.columns[np.array(final_model_dt.feature_importances_) > 0]
 print("Selected features for Decision Tree:")
 print(selected_features_dt)
 
@@ -125,7 +125,7 @@ print("Optimal Estimator:", gs_rf.best_estimator_)
 
 final_model_rf = gs_rf.best_estimator_
 
-selected_features_rf = X_train_tree.columns[final_model_rf.feature_importances_ > 0]
+selected_features_rf = X_train_tree.columns[np.array(final_model_rf.feature_importances_) > 0]
 print("Selected features for Random Forest:")
 print(selected_features_rf)
 
@@ -370,20 +370,37 @@ y_train_lgbm = y_train_cat.copy()
 X_train_lgbm[cat_columns] = X_train_lgbm[cat_columns].astype("category")
 X_val_lgbm[cat_columns] = X_val_lgbm[cat_columns].astype("category")
 
+lgbm_features = ['MSSubClass', 'LotFrontage', 'LotArea', 'LotShape', 'LotConfig',
+       'LandSlope', 'Neighborhood', 'Condition1', 'HouseStyle', 'OverallQual',
+       'OverallCond', 'Exterior1st', 'Exterior2nd', 'MasVnrArea', 'ExterQual',
+       'Foundation', 'BsmtQual', 'BsmtExposure', 'BsmtFinType1', 'BsmtFinSF1',
+       'BsmtFinSF2', 'BsmtUnfSF', 'TotalBsmtSF', 'HeatingQC', 'CentralAir',
+       '1stFlrSF', '2ndFlrSF', 'GrLivArea', 'BsmtFullBath', 'FullBath',
+       'HalfBath', 'BedroomAbvGr', 'KitchenAbvGr', 'KitchenQual',
+       'TotRmsAbvGrd', 'Fireplaces', 'FireplaceQu', 'GarageType',
+       'GarageFinish', 'GarageCars', 'GarageArea', 'PavedDrive', 'WoodDeckSF',
+       'OpenPorchSF', 'EnclosedPorch', 'ScreenPorch', 'Fence', 'SaleType',
+       'SaleCondition', 'Season_Sold', 'Age_House', 'Yrs_Since_Remodel',
+       'Age_Garage']
+
+X_train_lgbm = X_train_lgbm[lgbm_features]
+X_val_lgbm = X_val_lgbm[lgbm_features]
+
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
 
 lgbm = lgb.LGBMRegressor(random_state=random_state, objective="regression", verbose=-1)
 
 param_grid = {
-    "n_estimators": [100, 200],
-    "learning_rate": [0.05, 0.1],          
-    "max_depth": [-1, 3, 5],            
-    "num_leaves": [31, 64],            
-    "min_child_samples": [10, 20],      
-    "subsample": [0.8, 1.0],           
-    "colsample_bytree": [0.8, 1.0],    
-    "reg_alpha": [0.0, 0.1],                     
-    "reg_lambda": [1.0, 2.0],                      
+    "n_estimators": [150, 200],
+    "learning_rate": [0.08, 0.11],          
+    "max_depth": [3, 5],            
+    "num_leaves": [25, 35],            
+    "min_child_samples": [15, 20],      
+    "subsample": [0.75, 0.85],           
+    "colsample_bytree": [0.75, 0.85],    
+    "reg_alpha": [0.0, 0.01],                     
+    "reg_lambda": [0.9, 1.1],     
+    "min_split_gain": [0.0, 0.008],                 
 }
 
 gs_lgbm = GridSearchCV(
@@ -421,7 +438,7 @@ X_val_lgbm.to_csv("data/model_data/X_val_lgbm.csv", index=False)
 # https://medium.com/analytics-vidhya/hyperparameters-optimization-for-lightgbm-catboost-and-xgboost-regressors-using-bayesian-6e7c495947a9
 def bayesian_opt_lgbm(X, y, cat_features, init_iter=50, n_iters=100, random_state=random_state, seed=seed):
 
-    dtrain = lgb.Dataset(data=X, label=y, categorical_feature=cat_features)
+    dtrain = lgb.Dataset(data=X, label=y, categorical_feature=cat_features, free_raw_data=False)
 
     # Objective Function for Bayesian Optimization
     def hyp_lgbm(num_boost_round, learning_rate, max_depth, num_leaves, min_child_samples, min_sum_hessian_in_leaf, feature_fraction_bynode, reg_alpha, reg_lambda, min_split_gain, feature_fraction, bagging_fraction, bagging_freq):
@@ -509,7 +526,7 @@ best_params["feature_pre_filter"] = False
 best_params["boosting_type"] = "gbdt"
 
 lgbm_bayes_model = lgb.LGBMRegressor(**best_params)
-lgbm_bayes_model.fit(X_train_lgbm, y_train_lgbm.ravel(), categorical_feature=cat_columns)
+lgbm_bayes_model.fit(X_train_lgbm, y_train_lgbm.values.ravel(), categorical_feature=cat_columns)
 
 # Save the trained model for future use (stacking)
 with open("final_model_LGBM_bayes.pkl", "wb") as f:

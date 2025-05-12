@@ -56,12 +56,6 @@ X_val_cat = pd.read_csv("data/model_data/X_val_cat.csv")
 
 y_val = pd.read_csv("data/model_data/y_val_ml.csv").values.flatten()
 
-# convert categorical columns to category type
-X_train_lgbm[cat_columns] = X_train_lgbm[cat_columns].astype("category")
-X_train_lgbm_bayes[cat_columns] = X_train_lgbm_bayes[cat_columns].astype("category")
-X_val_lgbm[cat_columns] = X_val_lgbm[cat_columns].astype("category")
-X_val_lgbm_bayes[cat_columns] = X_val_lgbm_bayes[cat_columns].astype("category")
-
 # Combine train and validation sets
 X_xgb = np.vstack([X_train_xgb, X_val_xgb])
 y_xgb = np.concatenate([y_train_xgb, y_val])
@@ -104,6 +98,10 @@ y_et = np.concatenate([y_train_et, y_val])
 
 X_cat = pd.concat([X_train_cat, X_val_cat], axis=0, ignore_index=True)
 y_cat = np.concatenate([y_train_cat, y_val])
+
+# convert categorical columns to category type
+X_lgbm_bayes[cat_columns] = X_lgbm_bayes[cat_columns].astype("category")
+X_lgbm[cat_columns] = X_lgbm[cat_columns].astype("category")
 
 # Load pre-trained base models
 with open("final_model_xgb.pkl", "rb") as f:
@@ -204,9 +202,9 @@ X_test_xgb = test_final_ml[X_val_xgb.columns].values
 X_test_ridge = test_final_regress[X_val_ridge.columns].values
 X_test_svm = test_final_regress[X_val_svm.columns].values
 X_test_lasso = test_final_regress[X_val_lasso.columns].values
-X_test_lgbm_bayes = test_final_lgbm[X_val_lgbm_bayes.columns].values
+X_test_lgbm_bayes = test_final_lgbm[X_val_lgbm_bayes.columns].copy()
 X_test_xgb_bayes = test_final_ml[X_val_xgb_bayes.columns].values
-X_test_lgbm = test_final_lgbm[X_val_lgbm.columns].values
+X_test_lgbm = test_final_lgbm[X_val_lgbm.columns].copy()
 X_test_rf = test_final_ml[X_val_rf.columns].values
 X_test_knn = test_final_knn[X_val_knn.columns].values
 X_test_dt = test_final_ml[X_val_dt.columns].values
