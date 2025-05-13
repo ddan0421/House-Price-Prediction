@@ -166,7 +166,7 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X_train_xgb)):
             X_fold_val = X_train.iloc[val_idx]
             y_fold_train = y_train[train_idx]      
 
-            model.fit(X_fold_train, y_fold_train, categorical_feature=cat_columns)      
+            model.fit(X_fold_train, y_fold_train, categorical_feature=lgbm_cat_columns)      
             
         else:
             X_fold_train, X_fold_val = X_train[train_idx], X_train[val_idx]
