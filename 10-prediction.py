@@ -39,7 +39,7 @@ y_train_cat = pd.read_csv("data/model_data/y_train_cat.csv").values.flatten()
 cat_columns = X_train_cat.select_dtypes(include="object").columns.tolist()
 cat_columns.append("MSSubClass")
 
-lgbm_cat_columns = X_train_lgbm_bayes.select_dtypes(include="object").columns.tolist()
+lgbm_cat_columns = X_train_lgbm.select_dtypes(include="object").columns.tolist()
 lgbm_cat_columns.append("MSSubClass")
 
 X_val_xgb = pd.read_csv("data/model_data/X_val_xgb.csv").values
@@ -171,7 +171,7 @@ for name, model, X, y in base_models:
         train_pool = cb.Pool(data=X, label=y, cat_features=cat_columns)
         model.fit(train_pool, verbose=False)
     elif "lgbm" in name:
-        model.fit(X, y, categorical_feature=cat_columns)
+        model.fit(X, y, categorical_feature=lgbm_cat_columns)
     else:
         model.fit(X, y)
     trained_base_models[name] = model
