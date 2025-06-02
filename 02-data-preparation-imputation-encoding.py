@@ -78,6 +78,7 @@ def feature_engineering(df):
     conn = duckdb.connect()
     conn.register("original_df", df)
     query = """
+    WITH cte AS (
     SELECT 
         *,
         CAST(MSSubClass AS TEXT) || '_' || MSZoning AS MSSubClass_MSZoning,
@@ -105,20 +106,19 @@ def feature_engineering(df):
         IF((YrSold - YearBuilt) < 0 OR YrSold IS NULL OR YearBuilt IS NULL, 0, (YrSold - YearBuilt)) AS Age_House,
         IF((YrSold - YearRemodAdd) < 0 OR YrSold IS NULL OR YearRemodAdd IS NULL, 0, (YrSold - YearRemodAdd)) AS Yrs_Since_Remodel,
         IF((YrSold - GarageYrBlt) < 0 OR GarageYrBlt IS NULL OR GarageType = 'no_garage', 0, (YrSold - GarageYrBlt)) AS Age_Garage
-    FROM original_df;
-    """
-    result = conn.execute(query).fetch_df()
-    columns_to_drop = [
-        "MSSubClass", "MSZoning", "LotConfig", "LandSlope", 
+    FROM original_df)
+    
+    SELECT * EXCLUDE ("MSSubClass", "MSZoning", "LotConfig", "LandSlope", 
         "Condition1", "Condition2", "Neighborhood", 
         "BldgType", "HouseStyle", 
         "Exterior1st", "Exterior2nd", 
         "CentralAir", "Electrical", 
         "LotShape", "LandContour", 
         "RoofStyle", "RoofMatl", 
-        "Heating", "HeatingQC", "MoSold", "YearBuilt", "YearRemodAdd", "GarageYrBlt", "YrSold"
-    ]
-    result = result.drop(columns=columns_to_drop)
+        "Heating", "HeatingQC", "MoSold", "YearBuilt", "YearRemodAdd", "GarageYrBlt", "YrSold")
+    FROM cte;
+    """
+    result = conn.query(query).fetchdf()
     conn.close()
     return result
 
@@ -153,6 +153,7 @@ def ordinal_encoding(df):
     conn = duckdb.connect()
     conn.register("input_df", df)
     query = """
+    WITH cte AS (
     SELECT 
         *,
         -- OverallQual is already in numeric format, so no need to encode it
@@ -259,14 +260,15 @@ def ordinal_encoding(df):
             WHEN PoolQC = 'Fa' THEN 1
             ELSE 0
         END AS PoolQC_encoded,
-    FROM input_df;
-    """
-    result = conn.execute(query).fetch_df()
-    columns_to_drop = [
+    FROM input_df)
+    
+    SELECT * EXCLUDE (
         "ExterQual", "ExterCond", "BsmtQual", "BsmtCond", "BsmtExposure", 
         "BsmtFinType1", "BsmtFinType2", "KitchenQual", "FireplaceQu", "GarageFinish", "GarageQual", "GarageCond", 
-        "PoolQC"]
-    result = result.drop(columns=columns_to_drop)
+        "PoolQC")
+    FROM cte;
+    """
+    result = conn.query(query).fetchdf()
     conn.close()
     return result
 
@@ -508,6 +510,7 @@ def feature_engineering(df):
     conn = duckdb.connect()
     conn.register("original_df", df)
     query = """
+    WITH cte AS (
     SELECT 
         *,
         CAST(MSSubClass AS TEXT) || '_' || MSZoning AS MSSubClass_MSZoning,
@@ -535,20 +538,19 @@ def feature_engineering(df):
         IF((YrSold - YearBuilt) < 0 OR YrSold IS NULL OR YearBuilt IS NULL, 0, (YrSold - YearBuilt)) AS Age_House,
         IF((YrSold - YearRemodAdd) < 0 OR YrSold IS NULL OR YearRemodAdd IS NULL, 0, (YrSold - YearRemodAdd)) AS Yrs_Since_Remodel,
         IF((YrSold - GarageYrBlt) < 0 OR GarageYrBlt IS NULL OR GarageType = 'no_garage', 0, (YrSold - GarageYrBlt)) AS Age_Garage
-    FROM original_df;
-    """
-    result = conn.execute(query).fetch_df()
-    columns_to_drop = [
-        "MSSubClass", "MSZoning", "LotConfig", "LandSlope", 
+    FROM original_df)
+    
+    SELECT * EXCLUDE ("MSSubClass", "MSZoning", "LotConfig", "LandSlope", 
         "Condition1", "Condition2", "Neighborhood", 
         "BldgType", "HouseStyle", 
         "Exterior1st", "Exterior2nd", 
         "CentralAir", "Electrical", 
         "LotShape", "LandContour", 
         "RoofStyle", "RoofMatl", 
-        "Heating", "HeatingQC", "MoSold", "YearBuilt", "YearRemodAdd", "GarageYrBlt", "YrSold"
-    ]
-    result = result.drop(columns=columns_to_drop)
+        "Heating", "HeatingQC", "MoSold", "YearBuilt", "YearRemodAdd", "GarageYrBlt", "YrSold")
+    FROM cte;
+    """
+    result = conn.query(query).fetchdf()
     conn.close()
     return result
 
@@ -583,6 +585,7 @@ def ordinal_encoding(df):
     conn = duckdb.connect()
     conn.register("input_df", df)
     query = """
+    WITH cte AS (
     SELECT 
         *,
         -- OverallQual is already in numeric format, so no need to encode it
@@ -689,14 +692,14 @@ def ordinal_encoding(df):
             WHEN PoolQC = 'Fa' THEN 1
             ELSE 0
         END AS PoolQC_encoded,
-    FROM input_df;
-    """
-    result = conn.execute(query).fetch_df()
-    columns_to_drop = [
-        "ExterQual", "ExterCond", "BsmtQual", "BsmtCond", "BsmtExposure", 
+    FROM input_df)
+    
+    SELECT * EXCLUDE ("ExterQual", "ExterCond", "BsmtQual", "BsmtCond", "BsmtExposure", 
         "BsmtFinType1", "BsmtFinType2", "KitchenQual", "FireplaceQu", "GarageFinish", "GarageQual", "GarageCond", 
-        "PoolQC"]
-    result = result.drop(columns=columns_to_drop)
+        "PoolQC")
+    FROM cte;
+    """
+    result = conn.query(query).fetchdf()
     conn.close()
     return result
 
@@ -929,6 +932,7 @@ def feature_engineering(df):
     conn = duckdb.connect()
     conn.register("original_df", df)
     query = """
+    WITH cte AS (
     SELECT 
         *,
         CASE
@@ -940,13 +944,12 @@ def feature_engineering(df):
         IF((YrSold - YearBuilt) < 0 OR YrSold IS NULL OR YearBuilt IS NULL, 0, (YrSold - YearBuilt)) AS Age_House,
         IF((YrSold - YearRemodAdd) < 0 OR YrSold IS NULL OR YearRemodAdd IS NULL, 0, (YrSold - YearRemodAdd)) AS Yrs_Since_Remodel,
         IF((YrSold - GarageYrBlt) < 0 OR GarageYrBlt IS NULL OR GarageType = 'no_garage', 0, (YrSold - GarageYrBlt)) AS Age_Garage
-    FROM original_df;
+    FROM original_df)
+    SELECT * EXCLUDE ("MoSold", "YearBuilt", "YearRemodAdd", "GarageYrBlt", "YrSold")
+    FROM cte
+    ;
     """
-    result = conn.execute(query).fetch_df()
-    columns_to_drop = [
-        "MoSold", "YearBuilt", "YearRemodAdd", "GarageYrBlt", "YrSold"
-    ]
-    result = result.drop(columns=columns_to_drop)
+    result = conn.query(query).fetchdf()
     conn.close()
     return result
 
@@ -983,6 +986,7 @@ def ordinal_encoding(df):
     conn = duckdb.connect()
     conn.register("input_df", df)
     query = """
+    WITH cte AS (
     SELECT 
         *,
         -- OverallQual is already in numeric format, so no need to encode it
@@ -1110,15 +1114,15 @@ def ordinal_encoding(df):
             WHEN PoolQC = 'Fa' THEN 1
             ELSE 0
         END AS PoolQC_encoded,
-    FROM input_df;
-    """
-    result = conn.execute(query).fetch_df()
-    columns_to_drop = [
-        "LandSlope","LotShape", "HeatingQC", 
+    FROM input_df)
+    
+    SELECT * EXCLUDE ("LandSlope","LotShape", "HeatingQC", 
                "ExterQual", "ExterCond", "BsmtQual", "BsmtCond", "BsmtExposure", 
                "BsmtFinType1", "BsmtFinType2", "KitchenQual", "FireplaceQu", "GarageFinish", "GarageQual", "GarageCond", 
-               "PoolQC"]
-    result = result.drop(columns=columns_to_drop)
+               "PoolQC")
+    FROM cte;
+    """
+    result = conn.query(query).fetchdf()
     conn.close()
     return result
 
@@ -1200,6 +1204,7 @@ def feature_engineering(df):
     conn = duckdb.connect()
     conn.register("original_df", df)
     query = """
+    WITh cte AS (
     SELECT 
         *,
         CASE
@@ -1211,13 +1216,12 @@ def feature_engineering(df):
         IF((YrSold - YearBuilt) < 0 OR YrSold IS NULL OR YearBuilt IS NULL, 0, (YrSold - YearBuilt)) AS Age_House,
         IF((YrSold - YearRemodAdd) < 0 OR YrSold IS NULL OR YearRemodAdd IS NULL, 0, (YrSold - YearRemodAdd)) AS Yrs_Since_Remodel,
         IF((YrSold - GarageYrBlt) < 0 OR GarageYrBlt IS NULL OR GarageType = 'no_garage', 0, (YrSold - GarageYrBlt)) AS Age_Garage
-    FROM original_df;
+    FROM original_df)
+    
+    SELECT * EXCLUDE ("MoSold", "YearBuilt", "YearRemodAdd", "GarageYrBlt", "YrSold")
+    FROM cte;
     """
-    result = conn.execute(query).fetch_df()
-    columns_to_drop = [
-        "MoSold", "YearBuilt", "YearRemodAdd", "GarageYrBlt", "YrSold"
-    ]
-    result = result.drop(columns=columns_to_drop)
+    result = conn.query(query).fetchdf()
     conn.close()
     return result
 
