@@ -2,7 +2,7 @@ import statsmodels.api as sm
 import pandas as pd
 import numpy as np
 from scipy.optimize import LinearConstraint, minimize
-
+from statsmodels.stats.outliers_influence import variance_inflation_factor
 from warnings import filterwarnings
 
 filterwarnings("ignore", "divide by zero", category=RuntimeWarning)
