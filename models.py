@@ -9,7 +9,69 @@ filterwarnings("ignore", "divide by zero", category=RuntimeWarning)
 filterwarnings("ignore", "invalid value", category=RuntimeWarning)
 filterwarnings("ignore", "overflow encountered", category=RuntimeWarning)
 
-################################################################### Callback Function ###################################################################
+
+###################################################################################################
+#                                   Feature Selection Algorithm                                   #
+###################################################################################################
+
+
+#----------------------------------------------------------------------------#
+#                            VIF Feature Selection                           #
+#----------------------------------------------------------------------------#
+
+def select_features_by_vif(X, threshold=10, verbose=True):
+    """
+    Remove multicollinear features using Variance Inflation Factor (VIF).
+    
+    Parameters:
+        X : pandas.DataFrame
+            DataFrame containing only the independent variables.
+        threshold : float, optional
+            VIF threshold above which features are iteratively removed. Default is 10.
+        verbose : bool, optional
+            If True, prints the feature removal process. Default is True.
+    
+    Returns:
+        pd.DataFrame: DataFrame containing the final features and their VIF values.
+        list: List of selected features after VIF-based feature selection.
+    """
+    X = X.copy()
+    dropped_features = []
+
+    def calculate_vif(data):
+        """Calculate VIF for all features in a DataFrame."""
+        data = sm.add_constant(data, has_constant="skip")
+        vif_data = pd.DataFrame({
+            "Feature": data.columns,
+            "VIF": [variance_inflation_factor(data.values, i) for i in range(data.shape[1])]
+        })
+        return vif_data[vif_data["Feature"] != "const"].reset_index(drop=True)
+    
+    while True:
+        vif_data = calculate_vif(X)
+        max_vif = vif_data["VIF"].max()
+        
+        if max_vif < threshold:
+            break  # Stop when all VIF values are below the threshold
+        
+        # Identify and drop the feature with the highest VIF
+        feature_to_remove = vif_data.loc[vif_data["VIF"] == max_vif, "Feature"].values[0]
+        if verbose:
+            print(f"Removed: {feature_to_remove}, VIF: {max_vif}")
+        dropped_features.append((feature_to_remove, max_vif))
+        X = X.drop(columns=[feature_to_remove])
+    
+    selected_features = X.columns.tolist()
+    if verbose:
+        print("Final selected features:", selected_features)
+    
+    return calculate_vif(X), selected_features
+
+
+
+###################################################################################################
+#                      Linear and Logistic Regression Callback Function                           #
+###################################################################################################
 def callback(feature_names):
     iter = 0
     
@@ -24,33 +86,43 @@ def callback(feature_names):
 
     return display_param
 
-################################################################### Linear Regression (OLS) ###################################################################
-def sm_ols(X, y, method="qr"):
+
+###################################################################################################
+#                                   Regression Algorithms                                         #
+###################################################################################################
+
+#----------------------------------------------------------------------------#
+#                             Linear Regression (OLS)                        #
+#----------------------------------------------------------------------------#
+
+def sm_ols(X, y, method="qr", verbose=True):
+    X = sm.add_constant(X, has_constant="skip")
     ols = sm.OLS(y,X)
     model = ols.fit(method=method,
                     disp=True,
                     maxiter=1000)
+    if verbose:
+        # Display final model parameters
+        print("\nModel final parameters:")
+        print(model.params)
+        print("\nModel fitting summary:")
+        print(model.summary())
 
-    # Display final model parameters
-    print("\nModel final parameters:")
-    print(model.params)
-    print("\nModel fitting summary:")
-    print(model.summary())
+        # Save the summary to a text file
+        summary_path = f"ols_model_summary.txt"
+        with open(summary_path, "w") as file:
+            file.write(model.summary().as_text())
+        print(f"Model summary saved to {summary_path}\n")
 
-    # Save the summary to a text file
-    summary_path = f"ols_model_summary.txt"
-    with open(summary_path, "w") as file:
-        file.write(model.summary().as_text())
-    print(f"Model summary saved to {summary_path}\n")
-
-    # Optionally remove unnecessary data to reduce memory usage
-    # model.remove_data()
+        # Optionally remove unnecessary data to reduce memory usage
+        # model.remove_data()
 
     return model
 
 
 
 def constrained_sm_ols(X, y, ols_result, thresh, method="trust-constr"):
+    X = sm.add_constant(X, has_constant="skip")
     n_features = X.shape[1]
     sig = ols_result.pvalues
     sig.reset_index(drop=True, inplace=True)
@@ -86,9 +158,12 @@ def constrained_sm_ols(X, y, ols_result, thresh, method="trust-constr"):
     return optimized_params
 
 
-################################################################### Linear Regression (GLM Gaussian) ###################################################################
+#----------------------------------------------------------------------------#
+#                    Linear Regression (GLM Gaussian)                        #
+#----------------------------------------------------------------------------#
 
-def sm_glm_gaussian(X, y, method="IRLS"):
+def sm_glm_gaussian(X, y, method="IRLS", verbose=True):
+    X = sm.add_constant(X, has_constant="skip")
     glm = sm.GLM(y, X, family=sm.families.Gaussian())
     model = glm.fit(
         method=method,
@@ -96,24 +171,26 @@ def sm_glm_gaussian(X, y, method="IRLS"):
         tol=1e-9
     )
 
-    # Display final model parameters
-    print("\nModel final parameters:")
-    print(model.params)
-    print("\nModel fitting summary:")
-    print(model.summary())
+    if verbose:
+        # Display final model parameters
+        print("\nModel final parameters:")
+        print(model.params)
+        print("\nModel fitting summary:")
+        print(model.summary())
 
-    # Save the summary to a text file
-    summary_path = f"GLM_Gaussian_summary.txt"
-    with open(summary_path, "w") as file:
-        file.write(model.summary().as_text())
-    print(f"Model summary saved to {summary_path}\n")
+        # Save the summary to a text file
+        summary_path = f"GLM_Gaussian_summary.txt"
+        with open(summary_path, "w") as file:
+            file.write(model.summary().as_text())
+        print(f"Model summary saved to {summary_path}\n")
 
     # Optionally remove unnecessary data to reduce memory usage
     # model.remove_data()
 
     return model
 
-def constrained_sm_glm_gaussian(X, y, glm_gau_result, thresh):
+def constrained_sm_glm_gaussian(X, y, glm_gau_result, thresh, verbose=True):
+    X = sm.add_constant(X, has_constant="skip")
     n_features = X.shape[1]
     sig = glm_gau_result.pvalues
     sig.reset_index(drop=True, inplace=True)
@@ -132,28 +209,28 @@ def constrained_sm_glm_gaussian(X, y, glm_gau_result, thresh):
     constrained_model_glm = sm.GLM(y, X, family=sm.families.Gaussian())
     model = constrained_model_glm.fit_constrained(start_params=start_params,
                                                   constraints=(R,q))
-    # Display final model parameters
-    print("\nModel final parameters:")
-    print(model.params)
-    print("\nModel fitting p-values:")
-    print(model.pvalues)
-    print("\nModel fitting summary:")
-    print(model.summary())
+    if verbose:
+        # Display final model parameters
+        print("\nModel final parameters:")
+        print(model.params)
+        print("\nModel fitting p-values:")
+        print(model.pvalues)
+        print("\nModel fitting summary:")
+        print(model.summary())
 
-    summary_path = f"GLM_Gaussian_summary_constrained.txt"
-    with open(summary_path, "w") as file:
-        file.write(model.summary().as_text())
-    print(f"Model summary saved to {summary_path}\n")
+        summary_path = f"GLM_Gaussian_summary_constrained.txt"
+        with open(summary_path, "w") as file:
+            file.write(model.summary().as_text())
+        print(f"Model summary saved to {summary_path}\n")
 
     # Optionally remove unnecessary data to reduce memory usage
     # model.remove_data()
 
     return model
 
-
-
-
-################################################################### Stepwise Selection for OLS Regression ###################################################################
+#----------------------------------------------------------------------------#
+#          Stepwise Feature Selection for OLS Regression                    #
+#----------------------------------------------------------------------------#
 def ols_stepwise_selection(x_data,
                            y_data, 
                            initial_list  = [], 
@@ -178,11 +255,10 @@ def ols_stepwise_selection(x_data,
             Whether to print the sequence of inclusions and exclusions.
 
     Returns:
-        list: The list of selected features.
+        list : The list of selected features.
 
     Note: Always set threshold_in < threshold_out to avoid infinite loops.
     """
-
     # setting placeholer list
     included = list(initial_list)
 
@@ -199,8 +275,7 @@ def ols_stepwise_selection(x_data,
         # fitting model with additional candidate feature
         for new_column in excluded:
 
-            model = sm.OLS(y_data,
-                           sm.add_constant(x_data[included + [new_column]])).fit()
+            model = sm.OLS(y_data, sm.add_constant(x_data[included + [new_column]])).fit()
 
             new_pvals[new_column] = model.pvalues[new_column]
 
@@ -240,3 +315,4 @@ def ols_stepwise_selection(x_data,
 
     # returning stepwise model's x-features
     return included
+
