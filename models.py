@@ -275,7 +275,7 @@ def ols_stepwise_selection(x_data,
         # fitting model with additional candidate feature
         for new_column in excluded:
 
-            model = sm.OLS(y_data, sm.add_constant(x_data[included + [new_column]])).fit()
+            model = sm.OLS(y_data, sm.add_constant(x_data[included + [new_column]], has_constant="skip")).fit()
 
             new_pvals[new_column] = model.pvalues[new_column]
 
@@ -292,7 +292,7 @@ def ols_stepwise_selection(x_data,
 
         # backward step: potentially removing an x-feature
         if included:
-            model = sm.OLS(y_data, sm.add_constant(x_data[included])).fit()
+            model = sm.OLS(y_data, sm.add_constant(x_data[included], has_constant="skip")).fit()
 
             # excluding intercept p-value (first element)
             pvals = model.pvalues.iloc[1:]
