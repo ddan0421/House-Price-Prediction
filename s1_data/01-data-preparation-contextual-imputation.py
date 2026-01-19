@@ -1,9 +1,19 @@
 import pandas as pd
 import warnings
+import duckdb
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-train = pd.read_csv("data/train.csv")
-test = pd.read_csv("data/test.csv")
+from data.gdrive_download import download_from_drive
+
+file_id = "1PkDOjJrheCTmNcw-dutqDsd6RUdH5Z4b"
+filename = "AmesHousePrice.duckdb"
+folder = "data"
+download_from_drive(file_id, filename, folder)
+
+conn = duckdb.connect("data/AmesHousePrice.duckdb")
+train = conn.execute("""select * from train;""").fetch_df()
+test = conn.execute("""select * from test;""").fetch_df()
+
 
 train_features = train.drop("SalePrice", axis=1)
 feature_df = pd.concat([train_features, test], axis=0, ignore_index=False)
