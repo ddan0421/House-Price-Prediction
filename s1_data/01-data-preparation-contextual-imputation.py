@@ -4,8 +4,7 @@ import duckdb
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 from data.gdrive_download import download_from_drive
-
-file_id = "1IRnoJG6LR0vCokWiHDAS37knGSX6h9kD"
+file_id = "1gz9nx7q39cOHtB3ZovEMrj2wRvcbUJI_"
 filename = "AmesHousePrice.duckdb"
 folder = "data"
 download_from_drive(file_id, filename, folder)
