@@ -79,9 +79,10 @@ feature_df["MasVnrType"].fillna("no_MasVnrType", inplace=True)
 # MasVnrArea Missing
 """
 MasVnrArea: Masonry veneer area in square feet
-- may need to fill in the missing values with 0 if the MasVnrType is None
+- may need to fill in NA with None since None is a valid value, but requires 
+  additional investigation.
 """
-feature_df["MasVnrArea"].fillna(0, inplace=True)
+# feature_df["MasVnrArea"].fillna(0, inplace=True)
 
 
 # BsmtQual Missing
