@@ -18,9 +18,11 @@ for filename, file_id in data_dict.items():
 
 conn = duckdb.connect(database = database_path, read_only = False)
 
+# Not converting value 'None' to NA because None is a valid category for MasVnrType
+# None in MasVnrType means (no masonry veneer type), but need to investigate NA value
 default_na = ["", "#N/A", "#N/A N/A", "#NA", "-1.#IND", "-1.#QNAN", 
               "-NaN", "-nan", "1.#IND", "1.#QNAN", "<NA>", "N/A", "NA", 
-              "NULL", "NaN", "None", "n/a", "na", "nan", "null"]
+              "NULL", "NaN", "n/a", "na", "nan", "null"]
 nullstr_sql = "[" + ", ".join(f"'{x}'" for x in default_na) + "]"
 
 for table, path in {"train": train_path, "test": test_path}.items():
