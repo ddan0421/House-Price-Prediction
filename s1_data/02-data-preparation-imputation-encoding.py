@@ -391,7 +391,7 @@ no need to transform
 """
 
 
-# Transformation
+# Transformation (Use DuckDB)
 def transform_and_drop(data, log_cols, sqrt_cols, cube_root_cols):
     # Log transformation
     for col in log_cols:
@@ -421,7 +421,7 @@ X_val_final = transform_and_drop(X_val_imputed.copy(), log_cols, sqrt_cols, cube
 test_final = transform_and_drop(test_imputed.copy(), log_cols, sqrt_cols, cube_root_cols)
 
 
-# Step 9: Creating interaction terms for numerical variables
+# Step 9: Creating interaction terms for numerical variables (Use Duckdb)
 """
 log_GrLivArea × TotRmsAbvGrd: Interaction between total rooms and living area, which could reflect spaciousness.
 GarageArea × GarageCars: Correlates garage area with its car capacity, showing efficiency of garage space utilization.
@@ -822,7 +822,7 @@ no need to transform
 """
 
 
-# Transformation
+# Transformation (Use DuckDB)
 def transform_and_drop(data, log_cols, sqrt_cols, cube_root_cols):
     # Log transformation
     for col in log_cols:
@@ -852,7 +852,7 @@ X_val_final = transform_and_drop(X_val_imputed.copy(), log_cols, sqrt_cols, cube
 test_final = transform_and_drop(test_imputed.copy(), log_cols, sqrt_cols, cube_root_cols)
 
 
-# Step 9: Creating interaction terms for numerical variables
+# Step 9: Creating interaction terms for numerical variables (Use DuckDB)
 """
 log_GrLivArea × TotRmsAbvGrd: Interaction between total rooms and living area, which could reflect spaciousness.
 GarageArea × GarageCars: Correlates garage area with its car capacity, showing efficiency of garage space utilization.
