@@ -26,6 +26,7 @@ default_na = ["", "#N/A", "#N/A N/A", "#NA", "-1.#IND", "-1.#QNAN",
 nullstr_sql = "[" + ", ".join(f"'{x}'" for x in default_na) + "]"
 
 for table, path in {"train": train_path, "test": test_path}.items():
+    target_col = ', cast(SalePrice as int) as "SalePrice"' if table == "train" else ""
     conn.execute(f"""
         create or replace table {table} as
         select 
@@ -58,60 +59,58 @@ for table, path in {"train": train_path, "test": test_path}.items():
             , cast(MasVnrArea as int) as "MasVnrArea"
             , cast(ExterQual as varchar) as "ExterQual"
             , cast(ExterCond as varchar) as "ExterCond"
-            Foundation
-            BsmtQual
-            BsmtCond
-            BsmtExposure
-            BsmtFinType1
-            BsmtFinSF1
-            BsmtFinType2
-            BsmtFinSF2
-            BsmtUnfSF
-            TotalBsmtSF
-            Heating
-            HeatingQC
-            CentralAir
-            Electrical
-            1stFlrSF
-            2ndFlrSF
-            LowQualFinSF
-            GrLivArea
-            BsmtFullBath
-            BsmtHalfBath
-            FullBath
-            HalfBath
-            BedroomAbvGr
-            KitchenAbvGr
-            KitchenQual
-            TotRmsAbvGrd
-            Functional
-            Fireplaces
-            FireplaceQu
-            GarageType
-            GarageYrBlt
-            GarageFinish
-            GarageCars
-            GarageArea
-            GarageQual
-            GarageCond
-            PavedDrive
-            WoodDeckSF
-            OpenPorchSF
-            EnclosedPorch
-            3SsnPorch
-            ScreenPorch
-            PoolArea
-            PoolQC
-            Fence
-            MiscFeature
-            MiscVal
-            MoSold
-            YrSold
-            SaleType
-            SaleCondition
-
-
-
+            , cast(Foundation as varchar) as "Foundation"
+            , cast(BsmtQual as varchar) as "BsmtQual"
+            , cast(BsmtCond as varchar) as "BsmtCond"
+            , cast(BsmtExposure as varchar) as "BsmtExposure"
+            , cast(BsmtFinType1 as varchar) as "BsmtFinType1"
+            , cast(BsmtFinSF1 as int) as "BsmtFinSF1"
+            , cast(BsmtFinType2 as varchar) as "BsmtFinType2"
+            , cast(BsmtFinSF2 as int) as "BsmtFinSF2" 
+            , cast(BsmtUnfSF as int) as "BsmtUnfSF"
+            , cast(TotalBsmtSF as int) as "TotalBsmtSF"
+            , cast(Heating as varchar) as "Heating"
+            , cast(HeatingQC as varchar) as "HeatingQC"
+            , cast(CentralAir as varchar) as "CentralAir"
+            , cast(Electrical as varchar) as "Electrical"
+            , cast(1stFlrSF as int) as "1stFlrSF" 
+            , cast(2ndFlrSF as int) as "2ndFlrSF"
+            , cast(LowQualFinSF as int) as "LowQualFinSF"
+            , cast(GrLivArea as int) as "GrLivArea"
+            , cast(BsmtFullBath as int) as "BsmtFullBath"
+            , cast(BsmtHalfBath as int) as "BsmtHalfBath"
+            , cast(FullBath as int) as "FullBath"
+            , cast(HalfBath as int) as "HalfBath"
+            , cast(BedroomAbvGr as int) as "BedroomAbvGr"
+            , cast(KitchenAbvGr as int) as "KitchenAbvGr"
+            , cast(KitchenQual as varchar) as "KitchenQual"
+            , cast(TotRmsAbvGrd as int) as "TotRmsAbvGrd"
+            , cast(Functional as varchar) as "Functional"
+            , cast(Fireplaces as int) as "Fireplaces"
+            , cast(FireplaceQu as varchar) as "FireplaceQu"
+            , cast(GarageType as varchar) as "GarageType"
+            , cast(GarageYrBlt as int) as "GarageYrBlt"
+            , cast(GarageFinish as varchar) as "GarageFinish"
+            , cast(GarageCars as int) as "GarageCars"
+            , cast(GarageArea as int) as "GarageArea"
+            , cast(GarageQual as varchar) as "GarageQual"
+            , cast(GarageCond as varchar) as "GarageCond"
+            , cast(PavedDrive as varchar) as "PavedDrive"
+            , cast(WoodDeckSF as int) as "WoodDeckSF"
+            , cast(OpenPorchSF as int) as "OpenPorchSF"
+            , cast(EnclosedPorch as int) as "EnclosedPorch"
+            , cast(3SsnPorch as int) as "3SsnPorch"
+            , cast(ScreenPorch as int) as "ScreenPorch"
+            , cast(PoolArea as int) as "PoolArea"
+            , cast(PoolQC as varchar) as "PoolQC"
+            , cast(Fence as varchar) as "Fence"
+            , cast(MiscFeature as varchar) as "MiscFeature"
+            , cast(MiscVal as int) as "MiscVal"
+            , cast(MoSold as int) as "MoSold"
+            , cast(YrSold as int) as "YrSold"
+            , cast(SaleType as varchar) as "SaleType"
+            , cast(SaleCondition as varchar) as "SaleCondition"
+            {target_col}
         from read_csv_auto(
             '{path}',
             nullstr={nullstr_sql}
