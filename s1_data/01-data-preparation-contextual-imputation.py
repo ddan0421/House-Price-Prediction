@@ -72,6 +72,10 @@ MasVnrType: Masonry veneer type
        CBlock	Cinder Block
        None	None
        Stone	Stone
+
+There is NA type. Fill NA with 'Unknown'. 
+Missing MasVnrType values were treated as an explicit “Unknown” category to 
+distinguish unobserved veneer information from the valid “None” category indicating known absence of veneer.
 """
 feature_df["MasVnrType"].fillna("no_MasVnrType", inplace=True)
 
@@ -79,8 +83,14 @@ feature_df["MasVnrType"].fillna("no_MasVnrType", inplace=True)
 # MasVnrArea Missing
 """
 MasVnrArea: Masonry veneer area in square feet
-- may need to fill in NA with None since None is a valid value, but requires 
-  additional investigation.
+- may need to fill in NA with 0 so that
+the model knows:
+- Area = 0 and “this was actually unknown”
+
+That combination is distinct from:
+- Area = 0 and Type = None
+
+- Also need to set MasVnrArea to 0 if MasVnrType = None
 """
 # feature_df["MasVnrArea"].fillna(0, inplace=True)
 
