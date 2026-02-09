@@ -257,7 +257,7 @@ MasVnrType: Masonry veneer type (None is a valid category type) (Has NA)
        CBlock	Cinder Block
        None	None
        Stone	Stone
-There is NA type. Fill NA with 'None' since only 8 rows in train and 16 rows in test. 
+There is NA type. Fill NA with 'NoMasVnr' since only 8 rows in train and 16 rows in test. 
 	
 MasVnrArea: Masonry veneer area in square feet (for those that has NA in MasVnrType, the MasVnrArea is NA)
 Fill in NA with 0 

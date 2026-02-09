@@ -23,7 +23,7 @@ for source in ["train", "test"]:
                     , ifnull(Alley, 'no_alley') AS _Alley
                     , ifnull(Exterior1st, 'Other') AS _Exterior1st
                     , ifnull(Exterior2nd, 'Other') AS _Exterior2nd
-                    , ifnull(MasVnrType, 'None') AS _MasVnrType
+                    , ifnull(MasVnrType, 'NoMasVnr') AS _MasVnrType
                     , ifnull(MasVnrArea, 0) AS _MasVnrArea
                     , ifnull(BsmtQual, 'no_basement') AS _BsmtQual
                     , ifnull(BsmtCond, 'no_basement') AS _BsmtCond
@@ -72,7 +72,7 @@ for source in ["train", "test"]:
                 , _Exterior2nd as Exterior2nd
                 , _MasVnrType as MasVnrType
                 , case 
-                    when _MasVnrType = 'None' then 0
+                    when _MasVnrType = 'NoMasVnr' then 0
                     else _MasVnrArea            
                   end as MasVnrArea
                 , ExterQual
