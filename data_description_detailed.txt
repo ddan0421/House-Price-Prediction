@@ -1,3 +1,8 @@
+Columns that have Outliers:
+- WoodDeckSF
+- EnclosedPorch
+- GarageYrBlt
+
 MSSubClass: Identifies the type of dwelling involved in the sale.	(Test has one category not in train)
 
         20	1-STORY 1946 & NEWER ALL STYLES
@@ -42,6 +47,8 @@ Alley: Type of alley access to property
        Grvl	Gravel
        Pave	Paved
        NA 	No alley access
+
+Impute NA to no_alley
 		
 LotShape: General shape of property
 
@@ -218,6 +225,8 @@ Exterior1st: Exterior covering on house (Has 1 NA in test) (the same record has 
        VinylSd	Vinyl Siding
        Wd Sdng	Wood Siding
        WdShing	Wood Shingles
+
+Convert NA to Other
 	
 Exterior2nd: Exterior covering on house (if more than one material) (the same record has NA in Exterior1st)
 
@@ -238,6 +247,8 @@ Exterior2nd: Exterior covering on house (if more than one material) (the same re
        VinylSd	Vinyl Siding
        Wd Sdng	Wood Siding
        WdShing	Wood Shingles
+
+Convert NA to Other
 	
 MasVnrType: Masonry veneer type (None is a valid category type) (Has NA)
 
@@ -246,8 +257,11 @@ MasVnrType: Masonry veneer type (None is a valid category type) (Has NA)
        CBlock	Cinder Block
        None	None
        Stone	Stone
+There is NA type. Fill NA with 'None' since only 8 rows in train and 16 rows in test. 
 	
 MasVnrArea: Masonry veneer area in square feet (for those that has NA in MasVnrType, the MasVnrArea is NA)
+Fill in NA with 0 
+- Also need to set MasVnrArea to 0 if MasVnrType = None
 
 ExterQual: Evaluates the quality of the material on the exterior 
 		
@@ -282,7 +296,8 @@ BsmtQual: Evaluates the height of the basement
        Fa	Fair (70-79 inches)
        Po	Poor (<70 inches
        NA	No Basement
-		
+Fill NA with no_basement
+
 BsmtCond: Evaluates the general condition of the basement
 
        Ex	Excellent
@@ -291,7 +306,8 @@ BsmtCond: Evaluates the general condition of the basement
        Fa	Fair - dampness or some cracking or settling
        Po	Poor - Severe cracking, settling, or wetness
        NA	No Basement
-	
+Fill NA with no_basement
+
 BsmtExposure: Refers to walkout or garden level walls
 
        Gd	Good Exposure
@@ -299,7 +315,8 @@ BsmtExposure: Refers to walkout or garden level walls
        Mn	Mimimum Exposure
        No	No Exposure
        NA	No Basement
-	
+Fill NA with no_basement
+
 BsmtFinType1: Rating of basement finished area
 
        GLQ	Good Living Quarters
@@ -309,8 +326,12 @@ BsmtFinType1: Rating of basement finished area
        LwQ	Low Quality
        Unf	Unfinshed
        NA	No Basement
+Fill NA with no_basement
 		
 BsmtFinSF1: Type 1 finished square feet (has 1 NA in test)
+Type 1 finished square feet
+- If BsmtFinType1 is no_basement or Unf, then BsmtFinSF1 should be 0
+
 
 BsmtFinType2: Rating of basement finished area (if multiple types)
 
@@ -321,12 +342,22 @@ BsmtFinType2: Rating of basement finished area (if multiple types)
        LwQ	Low Quality
        Unf	Unfinshed
        NA	No Basement
+Fill NA with no_basement
 
 BsmtFinSF2: Type 2 finished square feet (has 1 NA in test)
+if BsmtFinType2 is no_basement or Unf, then BsmtFinSF2 should be 0
+
+
 
 BsmtUnfSF: Unfinished square feet of basement area (has 1 NA in test)
+If BsmtFinType1 and BsmtFinType2 are no_basement, and BsmtUnfSF is null, then BsmtUnfSF should be 0
+
 
 TotalBsmtSF: Total square feet of basement area (has 1 NA in test)
+TotalBsmtSF = BsmtFinSF1 + BsmtFinSF2 + BsmtUnfSF
+If BsmtFinType1 and BsmtFinType2 are no_basement, and TotalBsmtSF is null, then TotalBsmtSF should be 0
+
+
 
 Heating: Type of heating
 		
@@ -367,8 +398,10 @@ LowQualFinSF: Low quality finished square feet (all floors)
 GrLivArea: Above grade (ground) living area square feet
 
 BsmtFullBath: Basement full bathrooms (has NA in test)
+If BsmtFinType1 and BsmtFinType2 are no_basement, and BsmtFullBath is null, then BsmtFullBath should be 0
 
 BsmtHalfBath: Basement half bathrooms (has NA in test)
+If BsmtFinType1 and BsmtFinType2 are no_basement, and BsmtHalfBath is null, then BsmtHalfBath should be 0
 
 FullBath: Full bathrooms above grade 
 
@@ -409,7 +442,8 @@ FireplaceQu: Fireplace quality
        Fa	Fair - Prefabricated Fireplace in basement
        Po	Poor - Ben Franklin Stove
        NA	No Fireplace
-		
+Fill NA with no_fireplace
+
 GarageType: Garage location
 		
        2Types	More than one type of garage
@@ -419,19 +453,27 @@ GarageType: Garage location
        CarPort	Car Port
        Detchd	Detached from home
        NA	No Garage
-		
+Fill NA with no_garage
+
 GarageYrBlt: Year garage was built (Has NA in both train and test) (Test has a year 2207???)
-		
+if GarageType is no_garage, then GarageYrBlt should be 0
+In Test set, I have observed that GarageYrBlt is missing in some cases where GarageType is either 'no_garage' or 'Detchd' (detached garage). Similarly, for GarageQual and GarageCond, the NA values occur for both 'no_garage' and 'Detchd'.
+Therefore, we need to interpret all missing values in GarageYrBlt, GarageQual, and GarageCond as 'no_garage'. For instances where GarageType is 'Detchd' and GarageYrBlt, GarageQual, and GarageCond are missing, we should fill these values with 0 and treat them as 'no_garage'.
+
+
 GarageFinish: Interior finish of the garage
 
        Fin	Finished
        RFn	Rough Finished	
        Unf	Unfinished
        NA	No Garage
-		
+Fill NA with no_garage 
+
 GarageCars: Size of garage in car capacity (HAS NA in test)
 
 GarageArea: Size of garage in square feet (HAS NA in test)
+
+!!! GarageCars Missing and GarageArea Missing by DEALING the Detached Garage Anomalies
 
 GarageQual: Garage quality
 
@@ -441,7 +483,8 @@ GarageQual: Garage quality
        Fa	Fair
        Po	Poor
        NA	No Garage
-		
+Fill NA with no_garage 
+
 GarageCond: Garage condition
 
        Ex	Excellent
@@ -450,7 +493,8 @@ GarageCond: Garage condition
        Fa	Fair
        Po	Poor
        NA	No Garage
-		
+Fill NA with no_garage 
+
 PavedDrive: Paved driveway
 
        Y	Paved 
@@ -468,6 +512,7 @@ EnclosedPorch: Enclosed porch area in square feet (One potential outlier: 1012 i
 ScreenPorch: Screen porch area in square feet
 
 PoolArea: Pool area in square feet
+In test, should force the PoolArea to 0 if PoolQC is No Pool
 
 PoolQC: Pool quality
 		
@@ -476,7 +521,8 @@ PoolQC: Pool quality
        TA	Average/Typical
        Fa	Fair
        NA	No Pool
-		
+Fill NA with no_pool
+
 Fence: Fence quality
 		
        GdPrv	Good Privacy
@@ -484,7 +530,8 @@ Fence: Fence quality
        GdWo	Good Wood
        MnWw	Minimum Wood/Wire
        NA	No Fence
-	
+Fill NA with no_fence
+
 MiscFeature: Miscellaneous feature not covered in other categories
 		
        Elev	Elevator
@@ -493,7 +540,8 @@ MiscFeature: Miscellaneous feature not covered in other categories
        Shed	Shed (over 100 SF)
        TenC	Tennis Court
        NA	None
-		
+Fill NA with 	no_MiscFeature
+
 MiscVal: $Value of miscellaneous feature
 
 MoSold: Month Sold (MM)
@@ -512,7 +560,8 @@ SaleType: Type of sale (Has NA in test)
        ConLI	Contract Low Interest
        ConLD	Contract Low Down
        Oth	Other
-		
+Fill NA with Oth 
+
 SaleCondition: Condition of sale
 
        Normal	Normal Sale
