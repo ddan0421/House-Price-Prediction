@@ -20,28 +20,28 @@ for source in ["train", "test"]:
             with cte as (
                 select
                     *
-                    , ifnull(Alley, 'no_alley') AS Alley
-                    , ifnull(Exterior1st, 'Other') AS Exterior1st
-                    , ifnull(Exterior2nd, 'Other') AS Exterior2nd
-                    , ifnull(MasVnrType, 'None') AS MasVnrType
-                    , ifnull(MasVnrArea, 0) AS MasVnrArea
-                    , ifnull(BsmtQual, 'no_basement') AS BsmtQual
-                    , ifnull(BsmtCond, 'no_basement') AS BsmtCond
-                    , ifnull(BsmtExposure, 'no_basement') AS BsmtExposure
-                    , ifnull(BsmtFinType1, 'no_basement') AS BsmtFinType1
-                    , ifnull(BsmtFinSF1, 0) AS BsmtFinSF1
-                    , ifnull(BsmtFinType2, 'no_basement') AS BsmtFinType2
-                    , ifnull(BsmtFinSF2, 0) AS BsmtFinSF2
-                    , ifnull(FireplaceQu, 'no_fireplace') AS FireplaceQu
-                    , ifnull(GarageType, 'no_garage') AS GarageType
-                    , ifnull(GarageYrBlt, 0) AS GarageYrBlt
-                    , ifnull(GarageFinish, 'no_garage') AS GarageFinish
-                    , ifnull(GarageQual, 'no_garage') AS GarageQual
-                    , ifnull(GarageCond, 'no_garage') AS GarageCond
-                    , ifnull(PoolQC, 'no_pool') AS PoolQC
-                    , ifnull(Fence, 'no_fence') AS Fence
-                    , ifnull(MiscFeature, 'no_MiscFeature') AS MiscFeature
-                    , ifnull(SaleType, 'Oth') AS SaleType
+                    , ifnull(Alley, 'no_alley') AS _Alley
+                    , ifnull(Exterior1st, 'Other') AS _Exterior1st
+                    , ifnull(Exterior2nd, 'Other') AS _Exterior2nd
+                    , ifnull(MasVnrType, 'None') AS _MasVnrType
+                    , ifnull(MasVnrArea, 0) AS _MasVnrArea
+                    , ifnull(BsmtQual, 'no_basement') AS _BsmtQual
+                    , ifnull(BsmtCond, 'no_basement') AS _BsmtCond
+                    , ifnull(BsmtExposure, 'no_basement') AS _BsmtExposure
+                    , ifnull(BsmtFinType1, 'no_basement') AS _BsmtFinType1
+                    , ifnull(BsmtFinSF1, 0) AS _BsmtFinSF1
+                    , ifnull(BsmtFinType2, 'no_basement') AS _BsmtFinType2
+                    , ifnull(BsmtFinSF2, 0) AS _BsmtFinSF2
+                    , ifnull(FireplaceQu, 'no_fireplace') AS _FireplaceQu
+                    , ifnull(GarageType, 'no_garage') AS _GarageType
+                    , ifnull(GarageYrBlt, 0) AS _GarageYrBlt
+                    , ifnull(GarageFinish, 'no_garage') AS _GarageFinish
+                    , ifnull(GarageQual, 'no_garage') AS _GarageQual
+                    , ifnull(GarageCond, 'no_garage') AS _GarageCond
+                    , ifnull(PoolQC, 'no_pool') AS _PoolQC
+                    , ifnull(Fence, 'no_fence') AS _Fence
+                    , ifnull(MiscFeature, 'no_MiscFeature') AS _MiscFeature
+                    , ifnull(SaleType, 'Oth') AS _SaleType
                 from {source}
             )
             select
@@ -51,7 +51,7 @@ for source in ["train", "test"]:
                 , LotFrontage
                 , LotArea
                 , Street
-                , Alley
+                , _Alley as Alley
                 , LotShape
                 , LandContour
                 , Utilities
@@ -68,39 +68,39 @@ for source in ["train", "test"]:
                 , YearRemodAdd
                 , RoofStyle
                 , RoofMatl
-                , Exterior1st
-                , Exterior2nd
-                , MasVnrType
+                , _Exterior1st as Exterior1st
+                , _Exterior2nd as Exterior2nd
+                , _MasVnrType as MasVnrType
                 , case 
-                    when MasVnrType = 'None' then 0
-                    else MasVnrArea            
+                    when _MasVnrType = 'None' then 0
+                    else _MasVnrArea            
                   end as MasVnrArea
                 , ExterQual
                 , ExterCond
                 , Foundation
-                , BsmtQual
-                , BsmtCond
-                , BsmtExposure
-                , BsmtFinType1
+                , _BsmtQual as BsmtQual
+                , _BsmtCond as BsmtCond
+                , _BsmtExposure as BsmtExposure
+                , _BsmtFinType1 as BsmtFinType1
                 , case 
-                    when BsmtFinType1 = 'no_basement' then 0
-                    when BsmtFinType1 = 'Unf' then 0
-                    else BsmtFinSF1
+                    when _BsmtFinType1 = 'no_basement' then 0
+                    when _BsmtFinType1 = 'Unf' then 0
+                    else _BsmtFinSF1
                   end as BsmtFinSF1
-                , BsmtFinType2
+                , _BsmtFinType2 as BsmtFinType2
                 , case 
-                    when BsmtFinType2 = 'no_basement' then 0
-                    when BsmtFinType2 = 'Unf' then 0
-                    else BsmtFinSF2
+                    when _BsmtFinType2 = 'no_basement' then 0
+                    when _BsmtFinType2 = 'Unf' then 0
+                    else _BsmtFinSF2
                   end as BsmtFinSF2
                 , case 
-                    when BsmtFinType1 = 'no_basement' 
-                     and BsmtFinType2 = 'no_basement' then 0
+                    when _BsmtFinType1 = 'no_basement' 
+                     and _BsmtFinType2 = 'no_basement' then 0
                     else BsmtUnfSF
                   end as BsmtUnfSF  
                 , case 
-                    when BsmtFinType1 = 'no_basement' 
-                     and BsmtFinType2 = 'no_basement' then 0
+                    when _BsmtFinType1 = 'no_basement' 
+                     and _BsmtFinType2 = 'no_basement' then 0
                     else TotalBsmtSF
                   end as TotalBsmtSF                           
                 , Heating
@@ -112,13 +112,13 @@ for source in ["train", "test"]:
                 , LowQualFinSF
                 , GrLivArea
                 , case 
-                    when BsmtFinType1 = 'no_basement' 
-                     and BsmtFinType2 = 'no_basement' then 0
+                    when _BsmtFinType1 = 'no_basement' 
+                     and _BsmtFinType2 = 'no_basement' then 0
                     else BsmtFullBath
                   end as BsmtFullBath 
                 , case 
-                    when BsmtFinType1 = 'no_basement' 
-                     and BsmtFinType2 = 'no_basement' then 0
+                    when _BsmtFinType1 = 'no_basement' 
+                     and _BsmtFinType2 = 'no_basement' then 0
                     else BsmtHalfBath
                   end as BsmtHalfBath                 
                 , FullBath
@@ -129,38 +129,38 @@ for source in ["train", "test"]:
                 , TotRmsAbvGrd
                 , Functional
                 , Fireplaces
-                , FireplaceQu
+                , _FireplaceQu as FireplaceQu
                 , case 
-                    when GarageType = 'Detchd'
-                     and GarageYrBlt = 0
-                     and GarageFinish = 'no_garage'
-                     and GarageQual = 'no_garage'
-                     and GarageCond = 'no_garage'
+                    when _GarageType = 'Detchd'
+                     and _GarageYrBlt = 0
+                     and _GarageFinish = 'no_garage'
+                     and _GarageQual = 'no_garage'
+                     and _GarageCond = 'no_garage'
                     then 'no_garage'
-                    else GarageType
+                    else _GarageType
                   end as GarageType
-                , GarageYrBlt
-                , GarageFinish
+                , _GarageYrBlt as GarageYrBlt
+                , _GarageFinish as GarageFinish
                 , case 
-                    when GarageType = 'Detchd'
-                     and GarageYrBlt = 0
-                     and GarageFinish = 'no_garage'
-                     and GarageQual = 'no_garage'
-                     and GarageCond = 'no_garage'
+                    when _GarageType = 'Detchd'
+                     and _GarageYrBlt = 0
+                     and _GarageFinish = 'no_garage'
+                     and _GarageQual = 'no_garage'
+                     and _GarageCond = 'no_garage'
                     then 0
                     else GarageCars
                   end as GarageCars
                 , case 
-                    when GarageType = 'Detchd'
-                     and GarageYrBlt = 0
-                     and GarageFinish = 'no_garage'
-                     and GarageQual = 'no_garage'
-                     and GarageCond = 'no_garage'
+                    when _GarageType = 'Detchd'
+                     and _GarageYrBlt = 0
+                     and _GarageFinish = 'no_garage'
+                     and _GarageQual = 'no_garage'
+                     and _GarageCond = 'no_garage'
                     then 0
                     else GarageArea
                   end as GarageArea                                
-                , GarageQual
-                , GarageCond
+                , _GarageQual as GarageQual
+                , _GarageCond as GarageCond
                 , PavedDrive
                 , WoodDeckSF
                 , OpenPorchSF
@@ -168,16 +168,16 @@ for source in ["train", "test"]:
                 , "3SsnPorch"
                 , ScreenPorch
                 , case
-                    when PoolQC = 'no_pool' then 0
+                    when _PoolQC = 'no_pool' then 0
                     else PoolArea
                   end as PoolArea
-                , PoolQC
-                , Fence
-                , MiscFeature
+                , _PoolQC as PoolQC
+                , _Fence as Fence
+                , _MiscFeature as MiscFeature
                 , MiscVal
                 , MoSold
                 , YrSold
-                , SaleType
+                , _SaleType as SaleType
                 , SaleCondition
                 {target_col}
             from cte;
