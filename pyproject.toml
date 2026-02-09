@@ -3,7 +3,7 @@ name = "house-price-prediction"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12.5,<3.14"
+requires-python = ">=3.12.5,<3.13"
 dependencies = [
     "bayesian-optimization==2.0.3",
     "catboost==1.2.8",
@@ -15,7 +15,7 @@ dependencies = [
     "matplotlib>=3.10.8",
     "optuna==4.3.0",
     "scikit-learn==1.5.1",
-    "scipy>=1.17.0",
+    "scipy==1.15.2",
     "seaborn>=0.13.2",
     "statsmodels==0.14.2",
     "xgboost==2.1.1",
