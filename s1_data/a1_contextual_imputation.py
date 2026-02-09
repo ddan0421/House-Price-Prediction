@@ -187,8 +187,8 @@ for source in ["train", "test"]:
    
 print(conn.execute("SHOW TABLES").fetchall())
 
-train = conn.execute("""select * from train;""").fetch_df()
-test = conn.execute("""select * from test;""").fetch_df()
+train = conn.execute("""select * from train_cleaned;""").fetch_df()
+test = conn.execute("""select * from test_cleaned;""").fetch_df()
 
 train.to_csv("data/train_clean_01.csv", index=False)
 test.to_csv("data/test_clean_01.csv", index=False)
