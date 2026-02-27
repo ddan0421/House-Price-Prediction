@@ -12,16 +12,14 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 
 """
-Model Data Preparation Workflow:
+Advanced Imputation Workflow:
 Step 1: Split the train dataset into train and validation set
 Step 2: Impute categorical missing data in train, validation, and test sets with the mode from training set to prevent data leakage
 Step 3: Creating categorical interaction terms and create time variables
-Step 4: Encode categorical variables separately for train, validation, and test sets to prevent data leakage, ensuring consistent feature alignment using one-hot encoding and applying ordinal encoding mappings from the train set to the test set
+Step 4: Encode nominal categorical variables separately for train, validation, and test sets to prevent data leakage, ensuring consistent feature alignment using one-hot encoding
 Step 5: Impute missing continuous numerical data in the training set using IterativeImputer with BayesianRidge estimator
 Step 6: Impute missing continuous numerical data in the validation set using the trained imputer
 Step 7: Impute missing continuous numerical data in the test set using the trained imputer
-Step 8: Correlation analysis and transform numerical terms
-Step 9: Creating interaction terms for numerical variables
 
 
 Impute Categorical Data (train, validation, test):
@@ -84,7 +82,7 @@ Feature engineering with year and month variables
 
 
 def feature_engineering(df):
-    conn = duckdb.connect()
+    conn = duckdb.connect(database=":memory:")
     conn.register("original_df", df)
     query = """
     WITH cte AS (
@@ -132,11 +130,11 @@ def feature_engineering(df):
     return result
 
 
-X_train = feature_engineering(X_train)
-X_val = feature_engineering(X_val)
-test = feature_engineering(test)
+X_train_engineered = feature_engineering(X_train)
+X_val_engineered = feature_engineering(X_val)
+test_engineered = feature_engineering(test)
 
-# Step 4: Encode categorical variables separately for train, validation, and test sets to prevent data leakage, ensuring consistent feature alignment using one-hot encoding and applying ordinal encoding mappings from the train set to the test set
+# Step 4: Encode nominal categorical variables separately for train, validation, and test sets to prevent data leakage, ensuring consistent feature alignment using one-hot encoding
 nominal_cat = ["MSSubClass_MSZoning", "LotConfig_LandSlope", "Neighborhood_Condition", "BldgType_HouseStyle",
                "Exterior1st_Exterior2nd", "CentralAir_Electrical", "LotShape_LandContour", "RoofStyle_RoofMatl",
                "Heating_HeatingQC", "Street", "Alley", "Utilities", "MasVnrType", "Foundation", 
@@ -144,158 +142,13 @@ nominal_cat = ["MSSubClass_MSZoning", "LotConfig_LandSlope", "Neighborhood_Condi
                "Fence", "MiscFeature", "SaleType", "SaleCondition", "Season_Sold"]
 
 
-ordinal_cat = ["OverallQual", "OverallCond", "ExterQual", "ExterCond", "BsmtQual", "BsmtCond", "BsmtExposure", 
-               "BsmtFinType1", "BsmtFinType2", "KitchenQual", "FireplaceQu", "GarageFinish", "GarageQual", "GarageCond", 
-               "PoolQC"]
-
 # One-hot encode nominal categorical variables
-X_train_encoded = pd.get_dummies(X_train, columns=nominal_cat, drop_first=True)
-X_val_encoded = pd.get_dummies(X_val, columns=nominal_cat, drop_first=True)
-test_encoded = pd.get_dummies(test, columns=nominal_cat, drop_first=True)
+X_train_encoded = pd.get_dummies(X_train_engineered, columns=nominal_cat, drop_first=True)
+X_val_encoded = pd.get_dummies(X_val_engineered, columns=nominal_cat, drop_first=True)
+test_encoded = pd.get_dummies(test_engineered, columns=nominal_cat, drop_first=True)
 
 X_val_encoded = X_val_encoded.reindex(columns=X_train_encoded.columns, fill_value=0)
 test_encoded = test_encoded.reindex(columns=X_train_encoded.columns, fill_value=0)
-
-# Use Duckdb to encode ordinal categorical variables
-
-def ordinal_encoding(df):
-    conn = duckdb.connect()
-    conn.register("input_df", df)
-    query = """
-    WITH cte AS (
-    SELECT 
-        *,
-        -- OverallQual is already in numeric format, so no need to encode it
-        -- OverallCond is already in numeric format, so no need to encode it
-        CASE 
-            WHEN ExterQual = 'Ex' THEN 5
-            WHEN ExterQual = 'Gd' THEN 4
-            WHEN ExterQual = 'TA' THEN 3
-            WHEN ExterQual = 'Fa' THEN 2
-            WHEN ExterQual = 'Po' THEN 1
-            ELSE 0
-        END AS ExterQual_encoded,
-        CASE
-            WHEN ExterCond = 'Ex' THEN 5
-            WHEN ExterCond = 'Gd' THEN 4
-            WHEN ExterCond = 'TA' THEN 3
-            WHEN ExterCond = 'Fa' THEN 2
-            WHEN ExterCond = 'Po' THEN 1
-            ELSE 0
-        END AS ExterCond_encoded,
-        CASE
-            WHEN BsmtQual = 'Ex' THEN 5
-            WHEN BsmtQual = 'Gd' THEN 4
-            WHEN BsmtQual = 'TA' THEN 3
-            WHEN BsmtQual = 'Fa' THEN 2
-            WHEN BsmtQual = 'Po' THEN 1
-            ELSE 0
-        END AS BsmtQual_encoded,
-        CASE
-            WHEN BsmtCond = 'Ex' THEN 5
-            WHEN BsmtCond = 'Gd' THEN 4
-            WHEN BsmtCond = 'TA' THEN 3
-            WHEN BsmtCond = 'Fa' THEN 2
-            WHEN BsmtCond = 'Po' THEN 1
-            ELSE 0
-        END AS BsmtCond_encoded,
-        CASE
-            WHEN BsmtExposure = 'Gd' THEN 4
-            WHEN BsmtExposure = 'Av' THEN 3
-            WHEN BsmtExposure = 'Mn' THEN 2
-            WHEN BsmtExposure = 'No' THEN 1
-            ELSE 0
-        END AS BsmtExposure_encoded,
-        CASE
-            WHEN BsmtFinType1 = 'GLQ' THEN 6
-            WHEN BsmtFinType1 = 'ALQ' THEN 5
-            WHEN BsmtFinType1 = 'BLQ' THEN 4
-            WHEN BsmtFinType1 = 'Rec' THEN 3
-            WHEN BsmtFinType1 = 'LwQ' THEN 2
-            WHEN BsmtFinType1 = 'Unf' THEN 1
-            ELSE 0
-        END AS BsmtFinType1_encoded,
-        CASE
-            WHEN BsmtFinType2 = 'GLQ' THEN 6
-            WHEN BsmtFinType2 = 'ALQ' THEN 5
-            WHEN BsmtFinType2 = 'BLQ' THEN 4
-            WHEN BsmtFinType2 = 'Rec' THEN 3
-            WHEN BsmtFinType2 = 'LwQ' THEN 2
-            WHEN BsmtFinType2 = 'Unf' THEN 1
-            ELSE 0
-        END AS BsmtFinType2_encoded,
-        CASE
-            WHEN KitchenQual = 'Ex' THEN 5
-            WHEN KitchenQual = 'Gd' THEN 4
-            WHEN KitchenQual = 'TA' THEN 3
-            WHEN KitchenQual = 'Fa' THEN 2
-            WHEN KitchenQual = 'Po' THEN 1
-            ELSE 0
-        END AS KitchenQual_encoded,
-        CASE
-            WHEN FireplaceQu = 'Ex' THEN 5
-            WHEN FireplaceQu = 'Gd' THEN 4
-            WHEN FireplaceQu = 'TA' THEN 3
-            WHEN FireplaceQu = 'Fa' THEN 2
-            WHEN FireplaceQu = 'Po' THEN 1
-            ELSE 0
-        END AS FireplaceQu_encoded,
-        CASE
-            WHEN GarageFinish = 'Fin' THEN 3
-            WHEN GarageFinish = 'RFn' THEN 2
-            WHEN GarageFinish = 'Unf' THEN 1
-            ELSE 0
-        END AS GarageFinish_encoded,
-        CASE
-            WHEN GarageQual = 'Ex' THEN 5
-            WHEN GarageQual = 'Gd' THEN 4
-            WHEN GarageQual = 'TA' THEN 3
-            WHEN GarageQual = 'Fa' THEN 2
-            WHEN GarageQual = 'Po' THEN 1
-            ELSE 0
-        END AS GarageQual_encoded,
-        CASE
-            WHEN GarageCond = 'Ex' THEN 5
-            WHEN GarageCond = 'Gd' THEN 4
-            WHEN GarageCond = 'TA' THEN 3
-            WHEN GarageCond = 'Fa' THEN 2
-            WHEN GarageCond = 'Po' THEN 1
-            ELSE 0
-        END AS GarageCond_encoded,
-        CASE
-            WHEN PoolQC = 'Ex' THEN 4
-            WHEN PoolQC = 'Gd' THEN 3
-            WHEN PoolQC = 'TA' THEN 2
-            WHEN PoolQC = 'Fa' THEN 1
-            ELSE 0
-        END AS PoolQC_encoded,
-    FROM input_df)
-    
-    SELECT * EXCLUDE (
-        "ExterQual", "ExterCond", "BsmtQual", "BsmtCond", "BsmtExposure", 
-        "BsmtFinType1", "BsmtFinType2", "KitchenQual", "FireplaceQu", "GarageFinish", "GarageQual", "GarageCond", 
-        "PoolQC")
-    FROM cte;
-    """
-    result = conn.query(query).fetchdf()
-    conn.close()
-    return result
-
-X_train_encoded = ordinal_encoding(X_train_encoded)
-X_val_encoded = ordinal_encoding(X_val_encoded)
-test_encoded = ordinal_encoding(test_encoded)
-
-
-bool_columns_train = X_train_encoded.select_dtypes(include="bool").columns
-bool_columns_val = X_val_encoded.select_dtypes(include="bool").columns
-bool_columns_test = test_encoded.select_dtypes(include="bool").columns
-
-X_train_encoded[bool_columns_train] = X_train_encoded[bool_columns_train].astype("int8")
-X_val_encoded[bool_columns_val] = X_val_encoded[bool_columns_val].astype("int8")
-test_encoded[bool_columns_test] = test_encoded[bool_columns_test].astype("int8")
-
-
-
 
 
 ############################### Train Data LotFrontage Missing Data Imputation ########################################
@@ -330,77 +183,36 @@ iterative_imputer = IterativeImputer(estimator=BayesianRidge(), random_state=42)
 
 X_train_imputed = X_train_encoded.copy()  
 X_train_imputed["LotFrontage"] = iterative_imputer.fit_transform(X_train_encoded[columns_for_imputation + ["LotFrontage"]])[ :, -1]
+X_train["LotFrontage"] = X_train_imputed["LotFrontage"].values
 
 # Step 6: Impute missing continuous numerical data in the validation set using the trained imputer
 X_val_imputed = X_val_encoded.copy()  
 X_val_imputed["LotFrontage"] = iterative_imputer.transform(X_val_encoded[columns_for_imputation + ["LotFrontage"]])[:, -1]
+X_val["LotFrontage"] = X_val_imputed["LotFrontage"].values
 
+# Step 7: Impute missing continuous numerical data in the test set using the trained imputer
+test_imputed = test_encoded.copy()  
+test_imputed["LotFrontage"] = iterative_imputer.transform(test_encoded[columns_for_imputation + ["LotFrontage"]])[:, -1]
+test["LotFrontage"] = test_imputed["LotFrontage"].values
+
+# Save imputed data into the DuckDB database
+y_train = y_train.to_frame(name="SalePrice")
+y_val = y_val.to_frame(name="SalePrice")
+
+for source in ["X_train", "X_val", "y_train", "y_val", "test"]:
+    query = f"""
+        create or replace table {source} as
+            select * from {source};
+    """
+    conn.execute(query)
+print(conn.execute("SHOW TABLES").fetchall())
+conn.close()
+
+# Export for EDA
 X_combined = pd.concat([X_train_imputed.sort_values(by="Id", ascending=True), X_val_imputed.sort_values(by="Id", ascending=True)], axis=0, ignore_index=True)
 train["LotFrontage"] = X_combined["LotFrontage"]
 train["Age_House"] = X_combined["Age_House"]
 train["Yrs_Since_Remodel"] = X_combined["Yrs_Since_Remodel"]
 train["Age_Garage"] = X_combined["Age_Garage"]
-train.to_csv("data/train_after_imputation_EDA.csv", index=False)
+train.to_csv(os.path.join(base_folder, "train_after_imputation_EDA.csv"), index=False)
 
-# Step 7: Impute missing continuous numerical data in the test set using the trained imputer
-test_imputed = test_encoded.copy()  
-test_imputed["LotFrontage"] = iterative_imputer.transform(test_encoded[columns_for_imputation + ["LotFrontage"]])[:, -1]
-
-# Step 8: Correlation analysis and transform numerical terms
-"""
-numerical_cols = ["LotFrontage", "LotArea", "MasVnrArea", "TotalBsmtSF", "1stFlrSF", "2ndFlrSF",
-                  "LowQualFinSF", "GrLivArea", "BsmtFullBath", "BsmtHalfBath", "FullBath",
-                  "HalfBath", "BedroomAbvGr", "KitchenAbvGr", "TotRmsAbvGrd",
-                  "Fireplaces", "GarageCars", "GarageArea", "WoodDeckSF",
-                  "OpenPorchSF", "EnclosedPorch", "3SsnPorch", "ScreenPorch", "PoolArea",
-                  "MiscVal", "Age_House", "Yrs_Since_Remodel", "Age_Garage", "SalePrice"]
-
-
-log transformation
-- LotFrontage
-- LotArea
-- 1stFlrSF
-- 2ndFlrSF
-- LowQualFinSF
-- GrLivArea
-- Yrs_Since_Remodel
-- Age_Garage
-- SalePrice
-
-
-square root transformation
-- TotalBsmtSF
-- WoodDeckSF
-- BsmtUnfSF
-- BsmtFinSF1
-
-cube root transformation
-- MasVnrArea
-- OpenPorchSF
-
-
-no need to transform
-- BsmtFullBath
-- BsmtHalfBath
-- FullBath
-- HalfBath
-- BedroomAbvGr
-- KitchenAbvGr
-- TotRmsAbvGrd
-- Fireplaces
-- GarageCars
-- GarageArea (already pretty normal)
-- EnclosedPorch
-- 3SsnPorch
-- ScreenPorch
-- PoolArea
-- MiscVal
-- Age_House
-- BsmtFinSF2
-"""
-
-
-
-# unfinished
-# resulting
-# X_train, X_val, X_test not encoded but has missing values (categorical and LotFrontage imputed)
