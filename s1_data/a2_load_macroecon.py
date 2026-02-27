@@ -1,10 +1,9 @@
 import duckdb
 import os 
 
-folder = "data"
+base_folder = "data"
 database = "AmesHousePrice.duckdb"
-
-database_path = os.path.join(folder, database)
+database_path = os.path.join(base_folder, database)
 
 conn = duckdb.connect(database=database_path, read_only=False)
 

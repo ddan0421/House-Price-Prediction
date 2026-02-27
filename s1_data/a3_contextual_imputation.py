@@ -4,20 +4,17 @@ import os
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-
-
-folder = "data"
+base_folder = "data"
 database = "AmesHousePrice.duckdb"
-database_path = os.path.join(folder, database)
+database_path = os.path.join(base_folder, database)
 
-
-conn = duckdb.connect(database_path)
+conn = duckdb.connect(database=database_path, read_only=False)
 
 
 for source in ["train", "test"]:
     target_col = ', SalePrice' if source == "train" else ""
     query = f"""
-        create or replace table {source}_cleaned as
+        create or replace table {source}_contextual_imputed as
             with cte as (
                 select
                     *
@@ -190,11 +187,5 @@ for source in ["train", "test"]:
     conn.execute(query)
    
 print(conn.execute("SHOW TABLES").fetchall())
-
-train = conn.execute("""select * from train_cleaned;""").fetch_df()
-test = conn.execute("""select * from test_cleaned;""").fetch_df()
-
-train.to_csv("data/train_clean_01.csv", index=False)
-test.to_csv("data/test_clean_01.csv", index=False)
 
 conn.close()

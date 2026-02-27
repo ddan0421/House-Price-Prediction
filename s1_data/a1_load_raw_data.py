@@ -5,15 +5,14 @@ data_dict = {
     "train.csv": "1r_4AM9FYosvw_Ubd_8mu8YlIHRiqTjgs",
     "test.csv": "1SkMch2UNTCMDmDcK6OL2fd-ZGNGj2SSB"
 }
-folder = "data"
+base_folder = "data"
 database = "AmesHousePrice.duckdb"
-
-database_path = os.path.join(folder, database)
-train_path = os.path.join(folder, "train.csv")
-test_path = os.path.join(folder, "test.csv")
+database_path = os.path.join(base_folder, database)
+train_path = os.path.join(base_folder, "train.csv")
+test_path = os.path.join(base_folder, "test.csv")
 
 for filename, file_id in data_dict.items():
-    download_from_drive(file_id, filename, folder)
+    download_from_drive(file_id, filename, base_folder)
 
 conn = duckdb.connect(database = database_path, read_only = False)
 
