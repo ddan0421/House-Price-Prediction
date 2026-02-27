@@ -1,16 +1,17 @@
 import pandas as pd
-import warnings
 import duckdb
+import os
+import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-from data.gdrive_download import download_from_drive
-file_id = "1wUrGG6OijEhwA4YvZx8VzsyqkJFZPv-G"
-filename = "AmesHousePrice.duckdb"
+
+
 folder = "data"
-download_from_drive(file_id, filename, folder)
+database = "AmesHousePrice.duckdb"
+database_path = os.path.join(folder, database)
 
 
-conn = duckdb.connect("data/AmesHousePrice.duckdb")
+conn = duckdb.connect(database_path)
 
 
 for source in ["train", "test"]:

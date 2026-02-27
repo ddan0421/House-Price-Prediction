@@ -1,6 +1,5 @@
 import duckdb
-import pandas as pd
-from data.gdrive_download import *
+from s1_data.gdrive_download import *
 
 data_dict = {
     "train.csv": "1r_4AM9FYosvw_Ubd_8mu8YlIHRiqTjgs",
@@ -8,7 +7,7 @@ data_dict = {
 }
 folder = "data"
 database = "AmesHousePrice.duckdb"
-os.makedirs(folder, exist_ok=True)
+
 database_path = os.path.join(folder, database)
 train_path = os.path.join(folder, "train.csv")
 test_path = os.path.join(folder, "test.csv")
