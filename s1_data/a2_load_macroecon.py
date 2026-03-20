@@ -1,5 +1,8 @@
 import duckdb
 import os 
+from io import StringIO
+import requests
+import pandas as pd
 
 base_folder = "data"
 database = "AmesHousePrice.duckdb"
@@ -33,6 +36,84 @@ conn.execute("""
              
              """)
 
+# 30-yr pmms
+# Fetch csv from stlouis Fed site
+#   - Check for successful response: code 200
+url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id=MORTGAGE30US"
+response = requests.get(url)
+if response.status_code == 200:
+    data = StringIO(response.text)
+    pmms = pd.read_csv(data)
+else:
+    print(f"Failed to fetch pmms 30yr data: {response.status_code}")
+
+
+conn.execute("""
+    create or replace table pmms as
+        with cte as (
+            select 
+                date_trunc('month', cast(observation_date as DATE)) as Dt,
+                avg(cast(MORTGAGE30US as double)) as pmms
+            from pmms
+            group by date_trunc('month', cast(observation_date as DATE))
+        )
+        select 
+             A.Dt,
+             '30yr' as Term,
+             A.pmms,
+             A.pmms - B.pmms as pmms_chg
+        from cte as A
+        join cte as B
+          on B.Dt = A.Dt - interval 12 month
+       order by A.Dt;
+             """)
+
+
+# Unemployment rate in Ames, IA
+url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id=AMES119URN"
+response = requests.get(url)
+if response.status_code == 200:
+    data = StringIO(response.text)
+    ue = pd.read_csv(data)
+else:
+    print(f"Failed to fetch Ames Unemployment Rate data: {response.status_code}")
+
+conn.execute("""
+    create or replace table ue as
+        with cte as (
+            select 
+                date_trunc('month', cast(observation_date as DATE)) as Dt,
+                cast(AMES119URN as double) as ue
+            from ue
+        )
+        select 
+             A.Dt,
+             A.ue,
+             A.ue - B.ue as ue_chg
+        from cte as A
+        join cte as B
+          on B.Dt = A.Dt - interval 12 month
+       order by A.Dt;
+             """)
+
+
+# Property listing median days on market YoY in Ames, IA
+url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id=MEDDAYONMARYY11180"
+response = requests.get(url)
+if response.status_code == 200:
+    data = StringIO(response.text)
+    dom = pd.read_csv(data)
+else:
+    print(f"Failed to fetch Median Days on Market data: {response.status_code}")
+
+
+conn.execute("""
+    create or replace table dom_yoy as
+        select 
+            date_trunc('month', cast(observation_date as DATE)) as Dt,
+            cast(MEDDAYONMARYY11180 as double) as dom_yoy
+        from dom;
+            """)
 
 print(conn.execute("SHOW TABLES").fetchall())
 conn.close()
