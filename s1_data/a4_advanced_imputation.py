@@ -298,7 +298,7 @@ def ordinal_encoding(df):
             WHEN CentralAir = 'N' THEN 0
             WHEN CentralAir = 'Y' THEN 1
             ELSE 0
-        END AS CentralAir_encoded
+        END AS CentralAir_encoded,
         CASE
             WHEN Street = 'Grvl' THEN 0
             WHEN Street = 'Pave' THEN 1
