@@ -39,8 +39,8 @@ database_path = os.path.join(base_folder, database)
 
 conn = duckdb.connect(database=database_path, read_only=False)
 
-train = conn.execute("""select * from train_contextual_imputed""").fetch_df()
-test = conn.execute("""select * from test_contextual_imputed""").fetch_df()
+train = conn.execute("""select * from train_contextual_imputed order by Id""").fetch_df()
+test = conn.execute("""select * from test_contextual_imputed order by Id""").fetch_df()
 
 
 # Step 1: Split the train dataset into train and validation set
@@ -339,38 +339,41 @@ iterative_imputer = IterativeImputer(estimator=BayesianRidge(), random_state=42)
 
 X_train_imputed = X_train_encoded.copy()  
 X_train_imputed["LotFrontage"] = iterative_imputer.fit_transform(X_train_encoded[columns_for_imputation + ["LotFrontage"]])[ :, -1]
-X_train["LotFrontage"] = X_train_imputed["LotFrontage"].values
 
 # Step 7: Impute missing continuous numerical data in the validation set using the trained imputer
 X_val_imputed = X_val_encoded.copy()  
 X_val_imputed["LotFrontage"] = iterative_imputer.transform(X_val_encoded[columns_for_imputation + ["LotFrontage"]])[:, -1]
-X_val["LotFrontage"] = X_val_imputed["LotFrontage"].values
 
 # Step 8: Impute missing continuous numerical data in the test set using the trained imputer
 test_imputed = test_encoded.copy()  
 test_imputed["LotFrontage"] = iterative_imputer.transform(test_encoded[columns_for_imputation + ["LotFrontage"]])[:, -1]
 test["LotFrontage"] = test_imputed["LotFrontage"].values
 
-# Save imputed data into the DuckDB database
-y_train = y_train.to_frame(name="SalePrice")
-y_val = y_val.to_frame(name="SalePrice")
+# Combine imputed LotFrontage with the original train and validation sets and export train and test to duckdb
+X_combined = pd.concat([X_train_imputed, X_val_imputed], axis=0)
 
-for source in ["X_train", "X_val", "y_train", "y_val", "test"]:
-    # get the pandas DataFrame from Python globals()
+X_combined = (
+    X_combined
+    .sort_values(by="Id") 
+    .reset_index(drop=True)
+)
+
+train["LotFrontage"] = X_combined["LotFrontage"]
+train["Age_House"] = X_combined["Age_House"]
+train["Yrs_Since_Remodel"] = X_combined["Yrs_Since_Remodel"]
+
+for source in ["train", "test"]:
     df = globals()[source]
     conn.execute(f"drop table if exists {source}")
     query = f"""
         create or replace table {source} as
-            select * from df;
+            select * from df
+            order by Id;
     """
     conn.execute(query)
 print(conn.execute("SHOW TABLES").fetchall())
 conn.close()
 
 # Export for EDA
-X_combined = pd.concat([X_train_imputed.sort_values(by="Id", ascending=True), X_val_imputed.sort_values(by="Id", ascending=True)], axis=0, ignore_index=True)
-train["LotFrontage"] = X_combined["LotFrontage"]
-train["Age_House"] = X_combined["Age_House"]
-train["Yrs_Since_Remodel"] = X_combined["Yrs_Since_Remodel"]
 train.to_csv(os.path.join(base_folder, "train_after_imputation_EDA.csv"), index=False)
 
