@@ -125,7 +125,7 @@ test_engineered = feature_engineering(test)
 # Step 4: Encode nominal categorical variables separately for train, validation, and test sets to prevent data leakage, ensuring consistent feature alignment using one-hot encoding
 nominal_cat = ["MSSubClass_MSZoning", "LotConfig", "Neighborhood", "Condition_Class", "BldgType_HouseStyle",
                "Exterior1st_Exterior2nd", "Electrical", "LandContour", "RoofStyle", "RoofMatl",
-               "Heating", "Street", "Alley", "MasVnrType", "Foundation", 
+               "Heating", "Alley", "MasVnrType", "Foundation", 
                "GarageType", "PavedDrive", 
                "Fence", "MiscFeature", "SaleType", "SaleCondition", "Season_Sold"]
 
@@ -133,7 +133,7 @@ ordinal_cat = ["LandSlope", "LotShape", "HeatingQC", "Utilities", "Functional", 
                "BsmtFinType1", "BsmtFinType2", "KitchenQual", "FireplaceQu", "GarageFinish", "GarageQual", "GarageCond", 
                "PoolQC"]
 
-binary_nominal = ["CentralAir"]
+binary_nominal = ["CentralAir", "Street"]
 
 # One-hot encode nominal categorical variables
 X_train_encoded = pd.get_dummies(X_train_engineered, columns=nominal_cat, drop_first=True)
@@ -299,6 +299,11 @@ def ordinal_encoding(df):
             WHEN CentralAir = 'Y' THEN 1
             ELSE 0
         END AS CentralAir_encoded
+        CASE
+            WHEN Street = 'Grvl' THEN 0
+            WHEN Street = 'Pave' THEN 1
+            ELSE 0
+        END AS Street_encoded
     FROM input_df)
     
     SELECT * EXCLUDE (
@@ -329,7 +334,7 @@ test_encoded[bool_columns_test] = test_encoded[bool_columns_test].astype("int8")
 # Step 6: Impute missing continuous numerical data in the training set using IterativeImputer with BayesianRidge estimator
 # Columns to be used as predictors for imputing "LotFrontage"
 columns_for_imputation = [
-    "LotArea", "1stFlrSF", "Street_Pave", "LotShape_encoded"
+    "LotArea", "1stFlrSF", "Street_encoded", "LotShape_encoded"
 ] + [col for col in X_train_encoded.columns if col.startswith("Neighborhood_")] \
   + [col for col in X_train_encoded.columns if col.startswith("LandContour_")] \
   + [col for col in X_train_encoded.columns if col.startswith("LotConfig_")] \
@@ -359,8 +364,6 @@ X_combined = (
 )
 
 train["LotFrontage"] = X_combined["LotFrontage"]
-train["Age_House"] = X_combined["Age_House"]
-train["Yrs_Since_Remodel"] = X_combined["Yrs_Since_Remodel"]
 
 for source in ["train", "test"]:
     df = globals()[source]
