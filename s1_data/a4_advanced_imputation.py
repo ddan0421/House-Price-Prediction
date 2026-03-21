@@ -356,9 +356,12 @@ y_train = y_train.to_frame(name="SalePrice")
 y_val = y_val.to_frame(name="SalePrice")
 
 for source in ["X_train", "X_val", "y_train", "y_val", "test"]:
+    # get the pandas DataFrame from Python globals()
+    df = globals()[source]
+    conn.execute(f"drop table if exists {source}")
     query = f"""
         create or replace table {source} as
-            select * from {source};
+            select * from df;
     """
     conn.execute(query)
 print(conn.execute("SHOW TABLES").fetchall())
