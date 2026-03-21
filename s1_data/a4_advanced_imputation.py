@@ -307,7 +307,7 @@ def ordinal_encoding(df):
     FROM input_df)
     
     SELECT * EXCLUDE (
-        "LandSlope", "LotShape", "HeatingQC", "Utilities", "Functional", "CentralAir",
+        "LandSlope", "LotShape", "HeatingQC", "Utilities", "Functional", "CentralAir", "Street",
         "ExterQual", "ExterCond", "BsmtQual", "BsmtCond", "BsmtExposure", 
         "BsmtFinType1", "BsmtFinType2", "KitchenQual", "FireplaceQu", "GarageFinish", "GarageQual", "GarageCond", 
         "PoolQC")
