@@ -180,6 +180,14 @@ for source in ["train", "test"]:
                 , YrSold
                 , _SaleType as SaleType
                 , SaleCondition
+                , HPI
+                , HPA
+                , pmms
+                , pmms_chg
+                , ue
+                , ue_chg
+                , nonfarm
+                , nonfarm_yoy
                 {target_col}
             from cte;
 
