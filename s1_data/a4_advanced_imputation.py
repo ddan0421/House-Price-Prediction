@@ -82,9 +82,8 @@ Feature engineering with year and month variables
 """
 
 
-def feature_engineering(df):
-    conn = duckdb.connect()
-    conn.register("original_df", df)
+def feature_engineering(conn, df):
+    conn.register("input_df", df)
     query = """
     WITH cte AS (
     SELECT 
@@ -114,7 +113,7 @@ def feature_engineering(df):
         IF((YrSold - YearBuilt) < 0 OR YrSold IS NULL OR YearBuilt IS NULL, 0, (YrSold - YearBuilt)) AS Age_House,
         IF((YrSold - YearRemodAdd) < 0 OR YrSold IS NULL OR YearRemodAdd IS NULL, 0, (YrSold - YearRemodAdd)) AS Yrs_Since_Remodel,
         IF((YrSold - GarageYrBlt) < 0 OR GarageYrBlt IS NULL OR GarageType = 'no_garage', 0, (YrSold - GarageYrBlt)) AS Age_Garage
-    FROM original_df)
+    FROM input_df)
     
     SELECT * EXCLUDE ("MSSubClass", "MSZoning", "LotConfig", "LandSlope", 
         "Condition1", "Condition2", "Neighborhood", 
@@ -126,13 +125,13 @@ def feature_engineering(df):
         "Heating", "HeatingQC", "MoSold", "YearBuilt", "YearRemodAdd", "GarageYrBlt", "YrSold")
     FROM cte;
     """
-    result = conn.query(query).fetchdf()
-    conn.close()
+    result = conn.execute(query).fetchdf()
+    conn.unregister("input_df")
     return result
 
-X_train_engineered = feature_engineering(X_train)
-X_val_engineered = feature_engineering(X_val)
-test_engineered = feature_engineering(test)
+X_train_engineered = feature_engineering(conn, X_train)
+X_val_engineered = feature_engineering(conn, X_val)
+test_engineered = feature_engineering(conn, test)
 
 # Step 4: Encode nominal categorical variables separately for train, validation, and test sets to prevent data leakage, ensuring consistent feature alignment using one-hot encoding
 nominal_cat = ["MSSubClass_MSZoning", "LotConfig_LandSlope", "Neighborhood_Condition", "BldgType_HouseStyle",
@@ -156,8 +155,7 @@ X_val_encoded = X_val_encoded.reindex(columns=X_train_encoded.columns, fill_valu
 test_encoded = test_encoded.reindex(columns=X_train_encoded.columns, fill_value=0)
 
 # Step 5: Encode ordinal categorical variables and binary nominal categorical variable using label encoding
-def ordinal_encoding(df):
-    conn = duckdb.connect()
+def ordinal_encoding(conn, df):
     conn.register("input_df", df)
     query = """
     WITH cte AS (
@@ -299,13 +297,13 @@ def ordinal_encoding(df):
         "PoolQC")
     FROM cte;
     """
-    result = conn.query(query).fetchdf()
-    conn.close()
+    result = conn.execute(query).fetchdf()
+    conn.unregister("input_df")
     return result
 
-X_train_encoded = ordinal_encoding(X_train_encoded)
-X_val_encoded = ordinal_encoding(X_val_encoded)
-test_encoded = ordinal_encoding(test_encoded)
+X_train_encoded = ordinal_encoding(conn, X_train_encoded)
+X_val_encoded = ordinal_encoding(conn, X_val_encoded)
+test_encoded = ordinal_encoding(conn, test_encoded)
 
 
 bool_columns_train = X_train_encoded.select_dtypes(include="bool").columns
