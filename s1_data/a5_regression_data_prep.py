@@ -434,3 +434,6 @@ conn.register("X_val_reg", X_val_transformed)
 conn.register("test_reg", test_transformed)
 conn.register("y_train", y_train_final)
 conn.register("y_val", y_val_final)
+
+print(conn.execute("SHOW TABLES").fetchall())
+conn.close()
