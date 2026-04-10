@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import statsmodels.api as sm
-import models
+from s2_model.models import *
 import duckdb
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from sklearn.metrics import root_mean_squared_error
@@ -11,19 +11,28 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.model_selection import GridSearchCV, KFold
 from sklearn.svm import SVR
 import pickle
+from s1_data.db_utils import *
 
+import os
+base_folder = "data"
+database = "AmesHousePrice.duckdb"
+database_path = os.path.join(base_folder, database)
 
-X_train = pd.read_csv("data/model_data/X_train_reg.csv")
-X_val = pd.read_csv("data/model_data/X_val_reg.csv")
-test_final = pd.read_csv("data/model_data/test_final_reg.csv")
-y_train = pd.read_csv("data/model_data/y_train_reg.csv")
-y_val = pd.read_csv("data/model_data/y_val_reg.csv")
+conn = duckdb.connect(database=database_path, read_only=False)
+
+X_train = load_df(conn, "X_train_reg")
+X_val = load_df(conn, "X_val_reg")
+test_final = load_df(conn, "test_reg")
+y_train = load_df(conn, "y_train")
+y_val = load_df(conn, "y_val")
+
+print(X_train.head(10))
 
 random_state = 42
 
 ############################# Feature Selection: Stepwise Selection for OLS Regression #############################
 # Stepwise Selection for OLS Regression
-selected_features_stepwise = models.ols_stepwise_selection(X_train, y_train, threshold_in=0.01, threshold_out=0.05)
+# selected_features_stepwise = models.ols_stepwise_selection(X_train, y_train, threshold_in=0.01, threshold_out=0.05)
 
 ############################# Feature Selection: Selected Numeric Variables based on Correlation Matrix and Domain Knowledge #############################
 selected_numeric_features = [
@@ -41,7 +50,7 @@ lasso = ['OverallQual', 'log_GrLivArea', 'Age_House', 'log_LotArea',
        'sqrt_TotalBsmtSF', 'KitchenQual_encoded',
        'Neighborhood_Condition_Crawfor_Norm', 'Garage_Space', 'Fireplaces',
        'Foundation_PConc', 'Exterior1st_Exterior2nd_BrkFace_Wd Sdng',
-       'Neighborhood_Condition_StoneBr_Norm', 'Functional_Typ',
+       'Neighborhood_Condition_StoneBr_Norm', 'Functional_encoded',
        'BsmtExposure_encoded', 'KitchenAbvGr', 'SaleType_New',
        'SaleCondition_Normal', 'BsmtFullBath',
        'Neighborhood_Condition_NridgHt_Norm', 'PoolQC_encoded',
@@ -61,7 +70,7 @@ combined_features_lr.sort()
 X_train_regress = sm.add_constant(X_train[combined_features_lr])
 X_val_regress = sm.add_constant(X_val[combined_features_lr])
 
-ols_lr = models.sm_ols(X_train_regress, y_train)
+ols_lr = sm_ols(X_train_regress, y_train)
 
 ############################# Regularized Regression Models #############################
 X_train_reg_lr = X_train[combined_features_lr]
