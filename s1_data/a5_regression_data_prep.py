@@ -4,6 +4,7 @@ from sklearn.model_selection import train_test_split
 import os
 import numpy as np
 from sklearn.preprocessing import StandardScaler
+from s1_data.db_utils import *
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -27,8 +28,8 @@ database_path = os.path.join(base_folder, database)
 
 conn = duckdb.connect(database=database_path, read_only=False)
 
-train = conn.execute("""select * from train order by Id""").fetch_df()
-test = conn.execute("""select * from test order by Id""").fetch_df()
+train = load_df(conn, "train")
+test = load_df(conn, "test")
 
 # Step 1: Split the train dataset into train and validation set
 X = train.drop(columns=["SalePrice"], axis=1)
@@ -94,7 +95,7 @@ def feature_engineering(conn, df):
         IF((YrSold - GarageYrBlt) < 0 OR GarageYrBlt IS NULL OR GarageType = 'no_garage', 0, (YrSold - GarageYrBlt)) AS Age_Garage
     FROM input_df)
     
-    SELECT * EXCLUDE ("Id", "MSSubClass", "MSZoning", "LotConfig", "LandSlope", 
+    SELECT * EXCLUDE ("MSSubClass", "MSZoning", "LotConfig", "LandSlope", 
         "Condition1", "Condition2", "Neighborhood", 
         "BldgType", "HouseStyle", 
         "Exterior1st", "Exterior2nd", 
@@ -434,16 +435,7 @@ tables = {
 }
 
 for table_name, df in tables.items():
-    temp_name = f"tmp_{table_name}"
-    
-    conn.register(temp_name, df)
-    
-    conn.execute(f"""
-        CREATE OR REPLACE TABLE {table_name} AS 
-        SELECT * FROM {temp_name}
-    """)
-    
-    conn.unregister(temp_name)
+    save_df(conn, df, table_name)
 
 print(conn.execute("SHOW TABLES").fetchall())
 conn.close()
