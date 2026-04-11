@@ -1,3 +1,5 @@
+import os
+from s1_data.a0_setup_directories import *
 import statsmodels.api as sm
 import pandas as pd
 import numpy as np
@@ -109,7 +111,7 @@ def sm_ols(X, y, method="qr", verbose=True):
         print(model.summary())
 
         # Save the summary to a text file
-        summary_path = f"ols_model_summary.txt"
+        summary_path = os.path.join(model_dir, "ols_model_summary.txt")
         with open(summary_path, "w") as file:
             file.write(model.summary().as_text())
         print(f"Model summary saved to {summary_path}\n")
@@ -179,7 +181,7 @@ def sm_glm_gaussian(X, y, method="IRLS", verbose=True):
         print(model.summary())
 
         # Save the summary to a text file
-        summary_path = f"GLM_Gaussian_summary.txt"
+        summary_path = os.path.join(model_dir, "GLM_Gaussian_summary.txt")
         with open(summary_path, "w") as file:
             file.write(model.summary().as_text())
         print(f"Model summary saved to {summary_path}\n")
@@ -218,7 +220,7 @@ def constrained_sm_glm_gaussian(X, y, glm_gau_result, thresh, verbose=True):
         print("\nModel fitting summary:")
         print(model.summary())
 
-        summary_path = f"GLM_Gaussian_summary_constrained.txt"
+        summary_path = os.path.join(model_dir, "GLM_Gaussian_summary_constrained.txt")
         with open(summary_path, "w") as file:
             file.write(model.summary().as_text())
         print(f"Model summary saved to {summary_path}\n")
