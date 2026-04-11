@@ -15,9 +15,8 @@ Step 1: Split the train dataset into train and validation set
 Step 2: Create categorical interaction terms and time variables
 Step 3: Encode nominal categorical variables separately for train, validation, and test sets to prevent data leakage, ensuring consistent feature alignment using one-hot encoding 
 Step 4: Encode ordinal categorical variables and binary nominal categorical variable using label encoding
-Step 5: Transform numerical terms
-Step 6: Creating interaction terms for numerical variables
-Step 7: Standardization
+Step 5: Transform numerical terms and create interaction terms for numerical variables
+Step 6: Standardization
 
 
 """
@@ -299,25 +298,7 @@ test_encoded[bool_columns_test] = test_encoded[bool_columns_test].astype("int8")
 
 
 
-# Step 5: Transform numerical terms
-"""
-log transformation
-- LotFrontage
-- LotArea
-- MasVnrArea
-- BsmtFinSF1
-- BsmtFinSF2
-- BsmtUnfSF
-- TotalBsmtSF
-- 1stFlrSF
-- 2ndFlrSF
-- GrLivArea
-- WoodDeckSF
-- OpenPorchSF
-
-"""
-
-
+# Step 5: Transform numerical terms and create interaction terms for numerical variables
 def log_transform(conn, data):
     conn.register("input_df", data)
     query = """
@@ -342,8 +323,18 @@ def log_transform(conn, data):
 
             -- Cube root transformations
             CBRT("MasVnrArea") AS cbrt_MasVnrArea,
-            CBRT("OpenPorchSF") AS cbrt_OpenPorchSF
+            CBRT("OpenPorchSF") AS cbrt_OpenPorchSF,
 
+            -- Interaction terms
+            "GrLivArea" / ("TotalBsmtSF" + "1stFlrSF" + "2ndFlrSF") AS FinishedAreaPct,
+            LOG(1+ "GrLivArea" * "TotRmsAbvGrd") AS Living_Rooms,
+            LOG(1+ "GarageArea" * "GarageCars") AS Garage_Space,
+            LOG(1+ "Age_Garage" * "GarageCars") AS Garage_AgeCars,
+            LOG(1 + CBRT("EnclosedPorch") * "Age_House") AS Porch_Age,
+            "BedroomAbvGr" / "TotRmsAbvGrd" AS Ratio_Bedroom_Rooms,
+            "2ndFlrSF" / "GrLivArea" AS Ratio_2ndFlr_Living
+
+        
         FROM input_df
     )
     SELECT * EXCLUDE (
@@ -363,45 +354,7 @@ X_val_transformed = log_transform(conn, X_val_encoded)
 test_transformed = log_transform(conn, test_encoded)
 
 
-# Step 6: Creating interaction terms for numerical variables
-"""
-log_GrLivArea × TotRmsAbvGrd: Interaction between total rooms and living area, which could reflect spaciousness.
-GarageArea × GarageCars: Correlates garage area with its car capacity, showing efficiency of garage space utilization.
-log_Age_Garage × GarageCars: Reflects how the age of the garage relates to its functionality or relevance to car capacity.
-BedroomAbvGr / TotRmsAbvGrd: Measures the proportion of bedrooms relative to the total rooms above grade.
-2ndFlrSF / GrLivArea: captures the proportion of second-floor square footage to the total above-grade living area.
-EnclosedPorch / Age_House: Interaction between the enclosed porch area and the age of the house, which may indicate how well the house has been maintained or updated.
-"""
-
-
-def create_interactions(conn, df):
-    conn.register("input_df", df)
-    
-    query = """
-    WITH cte AS (
-        SELECT
-            *,
-            log_GrLivArea * TotRmsAbvGrd AS Living_Rooms,
-            GarageArea * GarageCars AS Garage_Space,
-            log_Age_Garage * GarageCars AS Garage_AgeCars,
-            EnclosedPorch * Age_House AS Porch_Age,
-            BedroomAbvGr / TotRmsAbvGrd AS Ratio_Bedroom_Rooms,
-            log_2ndFlrSF / log_GrLivArea AS Ratio_2ndFlr_Living
-        FROM input_df
-    )
-    SELECT * FROM cte;
-    """
-    
-    result = conn.query(query).fetchdf()
-    conn.unregister("input_df")
-    return result
-
-X_train_transformed = create_interactions(conn, X_train_transformed)
-X_val_transformed = create_interactions(conn, X_val_transformed)
-test_transformed = create_interactions(conn, test_transformed)
-
-
-# Step 7: Standardization
+# Step 6: Standardization
 numerical_variables = [
     "log_LotFrontage", "log_LotArea", "log_1stFlrSF", "log_2ndFlrSF", "log_LowQualFinSF",
     "log_GrLivArea", "log_Yrs_Since_Remodel", "log_Age_Garage",
@@ -410,7 +363,7 @@ numerical_variables = [
     "BsmtFullBath", "BsmtHalfBath", "FullBath", "HalfBath", "BedroomAbvGr", "KitchenAbvGr",
     "TotRmsAbvGrd", "Fireplaces", "GarageCars", "GarageArea", "EnclosedPorch", "3SsnPorch",
     "ScreenPorch", "PoolArea", "MiscVal", "Age_House",
-    "Living_Rooms", "Garage_Space", "Garage_AgeCars", "Porch_Age", "Ratio_Bedroom_Rooms", "Ratio_2ndFlr_Living",
+    "FinishedAreaPct", "Living_Rooms", "Garage_Space", "Garage_AgeCars", "Porch_Age", "Ratio_Bedroom_Rooms", "Ratio_2ndFlr_Living",
     "sqrt_BsmtUnfSF", "sqrt_BsmtFinSF1", "BsmtFinSF2",
     "HPI", "HPA", "pmms", "pmms_chg", "ue", "ue_chg", "nonfarm", "nonfarm_yoy"
 ]
