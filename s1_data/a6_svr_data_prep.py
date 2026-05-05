@@ -16,7 +16,7 @@ Step 2: Create categorical interaction terms and time variables
 Step 3: Encode nominal categorical variables separately for train, validation, and test sets to prevent data leakage, ensuring consistent feature alignment using one-hot encoding 
 Step 4: Encode ordinal categorical variables and binary nominal categorical variable using label encoding
 Step 5: Transform numerical terms and create interaction terms for numerical variables
-Step 6: Standardization
+Step 6: Standardization (both continous numeric and ordinal categorical variables)
 
 
 """
@@ -354,7 +354,7 @@ X_val_transformed = log_transform(conn, X_val_encoded)
 test_transformed = log_transform(conn, test_encoded)
 
 
-# Step 6: Standardization
+# Step 6: Standardization (both continous numeric and ordinal categorical variables)
 numerical_variables = [
     "log_LotFrontage", "log_LotArea", "log_1stFlrSF", "log_2ndFlrSF", "log_LowQualFinSF",
     "log_GrLivArea", "log_Yrs_Since_Remodel", "log_Age_Garage",
@@ -368,10 +368,18 @@ numerical_variables = [
     "HPI", "HPA", "pmms", "pmms_chg", "ue", "ue_chg", "nonfarm", "nonfarm_yoy"
 ]
 
+ordinal_cat_vars =["Utilities_encoded", "Functional_encoded", "ExterQual_encoded", "ExterCond_encoded",
+                    "BsmtQual_encoded", "BsmtCond_encoded", "BsmtExposure_encoded", "BsmtFinType1_encoded", 
+                    "BsmtFinType2_encoded", "KitchenQual_encoded", "FireplaceQu_encoded",
+                    "GarageFinish_encoded", "GarageQual_encoded", "GarageCond_encoded", "PoolQC_encoded", "Street_encoded",
+                    "OverallQual", "OverallCond"]
+
+standardize_vars = numerical_variables + ordinal_cat_vars
+
 scaler = StandardScaler()
-X_train_transformed[numerical_variables] = scaler.fit_transform(X_train_transformed[numerical_variables])
-X_val_transformed[numerical_variables] = scaler.transform(X_val_transformed[numerical_variables])
-test_transformed[numerical_variables] = scaler.transform(test_transformed[numerical_variables])
+X_train_transformed[standardize_vars] = scaler.fit_transform(X_train_transformed[standardize_vars])
+X_val_transformed[standardize_vars] = scaler.transform(X_val_transformed[standardize_vars])
+test_transformed[standardize_vars] = scaler.transform(test_transformed[standardize_vars])
 
 # Register pandas DataFrames as DuckDB tables
 tables = {
