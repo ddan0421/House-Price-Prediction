@@ -16,9 +16,9 @@ database_path = os.path.join(base_folder, database)
 
 conn = duckdb.connect(database=database_path, read_only=False)
 
-X_train = load_df(conn, "X_train_reg")
-X_val = load_df(conn, "X_val_reg")
-test_final = load_df(conn, "test_reg")
+X_train = load_df(conn, "X_train_svr")
+X_val = load_df(conn, "X_val_svr")
+test_final = load_df(conn, "test_svr")
 y_train = load_df(conn, "y_train")
 y_val = load_df(conn, "y_val")
 
