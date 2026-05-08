@@ -51,8 +51,11 @@ X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_st
 
 
 # Step 2: Impute categorical missing data in train, validation, and test sets with the mode from training set to prevent data leakage
-X_train["Electrical"].fillna(X_train["Electrical"].mode()[0], inplace=True)
-# validation set has no missing values except LotFrontage
+electrical_mode = X_train["Electrical"].mode().iloc[0]
+X_train["Electrical"].fillna(electrical_mode, inplace=True)
+train["Electrical"].fillna(electrical_mode, inplace=True)
+X_val["Electrical"] = train.loc[X_val.index, "Electrical"]
+
 test["MSZoning"].fillna(X_train["MSZoning"].mode()[0], inplace=True)
 test["Utilities"].fillna(X_train["Utilities"].mode()[0], inplace=True)
 test["KitchenQual"].fillna(X_train["KitchenQual"].mode()[0], inplace=True)
