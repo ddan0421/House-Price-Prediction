@@ -1,4 +1,5 @@
 import duckdb
+import os
 from s1_data.gdrive_download import download_from_drive
 
 data_dict = {
