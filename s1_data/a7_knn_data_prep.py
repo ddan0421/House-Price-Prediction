@@ -4,7 +4,6 @@ from sklearn.model_selection import train_test_split
 import os
 import numpy as np
 from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
 from s1_data.db_utils import *
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -18,7 +17,6 @@ Step 3: Encode nominal categorical variables separately for train, validation, a
 Step 4: Encode ordinal categorical variables and binary nominal categorical variable using label encoding
 Step 5: Transform numerical terms and create interaction terms for numerical variables
 Step 6: Standardization
-Step 7: PCA dimensionality reduction (fit on train only to prevent data leakage)
 
 
 """
@@ -343,7 +341,8 @@ def log_transform(conn, data):
         "LotFrontage", "LotArea", "1stFlrSF", "2ndFlrSF", "LowQualFinSF", "GrLivArea",
         "Yrs_Since_Remodel", "Age_Garage",
         "TotalBsmtSF", "WoodDeckSF", "BsmtUnfSF", "BsmtFinSF1",
-        "MasVnrArea", "OpenPorchSF"
+        "MasVnrArea", "OpenPorchSF",
+        "HPI", "HPA", "pmms", "pmms_chg", "ue", "ue_chg", "nonfarm", "nonfarm_yoy"
     )
     FROM cte;
     """
@@ -367,49 +366,13 @@ numerical_variables = [
     "ScreenPorch", "PoolArea", "MiscVal", "Age_House",
     "FinishedAreaPct", "Living_Rooms", "Garage_Space", "Garage_AgeCars", "Porch_Age", "Ratio_Bedroom_Rooms", "Ratio_2ndFlr_Living",
     "sqrt_BsmtUnfSF", "sqrt_BsmtFinSF1", "BsmtFinSF2",
-    "HPI", "HPA", "pmms", "pmms_chg", "ue", "ue_chg", "nonfarm", "nonfarm_yoy"
 ]
 
-ordinal_cat_vars =["Utilities_encoded", "Functional_encoded", "ExterQual_encoded", "ExterCond_encoded",
-                    "BsmtQual_encoded", "BsmtCond_encoded", "BsmtExposure_encoded", "BsmtFinType1_encoded", 
-                    "BsmtFinType2_encoded", "KitchenQual_encoded", "FireplaceQu_encoded",
-                    "GarageFinish_encoded", "GarageQual_encoded", "GarageCond_encoded", "PoolQC_encoded", "Street_encoded",
-                    "OverallQual", "OverallCond"]
-
-standardize_vars = numerical_variables + ordinal_cat_vars
 
 scaler = StandardScaler()
-X_train_transformed[standardize_vars] = scaler.fit_transform(X_train_transformed[standardize_vars])
-X_val_transformed[standardize_vars] = scaler.transform(X_val_transformed[standardize_vars])
-test_transformed[standardize_vars] = scaler.transform(test_transformed[standardize_vars])
-
-
-# Step 7: PCA dimensionality reduction on numerical + ordinal columns only
-# OHE columns are kept as-is; PCA is fit only on train to prevent data leakage
-ohe_cols = [c for c in X_train_transformed.columns if c not in standardize_vars]
-
-pca = PCA(n_components=0.95, random_state=42)
-X_train_pca = pca.fit_transform(X_train_transformed[standardize_vars])
-X_val_pca = pca.transform(X_val_transformed[standardize_vars])
-test_pca = pca.transform(test_transformed[standardize_vars])
-
-n_components = pca.n_components_
-print(f"PCA: retained {n_components} components explaining 95% of variance "
-      f"(reduced from {len(standardize_vars)} numerical/ordinal features)")
-
-pca_columns = [f"PC{i+1}" for i in range(n_components)]
-X_train_transformed = pd.concat([
-    pd.DataFrame(X_train_pca, columns=pca_columns, index=X_train_transformed.index),
-    X_train_transformed[ohe_cols].reset_index(drop=True)
-], axis=1)
-X_val_transformed = pd.concat([
-    pd.DataFrame(X_val_pca, columns=pca_columns, index=X_val_transformed.index),
-    X_val_transformed[ohe_cols].reset_index(drop=True)
-], axis=1)
-test_transformed = pd.concat([
-    pd.DataFrame(test_pca, columns=pca_columns, index=test_transformed.index),
-    test_transformed[ohe_cols].reset_index(drop=True)
-], axis=1)
+X_train_transformed[numerical_variables] = scaler.fit_transform(X_train_transformed[numerical_variables])
+X_val_transformed[numerical_variables] = scaler.transform(X_val_transformed[numerical_variables])
+test_transformed[numerical_variables] = scaler.transform(test_transformed[numerical_variables])
 
 
 # Register pandas DataFrames as DuckDB tables

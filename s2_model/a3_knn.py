@@ -27,11 +27,9 @@ y_val_knn = load_df(conn, "y_val")
 knn = KNeighborsRegressor()
 
 param_grid = {
-    "n_neighbors": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    "n_neighbors": range(3, 51),
     "weights": ["uniform", "distance"],
-    "p": [1, 2],
-    "algorithm": ["auto", "ball_tree", "kd_tree"],
-    "leaf_size": [20, 30, 40]
+    "p": [1, 2, 3]
 }
 gs_knn = GridSearchCV(estimator=knn,
                       param_grid=param_grid,
