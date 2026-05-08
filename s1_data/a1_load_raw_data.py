@@ -1,5 +1,5 @@
 import duckdb
-from s1_data.gdrive_download import *
+from s1_data.gdrive_download import download_from_drive
 
 data_dict = {
     "train.csv": "1r_4AM9FYosvw_Ubd_8mu8YlIHRiqTjgs",

@@ -1,7 +1,7 @@
 import duckdb
 from sklearn.model_selection import train_test_split
 import os
-from s1_data.db_utils import *
+from s1_data.db_utils import load_df, save_df
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
