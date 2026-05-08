@@ -13,7 +13,7 @@ Step 1: Split the train dataset into train and validation set
 Step 2: Create categorical interaction terms and time variables
 Step 3: Encode nominal categorical variables separately for train, validation, and test sets to prevent data leakage, ensuring consistent feature alignment using one-hot encoding 
 Step 4: Encode ordinal categorical variables and binary nominal categorical variable using label encoding
-Step 5: Transform numerical terms and create interaction terms for numerical variables
+Step 5: Create interaction terms for numerical variables
 
 
 """
@@ -295,61 +295,28 @@ test_encoded[bool_columns_test] = test_encoded[bool_columns_test].astype("int8")
 
 
 
-# Step 5: Transform numerical terms and create interaction terms for numerical variables
-def log_transform(conn, data):
+# Step 5: Create interaction terms for numerical variables
+def add_interaction_terms(conn, data):
     conn.register("input_df", data)
     query = """
-    WITH cte AS (
-        SELECT
-            *,
-            -- Log transformations
-            LOG(1 + "LotFrontage") AS log_LotFrontage,
-            LOG(1 + "LotArea") AS log_LotArea,
-            LOG(1 + "1stFlrSF") AS log_1stFlrSF,
-            LOG(1 + "2ndFlrSF") AS log_2ndFlrSF,
-            LOG(1 + "LowQualFinSF") AS log_LowQualFinSF,
-            LOG(1 + "GrLivArea") AS log_GrLivArea,
-            LOG(1 + "Yrs_Since_Remodel") AS log_Yrs_Since_Remodel,
-            LOG(1 + "Age_Garage") AS log_Age_Garage,
-
-            -- Square root transformations
-            SQRT("TotalBsmtSF") AS sqrt_TotalBsmtSF,
-            SQRT("WoodDeckSF") AS sqrt_WoodDeckSF,
-            SQRT("BsmtUnfSF") AS sqrt_BsmtUnfSF,
-            SQRT("BsmtFinSF1") AS sqrt_BsmtFinSF1,
-
-            -- Cube root transformations
-            CBRT("MasVnrArea") AS cbrt_MasVnrArea,
-            CBRT("OpenPorchSF") AS cbrt_OpenPorchSF,
-
-            -- Interaction terms
-            "GrLivArea" / ("TotalBsmtSF" + "1stFlrSF" + "2ndFlrSF") AS FinishedAreaPct,
-            LOG(1+ "GrLivArea" * "TotRmsAbvGrd") AS Living_Rooms,
-            LOG(1+ "GarageArea" * "GarageCars") AS Garage_Space,
-            LOG(1+ "Age_Garage" * "GarageCars") AS Garage_AgeCars,
-            LOG(1 + CBRT("EnclosedPorch") * "Age_House") AS Porch_Age,
-            "BedroomAbvGr" / "TotRmsAbvGrd" AS Ratio_Bedroom_Rooms,
-            "2ndFlrSF" / "GrLivArea" AS Ratio_2ndFlr_Living
-
-        
-        FROM input_df
-    )
-    SELECT * EXCLUDE (
-        "LotFrontage", "LotArea", "1stFlrSF", "2ndFlrSF", "LowQualFinSF", "GrLivArea",
-        "Yrs_Since_Remodel", "Age_Garage",
-        "TotalBsmtSF", "WoodDeckSF", "BsmtUnfSF", "BsmtFinSF1",
-        "MasVnrArea", "OpenPorchSF",
-        "HPI", "HPA", "pmms", "pmms_chg", "ue", "ue_chg", "nonfarm", "nonfarm_yoy"
-    )
-    FROM cte;
+    SELECT
+        * EXCLUDE ("HPI", "HPA", "pmms", "pmms_chg", "ue", "ue_chg", "nonfarm", "nonfarm_yoy"),
+        "GrLivArea" / ("TotalBsmtSF" + "1stFlrSF" + "2ndFlrSF") AS FinishedAreaPct,
+        "GrLivArea" * "TotRmsAbvGrd" AS Living_Rooms,
+        "GarageArea" * "GarageCars" AS Garage_Space,
+        "Age_Garage" * "GarageCars" AS Garage_AgeCars,
+        "EnclosedPorch" * "Age_House" AS Porch_Age,
+        "BedroomAbvGr" / "TotRmsAbvGrd" AS Ratio_Bedroom_Rooms,
+        "2ndFlrSF" / "GrLivArea" AS Ratio_2ndFlr_Living
+    FROM input_df;
     """
     result = conn.query(query).fetchdf()
     conn.unregister("input_df")
     return result
 
-X_train_transformed = log_transform(conn, X_train_encoded)
-X_val_transformed = log_transform(conn, X_val_encoded)
-test_transformed = log_transform(conn, test_encoded)
+X_train_transformed = add_interaction_terms(conn, X_train_encoded)
+X_val_transformed = add_interaction_terms(conn, X_val_encoded)
+test_transformed = add_interaction_terms(conn, test_encoded)
 
 
 # Register pandas DataFrames as DuckDB tables
