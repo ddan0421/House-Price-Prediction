@@ -1,6 +1,7 @@
 import os
 import catboost as cb
 import duckdb
+import pandas as pd
 
 from s1_data.db_utils import load_df
 from s3_validation.model_evaluation import evaluate_model
@@ -41,3 +42,11 @@ final_model_cat_basic.save_model("final_model_catboost_basic.cbm", format="cbm")
 print("CatBoost model saved to final_model_catboost_basic.cbm")
 
 evaluate_model(final_model_cat_basic, val_pool, y_val, "CatBoost Regressor")
+
+feature_importance = pd.Series(
+    final_model_cat_basic.get_feature_importance(type="PredictionValuesChange"),
+    index=X_train_cat.columns
+).sort_values(ascending=False)
+
+print("\nFeature Importances (PredictionValuesChange):")
+print(feature_importance.to_string())
