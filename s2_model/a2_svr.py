@@ -6,12 +6,11 @@ from sklearn.model_selection import GridSearchCV, KFold
 from sklearn.svm import LinearSVR, SVR
 
 from s1_data.db_utils import load_df, save_df
-from s3_validation.model_evaluation import evaluate_linear_model
+from s3_validation.model_evaluation import evaluate_model
 
 base_folder = "data"
 database = "AmesHousePrice.duckdb"
 database_path = os.path.join(base_folder, database)
-os.makedirs("models", exist_ok=True)
 
 conn = duckdb.connect(database=database_path, read_only=False)
 cv = KFold(n_splits=10, shuffle=True, random_state=42)
@@ -167,7 +166,7 @@ save_df(conn, X_train_linear_svr, "X_train_linear_svr")
 save_df(conn, X_val_linear_svr, "X_val_linear_svr")
 save_df(conn, test_linear_svr, "test_linear_svr")
 
-evaluate_linear_model(best_rbf_svr_model, X_val_rbf_svr, y_val_svr, "RBF SVR Model")
-evaluate_linear_model(best_linear_svr_model, X_val_linear_svr, y_val_linear, "LinearSVR Model")
+evaluate_model(best_rbf_svr_model, X_val_rbf_svr, y_val_svr, "RBF SVR Model")
+evaluate_model(best_linear_svr_model, X_val_linear_svr, y_val_linear, "LinearSVR Model")
 
 conn.close()

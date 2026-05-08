@@ -4,9 +4,9 @@ import os
 import statsmodels.api as sm
 from sklearn.linear_model import Ridge, Lasso, ElasticNet
 from sklearn.model_selection import GridSearchCV, KFold
-from s1_data.db_utils import *
-from s2_model.models import *
-from s3_validation.model_evaluation import *
+from s1_data.db_utils import load_df, save_df
+from s2_model.models import sm_ols
+from s3_validation.model_evaluation import evaluate_model
 
 base_folder = "data"
 database = "AmesHousePrice.duckdb"
@@ -147,7 +147,7 @@ save_df(conn, X_train_reg, "X_train_reg_lr")
 save_df(conn, X_val_reg, "X_val_reg_lr")
 
 # Evaluate performance on X_val
-evaluate_linear_model(ols_lr, X_val_reg, y_val, "OLS Model")
-evaluate_linear_model(final_model_ridge, X_val_reg, y_val, "Ridge Model")
-evaluate_linear_model(final_model_lasso, X_val_reg, y_val, "Lasso Model")
-evaluate_linear_model(final_model_enet, X_val_reg, y_val, "ElasticNet Model")
+evaluate_model(ols_lr, X_val_reg, y_val, "OLS Model")
+evaluate_model(final_model_ridge, X_val_reg, y_val, "Ridge Model")
+evaluate_model(final_model_lasso, X_val_reg, y_val, "Lasso Model")
+evaluate_model(final_model_enet, X_val_reg, y_val, "ElasticNet Model")

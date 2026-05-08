@@ -6,13 +6,12 @@ from sklearn.model_selection import GridSearchCV, KFold
 from sklearn.neighbors import KNeighborsRegressor
 
 from s1_data.db_utils import load_df, save_df
-from s3_validation.model_evaluation import evaluate_linear_model
+from s3_validation.model_evaluation import evaluate_model
 
 
 base_folder = "data"
 database = "AmesHousePrice.duckdb"
 database_path = os.path.join(base_folder, database)
-os.makedirs("models", exist_ok=True)
 
 conn = duckdb.connect(database=database_path, read_only=False)
 cv = KFold(n_splits=10, shuffle=True, random_state=42)
@@ -53,6 +52,6 @@ save_df(conn, X_train_knn_raw, "X_train_knn_final")
 save_df(conn, X_val_knn_raw, "X_val_knn_final")
 save_df(conn, test_knn_raw, "test_knn_final")
 
-evaluate_linear_model(best_knn_model, X_val_knn_raw, y_val_knn, "KNN Model")
+evaluate_model(best_knn_model, X_val_knn_raw, y_val_knn, "KNN Model")
 
 conn.close()
