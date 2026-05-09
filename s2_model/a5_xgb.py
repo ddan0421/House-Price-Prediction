@@ -55,7 +55,11 @@ X_train_xgb = X_train_tree_raw[xgb_features]
 X_val_xgb = X_val_tree_raw[xgb_features]
 test_xgb = test_tree_raw[xgb_features]
                            
-xgb_model = xgb.XGBRegressor(random_state=random_state, objective="reg:squarederror")
+xgb_model = xgb.XGBRegressor(
+    random_state=random_state, 
+    objective="reg:squarederror",
+    n_jobs=1,
+    tree_method="hist")
 
 param_grid = {
     "n_estimators": [180, 200],  
@@ -74,6 +78,7 @@ gs_xgb = GridSearchCV(
     scoring="neg_root_mean_squared_error",
     cv=cv,
     n_jobs=-1,
+    verbose=1,
     refit=True)
 
 gs_xgb.fit(X_train_xgb, y_train.values.ravel())

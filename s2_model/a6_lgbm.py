@@ -63,7 +63,10 @@ test_lgbm = test_cat[lgbm_features]
 
 
 ############################################## LightGBM Regressor Model ############################################################
-lgbm = lgb.LGBMRegressor(random_state=random_state, objective="regression", verbose=-1)
+lgbm = lgb.LGBMRegressor(random_state=random_state, 
+                         objective="regression", 
+                         verbose=-1,
+                         n_jobs=1)
 
 param_grid = {
     "n_estimators": [150, 200],
@@ -84,6 +87,7 @@ gs_lgbm = GridSearchCV(
     scoring="neg_root_mean_squared_error",
     cv=cv,
     n_jobs=-1,
+    verbose=1,
     refit=True)
 
 gs_lgbm.fit(X_train_lgbm, y_train.values.ravel(), categorical_feature=cat_columns)
