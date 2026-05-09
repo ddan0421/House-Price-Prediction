@@ -165,7 +165,7 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(np.arange(n_train))):
             fold_model = clone(model)
             fold_model.fit(X_fold_tr, y_fold_tr)
 
-        oof_preds[val_idx, i] = fold_model.predict(X_fold_va)
+        oof_preds[val_idx, i] = np.asarray(fold_model.predict(X_fold_va)).ravel()
 
 oof_df = pd.DataFrame(oof_preds, columns=[name for name, *_ in base_models])
 oof_df["Target"] = y_train
@@ -191,7 +191,7 @@ still untouched).
 """
 val_preds = np.zeros((len(y_val), len(base_models)))
 for i, (name, model, _, X_va) in enumerate(base_models):
-    val_preds[:, i] = model.predict(X_va)
+    val_preds[:, i] = np.asarray(model.predict(X_va)).ravel()
 
 val_preds_df = pd.DataFrame(val_preds, columns=[name for name, *_ in base_models])
 val_preds_with_const = sm.add_constant(val_preds_df, has_constant="add")
