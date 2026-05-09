@@ -38,8 +38,8 @@ val_pool = cb.Pool(data=X_val_cat, label=y_val, cat_features=cat_columns)
 final_model_cat_basic = cb.CatBoostRegressor(loss_function="RMSE", random_seed=42, train_dir="models/catboost_basic")
 final_model_cat_basic.fit(train_pool, eval_set=val_pool, verbose=True)
 
-final_model_cat_basic.save_model("final_model_catboost_basic.cbm", format="cbm")
-print("CatBoost model saved to final_model_catboost_basic.cbm")
+final_model_cat_basic.save_model("models/final_model_catboost_basic.cbm", format="cbm")
+print("CatBoost model saved to models/final_model_catboost_basic.cbm")
 
 evaluate_model(final_model_cat_basic, val_pool, y_val, "CatBoost Regressor")
 
@@ -48,5 +48,5 @@ feature_importance = pd.Series(
     index=X_train_cat.columns
 ).sort_values(ascending=False)
 
-print("\nFeature Importances (PredictionValuesChange):")
-print(feature_importance.to_string())
+with open("models/catboost_feature_importance.txt", "w") as f:
+    f.write(feature_importance.to_string())

@@ -3,16 +3,11 @@ import pickle
 import numpy as np
 import duckdb
 from sklearn.model_selection import GridSearchCV, KFold
-from sklearn.svm import LinearSVR, SVR
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor, ExtraTreesRegressor
-from sklearn.metrics import root_mean_squared_error
-import xgboost as xgb
-import lightgbm as lgb
-from bayes_opt import BayesianOptimization
 import pickle
 
-from s1_data.db_utils import load_df, save_df
+from s1_data.db_utils import load_df
 from s3_validation.model_evaluation import evaluate_model
 
 base_folder = "data"
@@ -59,8 +54,10 @@ print("Optimal Estimator:", gs_dt.best_estimator_)
 final_model_dt = gs_dt.best_estimator_
 
 selected_features_dt = X_train_tree_raw.columns[np.array(final_model_dt.feature_importances_) > 0]
-print("Selected features for Decision Tree:")
-print(selected_features_dt)
+
+with open("models/selected_features_dt.txt", "w") as f:
+    for feat in selected_features_dt:
+        f.write(f"{feat}\n")
 
 # Save the trained model for future use (stacking)
 with open("models/final_model_dt.pkl", "wb") as f:
@@ -97,8 +94,10 @@ print("Optimal Estimator:", gs_rf.best_estimator_)
 final_model_rf = gs_rf.best_estimator_
 
 selected_features_rf = X_train_tree_raw.columns[np.array(final_model_rf.feature_importances_) > 0]
-print("Selected features for Random Forest:")
-print(selected_features_rf)
+
+with open("models/selected_features_rf.txt", "w") as f:
+    for feat in selected_features_rf:
+        f.write(f"{feat}\n")
 
 # Save the trained model for future use (stacking)
 with open("models/final_model_rf.pkl", "wb") as f:
