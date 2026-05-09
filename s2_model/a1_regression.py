@@ -42,11 +42,11 @@ lr_features = [
     "sqrt_WoodDeckSF"
 ]
 
-X_train_reg = sm.add_constant(X_train[lr_features])
-X_val_reg  = sm.add_constant(X_val[lr_features])
+X_train_reg = X_train[lr_features]
+X_val_reg = X_val[lr_features]
 
 ############################# Linear Regression #############################
-ols_lr = sm_ols(X_train_reg, y_train)
+ols_lr = sm_ols(sm.add_constant(X_train_reg), y_train)
 
 ############################# Ridge Regression #############################
 cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
@@ -63,7 +63,7 @@ gs_ridge = GridSearchCV(estimator=ridge,
                         n_jobs=-1,
                         refit=True)
 
-gs_ridge.fit(X_train_reg, y_train)
+gs_ridge.fit(X_train_reg, y_train.values.ravel())
 
 print("10-Fold CV RMSE (log-transformed scale):", -gs_ridge.best_score_) 
 print("Optimal Parameter:", gs_ridge.best_params_)
@@ -92,7 +92,7 @@ gs_lasso = GridSearchCV(estimator=lasso,
                         n_jobs=-1,
                         refit=True)
 
-gs_lasso.fit(X_train_reg, y_train)
+gs_lasso.fit(X_train_reg, y_train.values.ravel())
 
 print("10-Fold CV RMSE:", -gs_lasso.best_score_) 
 print("Optimal Parameter:", gs_lasso.best_params_)
@@ -147,7 +147,7 @@ save_df(conn, X_train_reg, "X_train_reg_lr")
 save_df(conn, X_val_reg, "X_val_reg_lr")
 
 # Evaluate performance on X_val
-evaluate_model(ols_lr, X_val_reg, y_val, "OLS Model")
+evaluate_model(ols_lr, sm.add_constant(X_val_reg), y_val, "OLS Model")
 evaluate_model(final_model_ridge, X_val_reg, y_val, "Ridge Model")
 evaluate_model(final_model_lasso, X_val_reg, y_val, "Lasso Model")
 evaluate_model(final_model_enet, X_val_reg, y_val, "ElasticNet Model")
