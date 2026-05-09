@@ -16,7 +16,7 @@ conn = duckdb.connect(database=database_path, read_only=False)
 
 X_train = load_df(conn, "X_train_reg")
 X_val = load_df(conn, "X_val_reg")
-test_final = load_df(conn, "test_reg")
+test = load_df(conn, "test_reg")
 y_train = load_df(conn, "y_train")
 y_val = load_df(conn, "y_val")
 
@@ -44,6 +44,7 @@ lr_features = [
 
 X_train_reg = X_train[lr_features]
 X_val_reg = X_val[lr_features]
+test_reg = test[lr_features]
 
 ############################# Linear Regression #############################
 ols_lr = sm_ols(sm.add_constant(X_train_reg), y_train)
@@ -145,9 +146,12 @@ print("ElasticNet model saved to models/final_model_enet.pkl")
 # Save data for future use (stacking)
 save_df(conn, X_train_reg, "X_train_reg_lr")
 save_df(conn, X_val_reg, "X_val_reg_lr")
+save_df(conn, test_reg, "test_reg_lr")
 
 # Evaluate performance on X_val
 evaluate_model(ols_lr, sm.add_constant(X_val_reg), y_val, "OLS Model")
 evaluate_model(final_model_ridge, X_val_reg, y_val, "Ridge Model")
 evaluate_model(final_model_lasso, X_val_reg, y_val, "Lasso Model")
 evaluate_model(final_model_enet, X_val_reg, y_val, "ElasticNet Model")
+
+conn.close()
