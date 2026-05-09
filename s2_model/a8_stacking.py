@@ -167,23 +167,14 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(np.arange(n_train))):
 
         oof_preds[val_idx, i] = np.asarray(fold_model.predict(X_fold_va)).ravel()
 
-oof_df = pd.DataFrame(oof_preds, columns=[name for name, *_ in base_models])
+all_names = [name for name, *_ in base_models]
+oof_df = pd.DataFrame(oof_preds, columns=all_names)
 oof_df["Target"] = y_train
 print("OOF Predictions:")
 print(oof_df)
 
 
-# -------------------- Train meta-learner (OLS) --------------------
-X_meta = sm.add_constant(oof_df.drop(columns=["Target"]))
-y_meta = oof_df["Target"]
-meta_learner_ols = sm_ols(X_meta, y_meta)
-
-with open("models/meta_learner_ols.pkl", "wb") as f:
-    pickle.dump(meta_learner_ols, f)
-print("Meta-learner saved to models/meta_learner_ols.pkl")
-
-
-# -------------------- Validation predictions --------------------
+# -------------------- Validation predictions for all base models --------------------
 """
 The loaded base models were already fit on the full training set in a1..a7,
 so we use them directly here (the OOF loop above used clones, so these are
@@ -193,12 +184,83 @@ val_preds = np.zeros((len(y_val), len(base_models)))
 for i, (name, model, _, X_va) in enumerate(base_models):
     val_preds[:, i] = np.asarray(model.predict(X_va)).ravel()
 
-val_preds_df = pd.DataFrame(val_preds, columns=[name for name, *_ in base_models])
-val_preds_with_const = sm.add_constant(val_preds_df, has_constant="add")
-final_preds = meta_learner_ols.predict(val_preds_with_const)
 
-rmse = root_mean_squared_error(y_val, final_preds)
-print("Stacking Performance:")
-print(f"Root Mean Squared Error: {rmse:.4f}")
+# -------------------- Recursive elimination by validation RMSE --------------------
+"""
+Greedy backward elimination over the set of base models.
+
+At each step we refit the OLS meta-learner on every (active set minus one model)
+and pick the removal that yields the lowest validation RMSE. If that removal
+is no worse than the current RMSE (within TOLERANCE), we drop the model
+permanently and continue. Otherwise we stop.
+
+OOF predictions and val predictions for each base model are independent of
+the meta-learner, so they're computed once above and re-sliced here -- no
+need to retrain base models inside the elimination loop.
+"""
+TOLERANCE = 1e-4  # how much worse a candidate can be and still be "barely changed"
+name_to_idx = {name: i for i, name in enumerate(all_names)}
+
+
+def fit_meta_and_score(active_names):
+    """Fit OLS meta-learner on the given active subset; return (val_rmse, meta_model)."""
+    cols = [name_to_idx[n] for n in active_names]
+
+    X_oof = pd.DataFrame(oof_preds[:, cols], columns=active_names)
+    X_oof_const = sm.add_constant(X_oof, has_constant="add")
+    meta = sm_ols(X_oof_const, y_train, verbose=False)
+
+    X_val_meta = pd.DataFrame(val_preds[:, cols], columns=active_names)
+    X_val_meta_const = sm.add_constant(X_val_meta, has_constant="add")
+    preds = np.asarray(meta.predict(X_val_meta_const)).ravel()
+    return root_mean_squared_error(y_val, preds), meta
+
+
+active = list(all_names)
+baseline_rmse, _ = fit_meta_and_score(active)
+print(f"\n[Recursive Elimination] Baseline with all {len(active)} models: RMSE = {baseline_rmse:.6f}")
+
+elimination_history = [(list(active), baseline_rmse)]
+
+while len(active) > 1:
+    candidate_results = []
+    for name in active:
+        candidate = [n for n in active if n != name]
+        cand_rmse, _ = fit_meta_and_score(candidate)
+        candidate_results.append((cand_rmse, name))
+
+    candidate_results.sort()  # lowest RMSE first
+    best_rmse, drop_name = candidate_results[0]
+
+    if best_rmse <= baseline_rmse + TOLERANCE:
+        delta = best_rmse - baseline_rmse
+        sign = "+" if delta >= 0 else ""
+        print(f"  Drop '{drop_name}'  RMSE: {baseline_rmse:.6f} -> {best_rmse:.6f} "
+              f"({sign}{delta:.6f}); {len(active) - 1} models remain")
+        active.remove(drop_name)
+        baseline_rmse = best_rmse
+        elimination_history.append((list(active), baseline_rmse))
+    else:
+        print(f"  Stop: best candidate removal ('{drop_name}' -> {best_rmse:.6f}) "
+              f"is worse than current {baseline_rmse:.6f} by more than tolerance")
+        break
+
+print(f"\n[Recursive Elimination] Final RMSE: {baseline_rmse:.6f}")
+print(f"[Recursive Elimination] Surviving {len(active)} models: {active}")
+
+
+# -------------------- Refit + save final meta-learner --------------------
+final_rmse, meta_learner_ols = fit_meta_and_score(active)
+print(f"\nStacking Performance (after elimination):")
+print(f"Root Mean Squared Error: {final_rmse:.4f}")
+
+with open("models/meta_learner_ols.pkl", "wb") as f:
+    pickle.dump(meta_learner_ols, f)
+print("Meta-learner saved to models/meta_learner_ols.pkl")
+
+with open("models/meta_learner_active_models.txt", "w") as f:
+    for name in active:
+        f.write(name + "\n")
+print("Surviving model list saved to models/meta_learner_active_models.txt")
 
 conn.close()
