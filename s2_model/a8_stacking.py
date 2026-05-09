@@ -28,14 +28,14 @@ random_state = 42
 """
 Base models (and the duckdb table each was trained on in a1..a7):
 
-Linear regressors (Ridge / Lasso / ElasticNet)  -> X_train_reg_lr / X_val_reg_lr   (saved by a1, with sm.add_constant)
-RBF SVR                                         -> X_train_svr_rbf                 (saved by a2)
-Linear SVR                                      -> X_train_linear_svr              (saved by a2)
-KNN                                             -> X_train_knn_final               (saved by a3)
-Decision Tree / Random Forest / Extra Trees     -> X_train_ml / X_val_ml           (raw, a4 does not save)
-XGBoost (GridSearch + Bayesian)                 -> X_train_xgb                     (saved by a5)
-LightGBM (GridSearch + Bayesian)                -> X_train_lgbm                    (saved by a6)
-CatBoost (basic)                                -> X_train_cat / X_val_cat         (raw, a7 does not save)
+Linear regressors (Ridge / Lasso / ElasticNet)
+RBF SVR                                                          
+Linear SVR                                   
+KNN                                                      
+Decision Tree / Random Forest / Extra Trees     
+XGBoost (GridSearch + Bayesian)                                
+LightGBM (GridSearch + Bayesian)                               
+CatBoost (basic)                           
 """
 
 # -------------------- Targets --------------------
