@@ -61,9 +61,6 @@ X_train_lgbm = X_train_cat[lgbm_features]
 X_val_lgbm = X_val_cat[lgbm_features]
 test_lgbm = test_cat[lgbm_features]
 
-cv = KFold(n_splits=10, shuffle=True, random_state=random_state)
-
-
 
 ############################################## LightGBM Regressor Model ############################################################
 lgbm = lgb.LGBMRegressor(random_state=random_state, objective="regression", verbose=-1)
@@ -110,11 +107,134 @@ with open("models/final_model_lgbm.pkl", "wb") as f:
 print("lgbm model saved to models/final_model_lgbm.pkl")
 
 
+
+
+############################################## LGBM Models with Bayesian Optimization ############################################################
+# Best boosting round (from lgb.cv early stopping) recorded per BO call so we can refit
+best_rounds_per_call = {}
+MAX_BOOST_ROUNDS = 5000
+
+
+def bayesian_opt_lgbm(X, y, cat_features, init_iter=30, n_iters=120,
+                      random_state=random_state, seed=seed):
+    dtrain = lgb.Dataset(data=X, label=y, categorical_feature=cat_features, free_raw_data=False)
+
+    def hyp_lgbm(learning_rate, max_depth, num_leaves, min_child_samples,
+                 min_sum_hessian_in_leaf, reg_alpha, reg_lambda, min_split_gain,
+                 colsample_bytree, subsample, subsample_freq, feature_fraction_bynode):
+        params = {
+            "objective": "regression",
+            "metric": "rmse",
+            "verbosity": -1,
+            "feature_pre_filter": False,
+            "seed": seed,
+            "n_jobs": -1,
+            "boosting_type": "gbdt",
+            "learning_rate": learning_rate,
+            "max_depth": int(round(max_depth)),
+            "num_leaves": int(round(num_leaves)),
+            "min_child_samples": int(round(min_child_samples)),
+            "min_sum_hessian_in_leaf": min_sum_hessian_in_leaf,
+            "feature_fraction_bynode": max(min(feature_fraction_bynode, 1), 0),
+            "reg_alpha": max(reg_alpha, 0),
+            "reg_lambda": max(reg_lambda, 0),
+            "min_split_gain": max(min_split_gain, 0),
+            "colsample_bytree": max(min(colsample_bytree, 1), 0),
+            "subsample": max(min(subsample, 1), 0),
+            "subsample_freq": int(round(subsample_freq)),
+        }
+
+        cv_results = lgb.cv(
+            params,
+            dtrain,
+            num_boost_round=MAX_BOOST_ROUNDS,
+            nfold=10,
+            seed=seed,
+            shuffle=True,
+            stratified=False,
+            callbacks=[lgb.early_stopping(stopping_rounds=50, verbose=False),
+                       lgb.log_evaluation(0)],
+        )
+        rmse_curve = np.array(cv_results["valid rmse-mean"])
+        best_rmse = rmse_curve.min()
+        best_round = int(rmse_curve.argmin()) + 1
+        key = (
+            round(learning_rate, 6), int(round(max_depth)), int(round(num_leaves)),
+            int(round(min_child_samples)), round(min_sum_hessian_in_leaf, 6),
+            round(reg_alpha, 6), round(reg_lambda, 6), round(min_split_gain, 6),
+            round(colsample_bytree, 6), round(subsample, 6),
+            int(round(subsample_freq)), round(feature_fraction_bynode, 6),
+        )
+        best_rounds_per_call[key] = best_round
+        return -best_rmse
+
+    pds = {
+        "learning_rate": (0.005, 0.3),
+        "max_depth": (3, 12),
+        "num_leaves": (15, 200),
+        "min_child_samples": (5, 50),
+        "min_sum_hessian_in_leaf": (1e-3, 5),
+        "reg_alpha": (0, 5),
+        "reg_lambda": (0, 5),
+        "min_split_gain": (0, 1),
+        "colsample_bytree": (0.4, 1.0),
+        "subsample": (0.5, 1.0),
+        "subsample_freq": (0, 7),
+        "feature_fraction_bynode": (0.5, 1.0),
+    }
+
+    optimizer = BayesianOptimization(f=hyp_lgbm, pbounds=pds, random_state=random_state)
+    optimizer.maximize(init_points=init_iter, n_iter=n_iters)
+    return optimizer
+
+
+results = bayesian_opt_lgbm(X_train_lgbm, y_train.values.ravel(), cat_features=cat_columns)
+print("Best Parameters:", results.max["params"])
+print("Best RMSE Score:", -results.max["target"])
+
+best_params = results.max["params"].copy()
+best_params["max_depth"] = int(round(best_params["max_depth"]))
+best_params["num_leaves"] = int(round(best_params["num_leaves"]))
+best_params["min_child_samples"] = int(round(best_params["min_child_samples"]))
+best_params["subsample_freq"] = int(round(best_params["subsample_freq"]))
+
+# Look up the best boosting round captured during the optimal BO call
+best_key = (
+    round(best_params["learning_rate"], 6), best_params["max_depth"],
+    best_params["num_leaves"], best_params["min_child_samples"],
+    round(best_params["min_sum_hessian_in_leaf"], 6),
+    round(best_params["reg_alpha"], 6), round(best_params["reg_lambda"], 6),
+    round(best_params["min_split_gain"], 6),
+    round(best_params["colsample_bytree"], 6), round(best_params["subsample"], 6),
+    best_params["subsample_freq"], round(best_params["feature_fraction_bynode"], 6),
+)
+best_n_estimators = best_rounds_per_call.get(best_key, MAX_BOOST_ROUNDS)
+print(f"Best boosting round from CV: {best_n_estimators}")
+
+best_params.update({
+    "objective": "regression",
+    "metric": "rmse",
+    "verbosity": -1,
+    "feature_pre_filter": False,
+    "n_jobs": -1,
+    "random_state": random_state,
+    "boosting_type": "gbdt",
+    "n_estimators": best_n_estimators,
+})
+
+lgbm_bayes_model = lgb.LGBMRegressor(**best_params)
+lgbm_bayes_model.fit(X_train_lgbm, y_train.values.ravel(), categorical_feature=cat_columns)
+
+with open("models/final_model_lgbm_bayes.pkl", "wb") as f:
+    pickle.dump(lgbm_bayes_model, f)
+print("LGBM Bayes model saved to models/final_model_lgbm_bayes.pkl")
+
+
+
 save_df(conn, X_train_lgbm, "X_train_lgbm")
 save_df(conn, X_val_lgbm, "X_val_lgbm")
 save_df(conn, test_lgbm, "test_lgbm")
 
 
 evaluate_model(final_model_lgbm, X_val_lgbm, y_val, "LGBM (GridSearch)")
-
-
+evaluate_model(lgbm_bayes_model, X_val_lgbm, y_val, "LGBM (Bayes Opt)")
