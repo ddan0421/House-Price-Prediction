@@ -142,3 +142,4 @@ print("ExtraTreesRegressor model saved to models/final_model_et.pkl")
 evaluate_model(final_model_et, X_val_tree_raw, y_val, "Extra Trees Regressor")
 
 
+conn.close()
