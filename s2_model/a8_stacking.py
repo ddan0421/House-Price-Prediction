@@ -156,6 +156,7 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(np.arange(n_train))):
                 random_seed=random_state,
                 verbose=False,
                 cat_features=cat_cat_columns,
+                allow_writing_files=False,
             )
             fold_model.fit(X_fold_tr, y_fold_tr)
         elif name in ("lgbm", "lgbm_bayes"):
