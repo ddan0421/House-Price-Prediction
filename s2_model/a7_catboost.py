@@ -50,3 +50,5 @@ feature_importance = pd.Series(
 
 with open("models/catboost_feature_importance.txt", "w") as f:
     f.write(feature_importance.to_string())
+
+conn.close()
