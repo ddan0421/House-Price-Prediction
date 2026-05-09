@@ -242,3 +242,5 @@ save_df(conn, test_lgbm, "test_lgbm")
 
 evaluate_model(final_model_lgbm, X_val_lgbm, y_val, "LGBM (GridSearch)")
 evaluate_model(lgbm_bayes_model, X_val_lgbm, y_val, "LGBM (Bayes Opt)")
+
+conn.close()

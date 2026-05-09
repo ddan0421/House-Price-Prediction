@@ -207,3 +207,5 @@ save_df(conn, test_xgb, "test_xgb")
 
 evaluate_model(final_model_xgb, X_val_xgb, y_val, "XGBoost (GridSearch)")
 evaluate_model(xgb_bayes_model, X_val_xgb, y_val, "XGBoost (Bayes Opt)")
+
+conn.close()
