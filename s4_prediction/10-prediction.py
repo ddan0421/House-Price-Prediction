@@ -1,278 +1,230 @@
-import pandas as pd
-import numpy as np
+import os
 import pickle
-import statsmodels.api as sm
+import warnings
+
 import catboost as cb
+import duckdb
+import numpy as np
+import pandas as pd
+import statsmodels.api as sm
+from sklearn.base import clone
+
+from s1_data.db_utils import load_df
+
+warnings.filterwarnings("ignore", category=UserWarning)
+
+base_folder = "data"
+database = "AmesHousePrice.duckdb"
+database_path = os.path.join(base_folder, database)
+conn = duckdb.connect(database=database_path, read_only=False)
+
+random_state = 42
+
+################################################# Final Prediction #######################################################
+"""
+Pipeline:
+1. Load the list of surviving base models from a8 elimination
+   (models/meta_learner_active_models.txt)
+2. Load each base model's train, val, and test data from duckdb
+   - Feature-selected test matrices are saved in a1..a7 (e.g. test_reg_lr, test_xgb)
+   - Tree models (a4) use full test_ml from s1_data (no extra save)
+3. Concatenate train + val for the final fit, then refit each surviving base
+   model (using the loaded pkl as a hyperparameter template via sklearn.clone)
+4. Predict on test with each refit base model
+5. Pass the test base predictions through the saved OLS meta-learner
+6. Inverse log-transform and emit data/submission.csv keyed on real Kaggle Id
+"""
+
+# -------------------- Surviving models from elimination --------------------
+with open("models/meta_learner_active_models.txt") as f:
+    active_models = [line.strip() for line in f if line.strip()]
+print(f"Active models for stacking ({len(active_models)}): {active_models}")
 
 
+# -------------------- Targets --------------------
+y_train = load_df(conn, "y_train").values.ravel()
+y_val = load_df(conn, "y_val").values.ravel()
+y_full = np.concatenate([y_train, y_val])
 
-# Load train and val datasets for each base model
-X_train_xgb = pd.read_csv("data/model_data/X_train_xgb.csv").values
-y_train_xgb = pd.read_csv("data/model_data/y_train_xgb.csv").values.flatten()
-X_train_ridge = pd.read_csv("data/model_data/X_train_ridge.csv").values
-y_train_ridge = pd.read_csv("data/model_data/y_train_ridge.csv").values.flatten()
-X_train_svm = pd.read_csv("data/model_data/X_train_svm.csv").values
-y_train_svm = pd.read_csv("data/model_data/y_train_svm.csv").values.flatten()
-X_train_lasso = pd.read_csv("data/model_data/X_train_lasso.csv").values
-y_train_lasso = pd.read_csv("data/model_data/y_train_lasso.csv").values.flatten()
-X_train_lgbm_bayes = pd.read_csv("data/model_data/X_train_lgbm_bayes.csv")
-y_train_lgbm_bayes = pd.read_csv("data/model_data/y_train_lgbm_bayes.csv").values.flatten()
-X_train_xgb_bayes = pd.read_csv("data/model_data/X_train_xgb_bayes.csv").values
-y_train_xgb_bayes = pd.read_csv("data/model_data/y_train_xgb_bayes.csv").values.flatten()
-X_train_lgbm = pd.read_csv("data/model_data/X_train_lgbm.csv")
-y_train_lgbm = pd.read_csv("data/model_data/y_train_lgbm.csv").values.flatten()
-X_train_rf = pd.read_csv("data/model_data/X_train_rf.csv").values
-y_train_rf = pd.read_csv("data/model_data/y_train_rf.csv").values.flatten()
-X_train_knn = pd.read_csv("data/model_data/X_train_knn.csv").values
-y_train_knn = pd.read_csv("data/model_data/y_train_knn.csv").values.flatten()
-X_train_dt = pd.read_csv("data/model_data/X_train_dt.csv").values
-y_train_dt = pd.read_csv("data/model_data/y_train_dt.csv").values.flatten()
-X_train_sdt = pd.read_csv("data/model_data/X_train_sdt.csv").values
-y_train_sdt = pd.read_csv("data/model_data/y_train_sdt.csv").values.flatten()
-X_train_enet = pd.read_csv("data/model_data/X_train_enet.csv").values
-y_train_enet = pd.read_csv("data/model_data/y_train_enet.csv").values.flatten()
-X_train_et = pd.read_csv("data/model_data/X_train_et.csv").values
-y_train_et = pd.read_csv("data/model_data/y_train_et.csv").values.flatten()
-X_train_cat = pd.read_csv("data/model_data/X_train_cat.csv")
-y_train_cat = pd.read_csv("data/model_data/y_train_cat.csv").values.flatten()
 
-cat_columns = X_train_cat.select_dtypes(include="object").columns.tolist()
-cat_columns.append("MSSubClass")
+# -------------------- Per-model train / val / test DataFrames --------------------
+# Linear regressors (Ridge / Lasso / ElasticNet) — test_reg_lr saved by a1 (lr_features only)
+X_train_reg = load_df(conn, "X_train_reg_lr")
+X_val_reg = load_df(conn, "X_val_reg_lr")
+test_reg = load_df(conn, "test_reg_lr")
 
-lgbm_cat_columns = X_train_lgbm.select_dtypes(include="object").columns.tolist()
-lgbm_cat_columns.append("MSSubClass")
+# RBF SVR — saved by a2
+X_train_svr_rbf = load_df(conn, "X_train_svr_rbf")
+X_val_svr_rbf = load_df(conn, "X_val_svr_rbf")
+test_svr_rbf = load_df(conn, "test_svr_rbf")
 
-X_val_xgb = pd.read_csv("data/model_data/X_val_xgb.csv").values
-X_val_ridge = pd.read_csv("data/model_data/X_val_ridge.csv").values
-X_val_svm = pd.read_csv("data/model_data/X_val_svm.csv").values
-X_val_lasso = pd.read_csv("data/model_data/X_val_lasso.csv").values
-X_val_lgbm_bayes = pd.read_csv("data/model_data/X_val_lgbm_bayes.csv")
-X_val_xgb_bayes = pd.read_csv("data/model_data/X_val_xgb_bayes.csv").values
-X_val_lgbm = pd.read_csv("data/model_data/X_val_lgbm.csv")
-X_val_rf = pd.read_csv("data/model_data/X_val_rf.csv").values
-X_val_knn = pd.read_csv("data/model_data/X_val_knn.csv").values
-X_val_dt = pd.read_csv("data/model_data/X_val_dt.csv").values
-X_val_sdt = pd.read_csv("data/model_data/X_val_sdt.csv").values
-X_val_enet = pd.read_csv("data/model_data/X_val_enet.csv").values
-X_val_et = pd.read_csv("data/model_data/X_val_et.csv").values
-X_val_cat = pd.read_csv("data/model_data/X_val_cat.csv")
+# Linear SVR — saved by a2
+X_train_linear_svr = load_df(conn, "X_train_linear_svr")
+X_val_linear_svr = load_df(conn, "X_val_linear_svr")
+test_linear_svr = load_df(conn, "test_linear_svr")
 
-y_val = pd.read_csv("data/model_data/y_val_ml.csv").values.flatten()
+# KNN — saved by a3
+X_train_knn = load_df(conn, "X_train_knn_final")
+X_val_knn = load_df(conn, "X_val_knn_final")
+test_knn = load_df(conn, "test_knn_final")
 
-# Combine train and validation sets
-X_xgb = np.vstack([X_train_xgb, X_val_xgb])
-y_xgb = np.concatenate([y_train_xgb, y_val])
+# Trees (DT / RF / ET) — full test_ml from s1_data only (a4 has no feature selection / no test save)
+X_train_ml = load_df(conn, "X_train_ml")
+X_val_ml = load_df(conn, "X_val_ml")
+test_ml = load_df(conn, "test_ml")
 
-X_ridge = np.vstack([X_train_ridge, X_val_ridge])
-y_ridge = np.concatenate([y_train_ridge, y_val])
+# XGB (GridSearch + Bayesian) — saved by a5
+X_train_xgb = load_df(conn, "X_train_xgb")
+X_val_xgb = load_df(conn, "X_val_xgb")
+test_xgb = load_df(conn, "test_xgb")
 
-X_svm = np.vstack([X_train_svm, X_val_svm])
-y_svm = np.concatenate([y_train_svm, y_val])
-
-X_lasso = np.vstack([X_train_lasso, X_val_lasso])
-y_lasso = np.concatenate([y_train_lasso, y_val])
-
-X_lgbm_bayes = pd.concat([X_train_lgbm_bayes, X_val_lgbm_bayes], axis=0, ignore_index=True)
-y_lgbm_bayes = np.concatenate([y_train_lgbm_bayes, y_val])
-
-X_xgb_bayes = np.vstack([X_train_xgb_bayes, X_val_xgb_bayes])
-y_xgb_bayes = np.concatenate([y_train_xgb_bayes, y_val])
-
-X_lgbm = pd.concat([X_train_lgbm, X_val_lgbm], axis=0, ignore_index=True)
-y_lgbm = np.concatenate([y_train_lgbm, y_val])
-
-X_rf = np.vstack([X_train_rf, X_val_rf])
-y_rf = np.concatenate([y_train_rf, y_val])
-
-X_knn = np.vstack([X_train_knn, X_val_knn])
-y_knn = np.concatenate([y_train_knn, y_val])
-
-X_dt = np.vstack([X_train_dt, X_val_dt])
-y_dt = np.concatenate([y_train_dt, y_val])
-
-X_sdt = np.vstack([X_train_sdt, X_val_sdt])
-y_sdt = np.concatenate([y_train_sdt, y_val])
-
-X_enet = np.vstack([X_train_enet, X_val_enet])
-y_enet = np.concatenate([y_train_enet, y_val])
-
-X_et = np.vstack([X_train_et, X_val_et])
-y_et = np.concatenate([y_train_et, y_val])
-
-X_cat = pd.concat([X_train_cat, X_val_cat], axis=0, ignore_index=True)
-y_cat = np.concatenate([y_train_cat, y_val])
-
-# convert categorical columns to category type
-X_lgbm_bayes[lgbm_cat_columns] = X_lgbm_bayes[lgbm_cat_columns].astype("category")
-X_lgbm[lgbm_cat_columns] = X_lgbm[lgbm_cat_columns].astype("category")
-
-# Load pre-trained base models
-with open("final_model_xgb.pkl", "rb") as f:
-    xgb_model = pickle.load(f)
-with open("final_model_ridge.pkl", "rb") as f:
-    ridge_model = pickle.load(f)   
-with open("final_model_svm.pkl", "rb") as f:
-    svr_model = pickle.load(f)
-with open("final_model_lasso.pkl", "rb") as f:
-    lasso_model = pickle.load(f)
-with open("final_model_LGBM_bayes.pkl", "rb") as f:
-    lgbm_bayes_model = pickle.load(f)
-with open("final_model_xgb_bayes.pkl", "rb") as f:
-    xgb_bayes_model = pickle.load(f)
-with open("final_model_lgbm.pkl", "rb") as f:
-    lgbm_model = pickle.load(f)
-with open("final_model_rf.pkl", "rb") as f:
-    rf_model = pickle.load(f)
-with open("final_model_knn.pkl", "rb") as f:
-    knn_model = pickle.load(f)
-with open("final_model_dt.pkl", "rb") as f:
-    dt_model = pickle.load(f)
-with open("final_model_sdt.pkl", "rb") as f:
-    sdt_model = pickle.load(f)
-with open("final_model_enet.pkl", "rb") as f:
-    enet_model = pickle.load(f)
-with open("final_model_et.pkl", "rb") as f:
-    et_model = pickle.load(f)
-
-final_model_cat_optuna = cb.CatBoostRegressor(cat_features=cat_columns)
-final_model_cat_optuna.load_model("final_model_catboost_optuna.cbm")
-
-final_model_cat_gridsearch = cb.CatBoostRegressor(cat_features=cat_columns)
-final_model_cat_gridsearch.load_model("final_model_catboost_gridsearch.cbm")
-
-final_model_cat_basic = cb.CatBoostRegressor(cat_features=cat_columns)
-final_model_cat_basic.load_model("final_model_catboost_basic.cbm")
-
-base_models = [
-    ("xgb", xgb_model, X_xgb, y_xgb),
-    ("ridge", ridge_model, X_ridge, y_ridge),
-    ("svr", svr_model, X_svm, y_svm),
-    ("lasso", lasso_model, X_lasso, y_lasso),
-    ("lgbm_bayes", lgbm_bayes_model, X_lgbm_bayes, y_lgbm_bayes),
-    ("xgb_bayes", xgb_bayes_model, X_xgb_bayes, y_xgb_bayes),
-    ("lgbm", lgbm_model, X_lgbm, y_lgbm), 
-    ("rf", rf_model, X_rf, y_rf),
-    ("knn", knn_model, X_knn, y_knn),
-    ("dt", dt_model, X_dt, y_dt),
-    # ("sdt", sdt_model, X_sdt, y_sdt),
-    ("enet", enet_model, X_enet, y_enet),
-    ("et", et_model, X_et, y_et),
-    # ("cat_optuna", final_model_cat_optuna, X_cat, y_cat),
-    # ("cat_gridsearch", final_model_cat_gridsearch, X_cat, y_cat),
-    ("cat_basic", final_model_cat_basic, X_cat, y_cat)
+# Categorical column lists (matches a6/a7)
+nominal_cat = [
+    "MSSubClass_MSZoning", "LotConfig_LandSlope", "Neighborhood_Condition", "BldgType_HouseStyle",
+    "Exterior1st_Exterior2nd", "CentralAir_Electrical", "LotShape_LandContour", "RoofStyle_RoofMatl",
+    "Heating_HeatingQC", "Alley", "MasVnrType", "Foundation", "GarageType", "PavedDrive", "Fence",
+    "MiscFeature", "SaleType", "SaleCondition", "Season_Sold",
 ]
+ordinal_cat = [
+    "Utilities", "Functional", "OverallQual", "OverallCond", "ExterQual", "ExterCond", "BsmtQual",
+    "BsmtCond", "BsmtExposure", "BsmtFinType1", "BsmtFinType2", "KitchenQual", "FireplaceQu",
+    "GarageFinish", "GarageQual", "GarageCond", "PoolQC", "Street",
+]
+all_cat_columns = nominal_cat + ordinal_cat
+
+# LightGBM (GridSearch + Bayesian) - saved by a6, needs category dtype re-cast
+X_train_lgbm = load_df(conn, "X_train_lgbm")
+X_val_lgbm = load_df(conn, "X_val_lgbm")
+test_lgbm = load_df(conn, "test_lgbm")
+lgbm_cat_columns = [c for c in X_train_lgbm.columns if c in all_cat_columns]
+X_train_lgbm[lgbm_cat_columns] = X_train_lgbm[lgbm_cat_columns].astype("category")
+X_val_lgbm[lgbm_cat_columns] = X_val_lgbm[lgbm_cat_columns].astype("category")
+test_lgbm[lgbm_cat_columns] = test_lgbm[lgbm_cat_columns].astype("category")
+
+# CatBoost — same columns as X_train_cat; test_cat from s1_data (a9 / cat prep), no subsetting
+X_train_cat = load_df(conn, "X_train_cat")
+X_val_cat = load_df(conn, "X_val_cat")
+test_cat = load_df(conn, "test_cat")
+cat_cat_columns = [c for c in X_train_cat.columns if c in all_cat_columns]
 
 
-trained_base_models = {}
+# -------------------- Combine train + val for the final fit --------------------
+def _combine(a, b):
+    return pd.concat([a, b], axis=0, ignore_index=True)
 
-# Train base models with the entire training set
-for name, model, X, y in base_models:
-    if "cat" in name:
-        train_pool = cb.Pool(data=X, label=y, cat_features=cat_columns)
-        model.fit(train_pool, verbose=False)
-    elif "lgbm" in name:
-        model.fit(X, y, categorical_feature=lgbm_cat_columns)
+
+X_full_reg = _combine(X_train_reg, X_val_reg)
+X_full_svr_rbf = _combine(X_train_svr_rbf, X_val_svr_rbf)
+X_full_linear_svr = _combine(X_train_linear_svr, X_val_linear_svr)
+X_full_knn = _combine(X_train_knn, X_val_knn)
+X_full_ml = _combine(X_train_ml, X_val_ml)
+X_full_xgb = _combine(X_train_xgb, X_val_xgb)
+X_full_lgbm = _combine(X_train_lgbm, X_val_lgbm)
+X_full_cat = _combine(X_train_cat, X_val_cat)
+
+
+# -------------------- Per-model train+val and test registry --------------------
+# Each entry: (full_X, test_X)
+DATA = {
+    "xgb":         (X_full_xgb,        test_xgb),
+    "xgb_bayes":   (X_full_xgb,        test_xgb),
+    "ridge":       (X_full_reg,        test_reg),
+    "lasso":       (X_full_reg,        test_reg),
+    "enet":        (X_full_reg,        test_reg),
+    "svr_rbf":     (X_full_svr_rbf,    test_svr_rbf),
+    "svr_linear":  (X_full_linear_svr, test_linear_svr),
+    "knn":         (X_full_knn,        test_knn),
+    "dt":          (X_full_ml,         test_ml),
+    "rf":          (X_full_ml,         test_ml),
+    "et":          (X_full_ml,         test_ml),
+    "lgbm":        (X_full_lgbm,       test_lgbm),
+    "lgbm_bayes":  (X_full_lgbm,       test_lgbm),
+    "cat_basic":   (X_full_cat,        test_cat),
+}
+
+
+# -------------------- Load pkl base models (used as hyperparameter templates) --------------------
+def load_pkl(path):
+    with open(path, "rb") as f:
+        return pickle.load(f)
+
+
+pkl_paths = {
+    "xgb":         "models/final_model_xgb.pkl",
+    "xgb_bayes":   "models/final_model_xgb_bayes.pkl",
+    "ridge":       "models/final_model_ridge.pkl",
+    "lasso":       "models/final_model_lasso.pkl",
+    "enet":        "models/final_model_enet.pkl",
+    "svr_rbf":     "models/final_model_svr_rbf.pkl",
+    "svr_linear":  "models/final_model_linear_svr.pkl",
+    "knn":         "models/final_model_knn.pkl",
+    "dt":          "models/final_model_dt.pkl",
+    "rf":          "models/final_model_rf.pkl",
+    "et":          "models/final_model_et.pkl",
+    "lgbm":        "models/final_model_lgbm.pkl",
+    "lgbm_bayes":  "models/final_model_lgbm_bayes.pkl",
+}
+
+models_pkl = {name: load_pkl(path) for name, path in pkl_paths.items() if name in active_models}
+
+
+# -------------------- Refit each surviving base model on train + val --------------------
+print(f"\nRefitting {len(active_models)} base models on train + val...")
+trained = {}
+for name in active_models:
+    X_full, _ = DATA[name]
+    if name == "cat_basic":
+        model = cb.CatBoostRegressor(
+            loss_function="RMSE",
+            random_seed=random_state,
+            verbose=False,
+            cat_features=cat_cat_columns,
+            allow_writing_files=False,
+        )
+        model.fit(X_full, y_full)
+    elif name in ("lgbm", "lgbm_bayes"):
+        model = clone(models_pkl[name])
+        model.fit(X_full, y_full, categorical_feature=lgbm_cat_columns)
     else:
-        model.fit(X, y)
-    trained_base_models[name] = model
+        model = clone(models_pkl[name])
+        model.fit(X_full, y_full)
+    trained[name] = model
+    print(f"  Refit '{name}' done.")
 
 
-# Predict on test data
-test_final_ml = pd.read_csv("data/model_data/test_final_ml.csv")
-test_final_regress = pd.read_csv("data/model_data/test_final_reg.csv")
-test_final_cat = pd.read_csv("data/model_data/test_final_cat.csv")
-test_final_knn = pd.read_csv("data/model_data/test_final_knn.csv")
-test_final_lgbm = test_final_cat.copy()
-
-X_val_xgb = pd.read_csv("data/model_data/X_val_xgb.csv")
-X_val_ridge = pd.read_csv("data/model_data/X_val_ridge.csv")
-X_val_svm = pd.read_csv("data/model_data/X_val_svm.csv")
-X_val_lasso = pd.read_csv("data/model_data/X_val_lasso.csv")
-X_val_lgbm_bayes = pd.read_csv("data/model_data/X_val_lgbm_bayes.csv")
-X_val_xgb_bayes = pd.read_csv("data/model_data/X_val_xgb_bayes.csv")
-X_val_lgbm = pd.read_csv("data/model_data/X_val_lgbm.csv")
-X_val_rf = pd.read_csv("data/model_data/X_val_rf.csv")
-X_val_knn = pd.read_csv("data/model_data/X_val_knn.csv")
-X_val_dt = pd.read_csv("data/model_data/X_val_dt.csv")
-X_val_sdt = pd.read_csv("data/model_data/X_val_sdt.csv")
-X_val_enet = pd.read_csv("data/model_data/X_val_enet.csv")
-X_val_et = pd.read_csv("data/model_data/X_val_et.csv")
-
-y_val = pd.read_csv("data/model_data/y_val_ml.csv")
+# -------------------- Predict on test with each base model --------------------
+n_test = int(conn.execute("SELECT COUNT(*) FROM test").fetchone()[0])
+test_preds = np.zeros((n_test, len(active_models)))
+for i, name in enumerate(active_models):
+    _, X_test = DATA[name]
+    test_preds[:, i] = np.asarray(trained[name].predict(X_test)).ravel()
 
 
-X_test_xgb = test_final_ml[X_val_xgb.columns].values
-X_test_ridge = test_final_regress[X_val_ridge.columns].values
-X_test_svm = test_final_regress[X_val_svm.columns].values
-X_test_lasso = test_final_regress[X_val_lasso.columns].values
-X_test_lgbm_bayes = test_final_lgbm[X_val_lgbm_bayes.columns].copy()
-X_test_xgb_bayes = test_final_ml[X_val_xgb_bayes.columns].values
-X_test_lgbm = test_final_lgbm[X_val_lgbm.columns].copy()
-X_test_rf = test_final_ml[X_val_rf.columns].values
-X_test_knn = test_final_knn[X_val_knn.columns].values
-X_test_dt = test_final_ml[X_val_dt.columns].values
-X_test_sdt = test_final_ml[X_val_sdt.columns].values
-X_test_enet = test_final_regress[X_val_enet.columns].values
-X_test_et = test_final_ml[X_val_et.columns].values
-X_test_cat = test_final_cat.drop(columns=["Id"], axis=1)
-
-# Convert categorical columns to category type
-X_test_lgbm[lgbm_cat_columns] = X_test_lgbm[lgbm_cat_columns].astype("category")
-X_test_lgbm_bayes[lgbm_cat_columns] = X_test_lgbm_bayes[lgbm_cat_columns].astype("category")
-
-test_preds = np.zeros((X_test_xgb.shape[0], len(trained_base_models)))
-
-for i, (name, model,) in enumerate(trained_base_models.items()):
-    if name == "xgb":
-        test_preds[:, i] = model.predict(X_test_xgb)
-    elif name == "ridge":
-        test_preds[:, i] = model.predict(X_test_ridge)
-    elif name == "svr":
-        test_preds[:, i] = model.predict(X_test_svm)
-    elif name == "lasso":
-        test_preds[:, i] = model.predict(X_test_lasso)
-    elif name == "lgbm_bayes":
-        test_preds[:, i] = model.predict(X_test_lgbm_bayes)
-    elif name == "xgb_bayes":
-        test_preds[:, i] = model.predict(X_test_xgb_bayes)
-    elif name == "lgbm":
-        test_preds[:, i] = model.predict(X_test_lgbm)
-    elif name == "rf":
-        test_preds[:, i] = model.predict(X_test_rf)
-    elif name == "knn":
-        test_preds[:, i] = model.predict(X_test_knn)
-    elif name == "dt":
-        test_preds[:, i] = model.predict(X_test_dt)
-    elif name == "sdt":
-        test_preds[:, i] = model.predict(X_test_sdt)
-    elif name == "enet":
-        test_preds[:, i] = model.predict(X_test_enet)
-    elif name == "et":
-        test_preds[:, i] = model.predict(X_test_et)
-    elif name == "cat_optuna":
-        test_pool = cb.Pool(data=X_test_cat, cat_features=cat_columns)
-        test_preds[:, i] = model.predict(test_pool)
-    elif name == "cat_gridsearch":
-        test_pool = cb.Pool(data=X_test_cat, cat_features=cat_columns)
-        test_preds[:, i] = model.predict(test_pool)
-    elif name == "cat_basic":
-        test_pool = cb.Pool(data=X_test_cat, cat_features=cat_columns)
-        test_preds[:, i] = model.predict(test_pool)
-    
-
-# Load meta-learner model
-with open("meta_learner_ols.pkl", "rb") as f:
+# -------------------- Apply OLS meta-learner --------------------
+with open("models/meta_learner_ols.pkl", "rb") as f:
     meta_learner_ols = pickle.load(f)
 
-# Final predictions using meta-learner
-test_preds = sm.add_constant(test_preds)
-final_preds = meta_learner_ols.predict(test_preds)
+test_preds_df = pd.DataFrame(test_preds, columns=active_models)
+test_preds_const = sm.add_constant(test_preds_df, has_constant="add")
+final_preds_log = np.asarray(meta_learner_ols.predict(test_preds_const)).ravel()
 
-# Create a DataFrame with Id and SalePrice
-final_preds_df = pd.DataFrame({
-    "Id": test_final_ml["Id"],  
-    "SalePrice": np.exp(final_preds)
+
+# -------------------- Build submission with real Kaggle Id --------------------
+"""
+The duckdb tables produced by save_df use a synthetic Id (range(len(df))) that
+load_df excludes. The real Kaggle test Id is only kept in the raw `test` table
+(loaded from CSV in s1_data/a1_load_raw_data.py). Both orderings are sorted
+by Id, so positional alignment holds.
+"""
+test_ids = conn.execute("SELECT Id FROM test ORDER BY Id").fetch_df()["Id"]
+
+submission = pd.DataFrame({
+    "Id": test_ids.values,
+    "SalePrice": np.exp(final_preds_log),
 })
 
-final_preds_df.to_csv("data/submission.csv", index=False)
+os.makedirs("data", exist_ok=True)
+submission.to_csv("data/submission.csv", index=False)
+print(f"\nSubmission saved to data/submission.csv ({len(submission)} rows)")
 
+conn.close()
