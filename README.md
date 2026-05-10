@@ -11,6 +11,10 @@ This project is a personal exercise used to practice and demonstrate a structure
 * Utilize model stacking to improve prediction performance.
 * Maintain a clean, modular project structure that separates data processing, modeling, and validation.
 
+## Data Preparation
+
+All intermediate data lives in a single `data/AmesHousePrice.duckdb` file. Each `s1_data` script reads the upstream tables, applies one transformation step (raw load, imputation, feature engineering, model-specific prep), and writes the result back as a new table via `save_df` in `s1_data/db_utils.py`. Downstream `s2_model` and `s4_prediction` scripts then pull the model-specific train/val/test tables (e.g. `X_train_xgb`, `test_lgbm`) with `load_df`, keeping every stage reproducible from the same DuckDB file.
+
 ## Modeling Workflow
 
 The project uses a three-stage pipeline to ensure rigorous evaluation and avoid data leakage.
@@ -29,14 +33,14 @@ Dataset: 20% of training data (~292 records)
 * Selection: Performance comparison across models to select candidates for stacking or final use.
 
 ### Phase 3: Testing
-Dataset: Unseen test data
+Dataset: Unseen test features (no SalePrice)
 
-* Final evaluation using the log-RMSE metric to report the selected model's performance.
+* Refit surviving base learners on train + val, then stack their test predictions through the OLS meta-learner to produce the final SalePrice for each test record.
 
 ## Tools Used
 
 * Database: DuckDB
-* Modeling: Scikit-learn, XGBoost, LightGBM, CatBoost
+* Modeling: Scikit-learn, XGBoost, LightGBM, CatBoost, statsmodels
 * Package Management: uv
 
 ## Getting Started
