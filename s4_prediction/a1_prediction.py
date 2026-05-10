@@ -92,14 +92,15 @@ ordinal_cat = [
 ]
 all_cat_columns = nominal_cat + ordinal_cat
 
-# LightGBM (GridSearch + Bayesian) - saved by a6, needs category dtype re-cast
+# LightGBM (GridSearch + Bayesian) - saved by a6
+# Note: we cast to category AFTER concatenating train + val below. Casting
+# beforehand would coerce the columns back to object on concat whenever train
+# and val carry different category levels, which LightGBM rejects with
+# "pandas dtypes must be int, float or bool".
 X_train_lgbm = load_df(conn, "X_train_lgbm")
 X_val_lgbm = load_df(conn, "X_val_lgbm")
 test_lgbm = load_df(conn, "test_lgbm")
 lgbm_cat_columns = [c for c in X_train_lgbm.columns if c in all_cat_columns]
-X_train_lgbm[lgbm_cat_columns] = X_train_lgbm[lgbm_cat_columns].astype("category")
-X_val_lgbm[lgbm_cat_columns] = X_val_lgbm[lgbm_cat_columns].astype("category")
-test_lgbm[lgbm_cat_columns] = test_lgbm[lgbm_cat_columns].astype("category")
 
 # CatBoost — same columns as X_train_cat; test_cat from s1_data (a9 / cat prep), no subsetting
 X_train_cat = load_df(conn, "X_train_cat")
@@ -121,6 +122,15 @@ X_full_ml = _combine(X_train_ml, X_val_ml)
 X_full_xgb = _combine(X_train_xgb, X_val_xgb)
 X_full_lgbm = _combine(X_train_lgbm, X_val_lgbm)
 X_full_cat = _combine(X_train_cat, X_val_cat)
+
+# LightGBM cast: do it now so each cat column gets the union of categories from
+# train+val. Then align the test set's categories to the train+val cats so
+# unseen test levels become NaN (LightGBM handles them) and the dtype matches.
+for col in lgbm_cat_columns:
+    X_full_lgbm[col] = X_full_lgbm[col].astype("category")
+    test_lgbm[col] = pd.Categorical(
+        test_lgbm[col], categories=X_full_lgbm[col].cat.categories
+    )
 
 
 # -------------------- Per-model train+val and test registry --------------------
