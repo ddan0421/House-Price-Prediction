@@ -50,10 +50,11 @@ This project uses [uv](https://docs.astral.sh/uv/) for Python and dependency man
 In the project directory, run:
 
 ```bash
+uv venv
 uv sync
 ```
 
-`uv sync` reads `pyproject.toml` and `uv.lock`, installs the correct Python version, creates a `.venv`, and installs all dependencies. No manual `pip install` needed.
+`uv venv` initializes the virtual environment, while `uv sync` reads `pyproject.toml` and `uv.lock`, installs the correct Python version, and synchronizes all dependencies. No manual `pip install` needed.
 
 ### Running the Pipeline
 
