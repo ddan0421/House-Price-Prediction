@@ -18,14 +18,15 @@ package = __package__
 
 for script in SCRIPTS:
     module = f"{package}.{script}"
-    print(f"\n{'='*60}")
-    print(f"Running {module}")
-    print(f"{'='*60}\n")
-    result = subprocess.run([sys.executable, "-m", module])
+    # flush=True so banners appear before subprocess output when stdout is redirected (non-TTY).
+    print(f"\n{'='*60}", flush=True)
+    print(f"Running {module}", flush=True)
+    print(f"{'='*60}\n", flush=True)
+    result = subprocess.run([sys.executable, "-u", "-m", module])
     if result.returncode != 0:
-        print(f"\nFAILED: {module} exited with code {result.returncode}")
+        print(f"\nFAILED: {module} exited with code {result.returncode}", flush=True)
         sys.exit(result.returncode)
 
-print(f"\n{'='*60}")
-print(f"All {package} scripts completed successfully.")
-print(f"{'='*60}")
+print(f"\n{'='*60}", flush=True)
+print(f"All {package} scripts completed successfully.", flush=True)
+print(f"{'='*60}", flush=True)
