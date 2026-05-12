@@ -1,3 +1,2 @@
 uv.lock linguist-language=YAML
-uv.lock linguist-generated=true
 *.py text eol=lf
