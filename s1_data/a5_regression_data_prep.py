@@ -126,9 +126,9 @@ ordinal_cat = ["Utilities", "Functional", "OverallQual", "OverallCond", "ExterQu
 binary_nominal = ["Street"]
 
 # One-hot encode nominal categorical variables
-X_train_encoded = pd.get_dummies(X_train_engineered, columns=nominal_cat, drop_first=True)
-X_val_encoded = pd.get_dummies(X_val_engineered, columns=nominal_cat, drop_first=True)
-test_encoded = pd.get_dummies(test_engineered, columns=nominal_cat, drop_first=True)
+X_train_encoded = pd.get_dummies(X_train_engineered, columns=nominal_cat, drop_first=True, dtype="int8")
+X_val_encoded = pd.get_dummies(X_val_engineered, columns=nominal_cat, drop_first=True, dtype="int8")
+test_encoded = pd.get_dummies(test_engineered, columns=nominal_cat, drop_first=True, dtype="int8")
 
 X_val_encoded = X_val_encoded.reindex(columns=X_train_encoded.columns, fill_value=0)
 test_encoded = test_encoded.reindex(columns=X_train_encoded.columns, fill_value=0)
@@ -283,15 +283,6 @@ def ordinal_encoding(conn, df):
 X_train_encoded = ordinal_encoding(conn, X_train_encoded)
 X_val_encoded = ordinal_encoding(conn, X_val_encoded)
 test_encoded = ordinal_encoding(conn, test_encoded)
-
-
-bool_columns_train = X_train_encoded.select_dtypes(include="bool").columns
-bool_columns_val = X_val_encoded.select_dtypes(include="bool").columns
-bool_columns_test = test_encoded.select_dtypes(include="bool").columns
-
-X_train_encoded[bool_columns_train] = X_train_encoded[bool_columns_train].astype("int8")
-X_val_encoded[bool_columns_val] = X_val_encoded[bool_columns_val].astype("int8")
-test_encoded[bool_columns_test] = test_encoded[bool_columns_test].astype("int8")
 
 
 
