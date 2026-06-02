@@ -245,6 +245,13 @@ while len(active) > 1:
         print(f"  Stop: best candidate removal ('{drop_name}' -> {best_rmse:.6f}) "
               f"is worse than current {baseline_rmse:.6f} by more than tolerance")
         break
+    
+best_active, best_rmse = min(elimination_history, key=lambda item: item[1])
+if best_rmse < baseline_rmse:
+    print(f"\n[Recursive Elimination] Rolling back to best-seen configuration: "
+          f"RMSE {baseline_rmse:.6f} -> {best_rmse:.6f}")
+    active = list(best_active)
+    baseline_rmse = best_rmse
 
 print(f"\n[Recursive Elimination] Final RMSE: {baseline_rmse:.6f}")
 print(f"[Recursive Elimination] Surviving {len(active)} models: {active}")
