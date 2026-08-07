@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import scipy.stats as stats
+import statsmodels.api as sm
 from s1_data.a0_setup_directories import *
 
 df = pd.read_csv("data/train_after_imputation_EDA.csv")
@@ -279,4 +280,68 @@ for col in con_numeric_transformed + discrete_numeric:
     plt.title(f"QQ Plot of {col}")
     plt.savefig(os.path.join(plot_dir, f"05_QQ_plot_{col}.png"))
     plt.close()
+
+
+# 5. Outlier detection: the partial sales dropped in s1_data/a2_drop_outliers
+"""
+Reads train.csv directly instead of train_after_imputation_EDA.csv, because the
+latter is exported by a4 after a2 has already dropped these rows.
+
+A bucketed median of SalePrice by GrLivArea cannot separate these: the >4000 sqft
+bucket holds only 4 homes and 2 of them are the outliers, so the median falls
+between the two clusters and the legitimate $755k sale deviates further than a
+genuine outlier. Influence diagnostics on a continuous fit rank them correctly.
+"""
+df_raw = pd.read_csv("data/train.csv")
+
+X_raw = sm.add_constant(pd.DataFrame({
+    "log_GrLivArea": np.log(df_raw["GrLivArea"]),
+    "OverallQual": df_raw["OverallQual"],
+}))
+influence = sm.OLS(np.log(df_raw["SalePrice"]), X_raw).fit().get_influence()
+df_raw["leverage"] = influence.hat_matrix_diag
+df_raw["stud_resid"] = influence.resid_studentized_external
+df_raw["cooks_d"] = influence.cooks_distance[0]
+
+large = df_raw["GrLivArea"] > 4000
+dropped = large & (df_raw["SalePrice"] < 300000)
+
+fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+
+# Left: both underpriced mansions are Partial sales, the two at market are not
+sns.scatterplot(data=df_raw, x="GrLivArea", y="SalePrice", hue="SaleCondition",
+                alpha=0.6, ax=axes[0])
+sns.regplot(data=df_raw, x="GrLivArea", y="SalePrice", scatter=False, lowess=True,
+            color="black", line_kws={"linewidth": 1}, ax=axes[0])
+axes[0].axvline(4000, color="grey", linestyle="--", linewidth=1)
+# Ids 692 and 1183 nearly coincide, so stagger the labels vertically
+offsets = [12 if i % 2 == 0 else -20 for i in range(large.sum())]
+for (_, row), dy in zip(df_raw[large].iterrows(), offsets):
+    axes[0].annotate(f"Id {int(row['Id'])} ({row['SaleCondition']})",
+                     (row["GrLivArea"], row["SalePrice"]),
+                     textcoords="offset points", xytext=(-30, dy), fontsize=9)
+axes[0].set_title("GrLivArea vs SalePrice, homes over 4000 sqft labelled")
+
+# Right: the two dropped rows are the most influential points in the training set
+sns.scatterplot(data=df_raw, x="leverage", y="stud_resid", size="cooks_d",
+                sizes=(10, 400), alpha=0.4, legend=False, ax=axes[1])
+axes[1].axhline(0, color="grey", linewidth=1)
+for bound in (-3, 3):
+    axes[1].axhline(bound, color="red", linestyle="--", linewidth=1)
+for (_, row), dy in zip(df_raw[large].iterrows(), offsets):
+    axes[1].annotate(f"Id {int(row['Id'])}", (row["leverage"], row["stud_resid"]),
+                     textcoords="offset points", xytext=(10, dy / 2), fontsize=9)
+axes[1].set_title("Studentized residual vs leverage, sized by Cook's D")
+
+plt.tight_layout()
+plt.savefig(os.path.join(plot_dir, "06_outlier_detection.png"), dpi=300, bbox_inches="tight")
+plt.close()
+
+cooks_rank = df_raw["cooks_d"].rank(ascending=False).astype(int)
+summary = df_raw.loc[large, ["Id", "GrLivArea", "SalePrice", "SaleCondition", "stud_resid", "cooks_d"]]
+summary["cooks_rank"] = cooks_rank[large]
+summary["dropped"] = dropped[large]
+print("Homes over 4000 sqft, ranked by influence out of "
+      f"{len(df_raw)} training rows:")
+print(summary.to_string(index=False))
 
