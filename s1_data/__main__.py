@@ -4,7 +4,6 @@ import sys
 SCRIPTS = [
     "a0_setup_directories",
     "a1_load_raw_data",
-    "a2_load_macroecon",
     "a3_contextual_imputation",
     "a4_advanced_imputation",
     "a5_regression_data_prep",

@@ -291,7 +291,7 @@ def add_interaction_terms(conn, data):
     conn.register("input_df", data)
     query = """
     SELECT
-        * EXCLUDE ("HPI", "HPA", "pmms", "pmms_chg", "ue", "ue_chg", "nonfarm", "nonfarm_yoy"),
+        *,
         "GrLivArea" / ("TotalBsmtSF" + "1stFlrSF" + "2ndFlrSF") AS FinishedAreaPct,
         "GrLivArea" * "TotRmsAbvGrd" AS Living_Rooms,
         "GarageArea" * "GarageCars" AS Garage_Space,

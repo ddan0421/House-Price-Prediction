@@ -152,8 +152,7 @@ def log_transform(conn, data):
         "LotFrontage", "LotArea", "1stFlrSF", "2ndFlrSF", "LowQualFinSF", "GrLivArea",
         "Yrs_Since_Remodel", "Age_Garage",
         "TotalBsmtSF", "WoodDeckSF", "BsmtUnfSF", "BsmtFinSF1",
-        "MasVnrArea", "OpenPorchSF",
-        "HPI", "HPA", "pmms", "pmms_chg", "ue", "ue_chg", "nonfarm", "nonfarm_yoy"
+        "MasVnrArea", "OpenPorchSF"
     )
     FROM cte;
     """

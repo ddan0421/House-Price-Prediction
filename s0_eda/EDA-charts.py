@@ -64,7 +64,6 @@ con_numeric = ['LotFrontage', 'LotArea', 'MasVnrArea', 'BsmtFinSF1',
        'LowQualFinSF', 'GrLivArea', 'GarageArea', 'WoodDeckSF',
        'OpenPorchSF', 'EnclosedPorch', '3SsnPorch', 'ScreenPorch', 'PoolArea',
        'MiscVal', "Age_House", "Yrs_Since_Remodel",
-       "HPI", "HPA", "pmms", "pmms_chg", "ue", "ue_chg", "nonfarm", "nonfarm_yoy",
         "FinishedAreaPct", "Living_Rooms", "Garage_Space", "Age_Garage", "Garage_AgeCars",
         "Porch_Age", "Ratio_Bedroom_Rooms", "Ratio_2ndFlr_Living"
        ]
@@ -195,14 +194,6 @@ con_numeric_transformed = [
     'Age_House',
     'Age_Garage',
     'Yrs_Since_Remodel',
-
-    # -------------------------
-    # Macro / external features
-    # -------------------------
-    'HPI', 'HPA',
-    'pmms', 'pmms_chg',
-    'ue', 'ue_chg',
-    'nonfarm', 'nonfarm_yoy',
 
     # -------------------------
     # Transformed (log / sqrt / cbrt versions)

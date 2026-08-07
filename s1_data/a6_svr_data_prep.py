@@ -354,8 +354,7 @@ numerical_variables = [
     "TotRmsAbvGrd", "Fireplaces", "GarageCars", "GarageArea", "EnclosedPorch", "3SsnPorch",
     "ScreenPorch", "PoolArea", "MiscVal", "Age_House",
     "FinishedAreaPct", "Living_Rooms", "Garage_Space", "Garage_AgeCars", "Porch_Age", "Ratio_Bedroom_Rooms", "Ratio_2ndFlr_Living",
-    "sqrt_BsmtUnfSF", "sqrt_BsmtFinSF1", "BsmtFinSF2",
-    "HPI", "HPA", "pmms", "pmms_chg", "ue", "ue_chg", "nonfarm", "nonfarm_yoy"
+    "sqrt_BsmtUnfSF", "sqrt_BsmtFinSF1", "BsmtFinSF2"
 ]
 
 scaler = StandardScaler()
