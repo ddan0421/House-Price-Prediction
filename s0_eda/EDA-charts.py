@@ -287,10 +287,35 @@ for col in con_numeric_transformed + discrete_numeric:
 Reads train.csv directly instead of train_after_imputation_EDA.csv, because the
 latter is exported by a4 after a2 has already dropped these rows.
 
-A bucketed median of SalePrice by GrLivArea cannot separate these: the >4000 sqft
-bucket holds only 4 homes and 2 of them are the outliers, so the median falls
-between the two clusters and the legitimate $755k sale deviates further than a
-genuine outlier. Influence diagnostics on a continuous fit rank them correctly.
+Influence diagnostics from an OLS of log(SalePrice) on log(GrLivArea) and
+OverallQual. The three metrics answer different questions, and a row is only
+worth dropping when they agree.
+
+leverage (hat matrix diagonal)
+    How unusual a row's predictors are, ignoring SalePrice entirely. It is the
+    weight a row carries in its own fitted value, averaging p/n = 0.002 here.
+    High leverage means a row *could* move the fit, not that it does: Id 534
+    carries the highest leverage in the data at 0.0149, purely for being the
+    smallest house at 334 sqft against a median of 1464, yet it sits on the
+    trend and shifts nothing.
+
+stud_resid (externally studentized residual)
+    How far SalePrice lands from its prediction, scaled by an error variance
+    re-estimated with that row held out. Holding it out is the point: a row that
+    drags the fit toward itself would otherwise shrink its own residual and go
+    unnoticed. Roughly t-distributed, so anything past +/-3 is a real anomaly.
+
+cooks_d (Cook's distance)
+    How far every fitted value moves when the row is deleted, combining the two
+    above. Leverage says a row could matter and the residual says it disagrees
+    with the model, but only Cook's D says removing it would actually change the
+    coefficients.
+
+All four homes over 4000 sqft carry roughly 5x the average leverage on size
+alone, which is why leverage cannot single out the bad ones. Only 524 and 1299
+pair that with extreme residuals (-5.5 and -6.7), so only they reach a high
+Cook's D, ranking 1st and 2nd out of 1460 rows against 12th and 16th for the two
+that sold at market.
 """
 df_raw = pd.read_csv("data/train.csv")
 
