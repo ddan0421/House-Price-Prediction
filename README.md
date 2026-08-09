@@ -13,20 +13,23 @@ This project is a personal exercise used to practice and demonstrate a structure
 
 ## Data Preparation
 
-All intermediate data lives in a single `data/AmesHousePrice.duckdb` file. Each `s1_data` script reads the upstream tables, applies one transformation step (raw load, outlier removal, imputation, feature engineering, model-specific prep), and writes the result back as a new table via `save_df` in `s1_data/db_utils.py`. Downstream `s2_model` and `s4_prediction` scripts then pull the model-specific train/val/test tables (e.g. `X_train_xgb`, `test_lgbm`) with `load_df`, keeping every stage reproducible from the same DuckDB file.
+All intermediate data lives in a single `data/AmesHousePrice.duckdb` file. Each `s1_data` script reads the upstream tables, applies one transformation step (raw load, imputation, feature engineering, model-specific prep), and writes the result back as a new table via `save_df` in `s1_data/db_utils.py`. Downstream `s2_model` and `s4_prediction` scripts then pull the model-specific train/val/test tables (e.g. `X_train_xgb`, `test_lgbm`) with `load_df`, keeping every stage reproducible from the same DuckDB file.
 
-Outliers are dropped early, in `s1_data/a2_drop_outliers.py`: two partial sales of homes over 4,000 sq ft that sold far below market. Removing them before imputation means every downstream script splits the same rows, and it improved held-out RMSE for every linear and kernel model. See `s0_eda/EDA-charts.py` for the leverage, studentized residual, and Cook's distance diagnostics that identify them.
+Two partial sales of homes over 4,000 sq ft sold far below market and dominate the influence diagnostics in `s0_eda/EDA-charts.py` (leverage, studentized residual, Cook's distance). They are deliberately **kept** in the training data, because dropping them costs more than it saves: the test set contains a 5,095 sq ft quality-10 partial sale, and with both training examples of that profile gone the model extrapolates past every price it has ever seen. Keeping them leaves `GrLivArea` covered out to 5,642 sq ft.
+
+`Area_vs_Nbhd` divides `GrLivArea` by the median `GrLivArea` of the home's neighbourhood, which separates floor area far above the local norm from floor area itself — the over-improvement signal those two partial sales carry. It is built alongside the other numerical transformations in `a4` through `a8`, and the medians come from the training split alone, so no validation or test row contributes to them.
 
 ## Modeling Workflow
 
 The project uses a three-stage pipeline to ensure rigorous evaluation and avoid data leakage.
 
 ### Phase 1: Training
-Dataset: 80% of training data (1,166 records)
+Dataset: 80% of training data (1,168 records)
 
 * Baseline: OLS Linear Regression.
 * Machine Learning: L1/L2 regression, tree-based models, and gradient boosting (XGBoost, LightGBM, CatBoost).
-* Tuning: 10-fold cross-validation throughout, by grid search for the linear, kernel and tree models, and by grid search plus Bayesian optimization for the three boosters.
+* Tuning: 10-fold cross-validation throughout, by grid search for the linear, kernel and tree models, and by grid search plus Bayesian optimization for XGBoost and LightGBM. CatBoost is left at library defaults — tuning it moved validation RMSE by less than the spread across seeds, so the search time bought nothing measurable.
+* The boosters train on the full feature set. The `models/selected_features_*.txt` files are written for inspection only; nothing reads them back.
 
 ### Phase 2: Validation
 Dataset: 20% of training data (292 records)
@@ -44,6 +47,16 @@ Dataset: Unseen test features (no SalePrice)
 `s2_model/a8_stacking.py` builds a 10-fold out-of-fold prediction matrix over the training split, then fits a non-negative least squares meta-learner on it. The non-negativity constraint matters because base predictions correlate above 0.95 with one another, which makes unconstrained OLS answer with large offsetting coefficients that extrapolate badly. It also drives redundant models to exactly zero weight, so it performs model selection as a side effect. The surviving weights are written to `models/meta_learner_nnls.json` and read back by `s4_prediction`.
 
 The out-of-fold folds deliberately use a different seed from the one the base models were tuned against, so no model is scored on the same partition its hyperparameters were chosen to win.
+
+Results are reported two ways per model: `oof_rmse` over the 1,168 out-of-fold training rows and `val_rmse` over the 292 validation rows. Read the out-of-fold column when comparing small differences, since four times the rows means roughly half the standard error; the validation column is kept because it is the only figure measured on rows no base model saw in any fold. The stack's own out-of-fold figure comes from refitting the meta-learner ten times on nine-tenths of the out-of-fold matrix, because scoring the weights on the same rows that produced them would be in-sample.
+
+## Further Improvements
+
+**Fitted preprocessing lives outside the cross-validation folds.** The `StandardScaler` in the regression, SVR and KNN prep scripts, the `IterativeImputer` that fills `LotFrontage`, and the neighbourhood medians behind `Area_vs_Nbhd` are each fit once on the full 1,168-row training split, before any fold splitting happens. So when `a8_stacking.py` trains a fold on 90% of those rows, the features it sees were scaled and imputed using statistics that included the held-out tenth. The out-of-fold RMSE is therefore slightly optimistic in absolute terms.
+
+The effect is small and mostly harmless for the way these numbers are used. Scaling and imputation statistics barely move when a tenth of the rows are dropped, and the bias applies to every base model about equally, so neither the model ranking nor the non-negative least squares weights are meaningfully distorted. It also does not touch the Kaggle score, where fitting the transformers on train and applying them to test is the correct procedure.
+
+Fixing it properly would mean moving every fitted transformation inside the fold loop, so that each fold derives its own scaler, imputer and neighbourhood medians. That reshapes the boundary between `s1_data` and `s2_model`: the prep scripts would have to become reusable transformers rather than scripts that write finished tables to DuckDB. That is a large restructuring for a small correction to a diagnostic number, so it is skipped for now.
 
 ## Tools Used
 
@@ -73,7 +86,7 @@ uv sync
 Each stage can be run as a single command from the project root:
 
 ```bash
-uv run python -m s1_data          # Run all data prep scripts (a0-a9)
+uv run python -m s1_data          # Run all data prep scripts (a0-a8)
 uv run python -m s2_model         # Run all modeling scripts (a1-a8)
 uv run python -m s4_prediction    # Run final predictions
 ```
@@ -81,7 +94,7 @@ uv run python -m s4_prediction    # Run final predictions
 To run an individual script within a stage:
 
 ```bash
-uv run python -m s1_data.a3_contextual_imputation
+uv run python -m s1_data.a2_contextual_imputation
 uv run python -m s2_model.a7_catboost
 ```
 
@@ -92,4 +105,3 @@ uv run python -m s2_model.a7_catboost
 * `s2_model/` — Model definitions, training scripts, and tuning.
 * `s3_validation/` — Shared evaluation helpers (imported by other modules).
 * `s4_prediction/` — Final prediction generation.
-* `models/` — Fitted base models, tuned CatBoost parameters, and the meta-learner weights that `s4_prediction` reads.
