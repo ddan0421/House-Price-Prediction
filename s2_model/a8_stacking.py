@@ -25,6 +25,9 @@ conn = duckdb.connect(database=database_path, read_only=False)
 # the same folds it was tuned to win, making it look better than it is.
 oof_seed = 7
 
+# Different again, so the meta folds do not line up with the base OOF folds.
+meta_cv_seed = 13
+
 # -------------------- Targets --------------------
 y_train = load_df(conn, "y_train").values.ravel()
 y_val = load_df(conn, "y_val").values.ravel()
@@ -98,9 +101,6 @@ lgbm_bayes_model = load_pkl("models/final_model_lgbm_bayes.pkl")
 cat_basic_model = cb.CatBoostRegressor()
 cat_basic_model.load_model("models/final_model_catboost_basic.cbm")
 
-with open("models/catboost_best_params.json") as f:
-    cat_params = json.load(f)
-
 
 # -------------------- Base model registry --------------------
 # Each entry: (name, fitted_model, X_train_df, X_val_df)
@@ -129,9 +129,9 @@ kf = KFold(n_splits=10, shuffle=True, random_state=oof_seed)
 
 """
 Each fold fits a clone of the loaded base model on train_idx and predicts val_idx.
-cat_basic is the exception: it is rebuilt from cat_params rather than cloned. The
-loaded models themselves stay untouched, so the val predictions further down still
-use the full-training-set fit from a1..a7.
+cat_basic is the exception: it is constructed fresh with the same settings a7 used,
+rather than cloned. The loaded models themselves stay untouched, so the val predictions
+further down still use the full-training-set fit from a1..a7.
 """
 for fold, (train_idx, val_idx) in enumerate(kf.split(np.arange(n_train))):
     print(f"Processing Fold {fold + 1}...")
@@ -142,7 +142,8 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(np.arange(n_train))):
 
         if name == "cat_basic":
             fold_model = cb.CatBoostRegressor(
-                **cat_params,
+                loss_function="RMSE",
+                random_seed=42,
                 verbose=False,
                 cat_features=cat_cat_columns,
                 allow_writing_files=False,
@@ -169,7 +170,6 @@ def fit_meta(x, y):
     """Non-negative weights with a free intercept."""
     return LinearRegression(positive=True).fit(x, y)
 
-
 meta_learner = fit_meta(oof_x, y_train)
 
 weights = pd.Series(meta_learner.coef_, index=all_names)
@@ -185,21 +185,40 @@ print(f"[Meta-learner] Zero weight: {dropped}")
 
 
 # -------------------- RMSE comparison --------------------
+def meta_cv_rmse(x, y, seed):
+    """Fitting the meta-learner on oof_x and scoring it there would be in-sample, so
+    hold out a tenth of the rows at a time and refit the weights on the rest."""
+    folds = KFold(n_splits=10, shuffle=True, random_state=seed)
+    preds = np.zeros(len(y))
+    for train_idx, val_idx in folds.split(x):
+        preds[val_idx] = fit_meta(x.iloc[train_idx], y[train_idx]).predict(x.iloc[val_idx])
+    return root_mean_squared_error(y, preds)
+
+
 val_preds = np.zeros((len(y_val), len(base_models)))
 for i, (_, model, _, X_va) in enumerate(base_models):
     val_preds[:, i] = np.asarray(model.predict(X_va)).ravel()
 
 val_x = pd.DataFrame(val_preds, columns=all_names)
 
-stack_val_rmse = root_mean_squared_error(y_val, meta_learner.predict(val_x))
+# oof_rmse is the more reliable column: 1168 held-out rows against val's 292, so roughly
+# half the standard error. val_rmse is kept because it is the only number measured on
+# rows that no base model saw in any fold.
 summary = pd.DataFrame(
-    [(name, root_mean_squared_error(y_val, val_preds[:, i]))
+    [(name,
+      root_mean_squared_error(y_train, oof_preds[:, i]),
+      root_mean_squared_error(y_val, val_preds[:, i]))
      for i, name in enumerate(all_names)],
-    columns=["model", "val_rmse"],
-).sort_values("val_rmse").reset_index(drop=True)
-summary.loc[len(summary)] = ["stack (nnls)", stack_val_rmse]
+    columns=["model", "oof_rmse", "val_rmse"],
+).sort_values("oof_rmse").reset_index(drop=True)
 
-print("\n[Comparison] held-out RMSE on y_val")
+summary.loc[len(summary)] = [
+    "stack (nnls)",
+    meta_cv_rmse(oof_x, y_train, meta_cv_seed),
+    root_mean_squared_error(y_val, meta_learner.predict(val_x)),
+]
+
+print("\n[Comparison] RMSE per model")
 print(summary.to_string(index=False, float_format=lambda v: f"{v:.5f}"))
 
 

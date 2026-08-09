@@ -23,18 +23,18 @@ y_val = load_df(conn, "y_val")
 random_state = 42
 
 lr_features = [
-    "Age_House", "BedroomAbvGr", "BsmtExposure_encoded", "BsmtFullBath",
+    "Age_House", "Area_vs_Nbhd", "BedroomAbvGr", "BsmtExposure_encoded", "BsmtFullBath",
     "CentralAir_Electrical_N_SBrkr", "EnclosedPorch", "ExterQual_encoded",
     "Exterior1st_Exterior2nd_BrkFace", "Exterior1st_Exterior2nd_BrkFace_Wd Sdng",
     "FinishedAreaPct", "Fireplaces", "Foundation_PConc", "FullBath",
     "Functional_encoded", "GarageArea", "GarageCars", "Garage_AgeCars",
     "Garage_Space", "HalfBath", "KitchenAbvGr", "KitchenQual_encoded",
     "Living_Rooms", "Neighborhood_Condition_BrkSide_Norm",
-    "Neighborhood_Condition_Crawfor_Norm",
+    "Neighborhood_Condition_Crawfor_Norm", "Neighborhood_Condition_Edwards_PosN",
     "Neighborhood_Condition_NoRidge_Norm", "Neighborhood_Condition_NridgHt_Norm",
     "Neighborhood_Condition_Somerst_Norm", "Neighborhood_Condition_StoneBr_Norm",
     "OverallCond", "OverallQual", "Porch_Age", "Ratio_2ndFlr_Living",
-    "Ratio_Bedroom_Rooms",
+    "Ratio_Bedroom_Rooms", "RoofStyle_RoofMatl_Hip_ClyTile",
     "SaleCondition_Normal", "SaleType_New", "ScreenPorch", "TotRmsAbvGrd",
     "cbrt_MasVnrArea", "cbrt_OpenPorchSF",
     "log_1stFlrSF", "log_2ndFlrSF", "log_GrLivArea", "log_LotArea",

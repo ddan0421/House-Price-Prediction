@@ -32,7 +32,8 @@ rbf_svr_features = [
     "BsmtCond_encoded", "BsmtExposure_encoded", "BsmtFinType1_encoded", "KitchenQual_encoded",
     "FireplaceQu_encoded", "GarageFinish_encoded", "GarageQual_encoded", "GarageCond_encoded",
     "PoolQC_encoded", "Functional_encoded", "FinishedAreaPct", "Living_Rooms", "Garage_Space",
-    "Garage_AgeCars", "Ratio_Bedroom_Rooms", "Ratio_2ndFlr_Living", "MSSubClass_MSZoning_20_RL",
+    "Garage_AgeCars", "Ratio_Bedroom_Rooms", "Ratio_2ndFlr_Living", "Area_vs_Nbhd",
+    "MSSubClass_MSZoning_20_RL",
     "MSSubClass_MSZoning_50_RL", "MSSubClass_MSZoning_60_RL", "MSSubClass_MSZoning_70_RL",
     "MSSubClass_MSZoning_120_RL", "MSSubClass_MSZoning_160_RL", "Neighborhood_Condition_CollgCr_Norm",
     "Neighborhood_Condition_Crawfor_Norm", "Neighborhood_Condition_Gilbert_Norm",
@@ -89,13 +90,13 @@ y_train_linear = load_df(conn, "y_train")
 y_val_linear = load_df(conn, "y_val")
 
 linear_svr_features = [
-    "Age_House", "BedroomAbvGr", "BsmtExposure_encoded", "BsmtFullBath", "CentralAir_Electrical_N_SBrkr",
+    "Age_House", "Area_vs_Nbhd", "BedroomAbvGr", "BsmtExposure_encoded", "BsmtFullBath", "CentralAir_Electrical_N_SBrkr",
     "EnclosedPorch", "ExterQual_encoded", "Exterior1st_Exterior2nd_BrkFace", "Exterior1st_Exterior2nd_BrkFace_Wd Sdng", "FinishedAreaPct",
     "Fireplaces", "Foundation_PConc", "FullBath", "Functional_encoded", "GarageArea",
     "GarageCars", "Garage_AgeCars", "Garage_Space", "HalfBath", "KitchenAbvGr",
-    "KitchenQual_encoded", "Living_Rooms", "Neighborhood_Condition_BrkSide_Norm", "Neighborhood_Condition_Crawfor_Norm",
+    "KitchenQual_encoded", "Living_Rooms", "Neighborhood_Condition_BrkSide_Norm", "Neighborhood_Condition_Crawfor_Norm", "Neighborhood_Condition_Edwards_PosN",
     "Neighborhood_Condition_NoRidge_Norm", "Neighborhood_Condition_NridgHt_Norm", "Neighborhood_Condition_Somerst_Norm", "Neighborhood_Condition_StoneBr_Norm", "OverallCond",
-    "OverallQual", "Porch_Age", "Ratio_2ndFlr_Living", "Ratio_Bedroom_Rooms",
+    "OverallQual", "Porch_Age", "Ratio_2ndFlr_Living", "Ratio_Bedroom_Rooms", "RoofStyle_RoofMatl_Hip_ClyTile",
     "SaleCondition_Normal", "SaleType_New", "ScreenPorch", "TotRmsAbvGrd", "cbrt_MasVnrArea",
     "cbrt_OpenPorchSF", "log_1stFlrSF", "log_2ndFlrSF", "log_GrLivArea", "log_LotArea",
     "log_Yrs_Since_Remodel", "sqrt_BsmtFinSF1", "sqrt_TotalBsmtSF", "sqrt_WoodDeckSF",
