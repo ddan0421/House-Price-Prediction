@@ -65,7 +65,7 @@ X_train_knn = load_df(conn, "X_train_knn_final")
 X_val_knn = load_df(conn, "X_val_knn_final")
 test_knn = load_df(conn, "test_knn_final")
 
-# Trees (DT / RF / ET) — saved by s1_data/a8_general_ml_data_prep; a4 only reads them
+# Trees (DT / RF / ET) — saved by s1_data/a7_general_ml_data_prep; a4 only reads them
 X_train_ml = load_df(conn, "X_train_ml")
 X_val_ml = load_df(conn, "X_val_ml")
 test_ml = load_df(conn, "test_ml")
@@ -104,12 +104,6 @@ X_train_cat = load_df(conn, "X_train_cat")
 X_val_cat = load_df(conn, "X_val_cat")
 test_cat = load_df(conn, "test_cat")
 cat_cat_columns = [c for c in X_train_cat.columns if c in all_cat_columns]
-
-# Tuned in a7_catboost. Read here so the refit below matches the model whose OOF
-# predictions trained the meta-learner, instead of CatBoost's defaults.
-with open("models/catboost_best_params.json") as f:
-    cat_params = json.load(f)
-
 
 # -------------------- Combine train + val for the final fit --------------------
 def _combine(a, b):
@@ -187,7 +181,8 @@ for name in active_models:
     X_full, _ = model_data[name]
     if name == "cat_basic":
         model = cb.CatBoostRegressor(
-            **cat_params,
+            loss_function="RMSE",
+            random_seed=42,
             verbose=False,
             cat_features=cat_cat_columns,
             allow_writing_files=False,
