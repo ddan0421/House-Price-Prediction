@@ -1,4 +1,5 @@
 import os
+import json
 import pickle
 import warnings
 
@@ -6,14 +7,12 @@ import catboost as cb
 import duckdb
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
 from sklearn.base import clone
+from sklearn.linear_model import LinearRegression
 from sklearn.metrics import root_mean_squared_error
 from sklearn.model_selection import KFold
 
 from s1_data.db_utils import load_df
-from s2_model.models import sm_ols
-from s3_validation.model_evaluation import evaluate_model
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -22,21 +21,9 @@ database = "AmesHousePrice.duckdb"
 database_path = os.path.join(base_folder, database)
 conn = duckdb.connect(database=database_path, read_only=False)
 
-random_state = 42
-
-################################################# Stacking Models #######################################################
-"""
-Base models (and the duckdb table each was trained on in a1..a7):
-
-Linear regressors (Ridge / Lasso / ElasticNet)
-RBF SVR                                                          
-Linear SVR                                   
-KNN                                                      
-Decision Tree / Random Forest / Extra Trees     
-XGBoost (GridSearch + Bayesian)                                
-LightGBM (GridSearch + Bayesian)                               
-CatBoost (basic)                           
-"""
+# Not the seed the base models were tuned with. Reusing it would test each model on
+# the same folds it was tuned to win, making it look better than it is.
+oof_seed = 7
 
 # -------------------- Targets --------------------
 y_train = load_df(conn, "y_train").values.ravel()
@@ -108,8 +95,11 @@ et_model = load_pkl("models/final_model_et.pkl")
 lgbm_model = load_pkl("models/final_model_lgbm.pkl")
 lgbm_bayes_model = load_pkl("models/final_model_lgbm_bayes.pkl")
 
-cat_basic_model = cb.CatBoostRegressor(cat_features=cat_cat_columns)
+cat_basic_model = cb.CatBoostRegressor()
 cat_basic_model.load_model("models/final_model_catboost_basic.cbm")
+
+with open("models/catboost_best_params.json") as f:
+    cat_params = json.load(f)
 
 
 # -------------------- Base model registry --------------------
@@ -135,13 +125,13 @@ base_models = [
 # -------------------- Out-of-fold predictions --------------------
 n_train = len(y_train)
 oof_preds = np.zeros((n_train, len(base_models)))
-kf = KFold(n_splits=10, shuffle=True, random_state=random_state)
+kf = KFold(n_splits=10, shuffle=True, random_state=oof_seed)
 
 """
-For each fold we fit a *clone* of the loaded base model on the train_idx subset
-and predict on val_idx. The original loaded models stay untouched and are used
-directly for val/test prediction below (where they should already be trained
-on the full training set).
+Each fold fits a clone of the loaded base model on train_idx and predicts val_idx.
+cat_basic is the exception: it is rebuilt from cat_params rather than cloned. The
+loaded models themselves stay untouched, so the val predictions further down still
+use the full-training-set fit from a1..a7.
 """
 for fold, (train_idx, val_idx) in enumerate(kf.split(np.arange(n_train))):
     print(f"Processing Fold {fold + 1}...")
@@ -152,8 +142,7 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(np.arange(n_train))):
 
         if name == "cat_basic":
             fold_model = cb.CatBoostRegressor(
-                loss_function="RMSE",
-                random_seed=random_state,
+                **cat_params,
                 verbose=False,
                 cat_features=cat_cat_columns,
                 allow_writing_files=False,
@@ -169,102 +158,57 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(np.arange(n_train))):
         oof_preds[val_idx, i] = np.asarray(fold_model.predict(X_fold_va)).ravel()
 
 all_names = [name for name, *_ in base_models]
-oof_df = pd.DataFrame(oof_preds, columns=all_names)
-oof_df["Target"] = y_train
-print("OOF Predictions:")
-print(oof_df)
 
 
-# -------------------- Validation predictions for all base models --------------------
-"""
-The loaded base models were already fit on the full training set in a1..a7,
-so we use them directly here (the OOF loop above used clones, so these are
-still untouched).
-"""
+
+# -------------------- Meta-learner: non-negative least squares --------------------
+oof_x = pd.DataFrame(oof_preds, columns=all_names)
+
+
+def fit_meta(x, y):
+    """Non-negative weights with a free intercept."""
+    return LinearRegression(positive=True).fit(x, y)
+
+
+meta_learner = fit_meta(oof_x, y_train)
+
+weights = pd.Series(meta_learner.coef_, index=all_names)
+active = [name for name in all_names if weights[name] > 1e-6]
+dropped = [name for name in all_names if name not in active]
+
+print(f"\n[Meta-learner] NNLS kept {len(active)} of {len(all_names)} base models")
+for name in sorted(active, key=lambda n: -weights[n]):
+    print(f"  {name:<12} {weights[name]:.4f}")
+print(f"  {'intercept':<12} {meta_learner.intercept_:.4f}")
+print(f"  {'weight sum':<12} {weights.sum():.4f}")
+print(f"[Meta-learner] Zero weight: {dropped}")
+
+
+# -------------------- RMSE comparison --------------------
 val_preds = np.zeros((len(y_val), len(base_models)))
-for i, (name, model, _, X_va) in enumerate(base_models):
+for i, (_, model, _, X_va) in enumerate(base_models):
     val_preds[:, i] = np.asarray(model.predict(X_va)).ravel()
 
+val_x = pd.DataFrame(val_preds, columns=all_names)
 
-# -------------------- Recursive elimination by validation RMSE --------------------
-"""
-Greedy backward elimination over the set of base models.
+stack_val_rmse = root_mean_squared_error(y_val, meta_learner.predict(val_x))
+summary = pd.DataFrame(
+    [(name, root_mean_squared_error(y_val, val_preds[:, i]))
+     for i, name in enumerate(all_names)],
+    columns=["model", "val_rmse"],
+).sort_values("val_rmse").reset_index(drop=True)
+summary.loc[len(summary)] = ["stack (nnls)", stack_val_rmse]
 
-At each step we refit the OLS meta-learner on every (active set minus one model)
-and pick the removal that yields the lowest validation RMSE. If that removal
-is no worse than the current RMSE (within TOLERANCE), we drop the model
-permanently and continue. Otherwise we stop.
-
-OOF predictions and val predictions for each base model are independent of
-the meta-learner, so they're computed once above and re-sliced here -- no
-need to retrain base models inside the elimination loop.
-"""
-TOLERANCE = 1e-4  # how much worse a candidate can be and still be "barely changed"
-name_to_idx = {name: i for i, name in enumerate(all_names)}
+print("\n[Comparison] held-out RMSE on y_val")
+print(summary.to_string(index=False, float_format=lambda v: f"{v:.5f}"))
 
 
-def fit_meta_and_score(active_names):
-    """Fit OLS meta-learner on the given active subset; return (val_rmse, meta_model)."""
-    cols = [name_to_idx[n] for n in active_names]
-
-    X_oof = pd.DataFrame(oof_preds[:, cols], columns=active_names)
-    X_oof_const = sm.add_constant(X_oof, has_constant="add")
-    meta = sm_ols(X_oof_const, y_train, verbose=False)
-
-    X_val_meta = pd.DataFrame(val_preds[:, cols], columns=active_names)
-    X_val_meta_const = sm.add_constant(X_val_meta, has_constant="add")
-    preds = np.asarray(meta.predict(X_val_meta_const)).ravel()
-    return root_mean_squared_error(y_val, preds), meta
-
-
-active = list(all_names)
-baseline_rmse, _ = fit_meta_and_score(active)
-print(f"\n[Recursive Elimination] Baseline with all {len(active)} models: RMSE = {baseline_rmse:.6f}")
-
-elimination_history = [(list(active), baseline_rmse)]
-
-while len(active) > 1:
-    candidate_results = []
-    for name in active:
-        candidate = [n for n in active if n != name]
-        cand_rmse, _ = fit_meta_and_score(candidate)
-        candidate_results.append((cand_rmse, name))
-
-    candidate_results.sort()  # lowest RMSE first
-    best_rmse, drop_name = candidate_results[0]
-
-    if best_rmse <= baseline_rmse + TOLERANCE:
-        delta = best_rmse - baseline_rmse
-        sign = "+" if delta >= 0 else ""
-        print(f"  Drop '{drop_name}'  RMSE: {baseline_rmse:.6f} -> {best_rmse:.6f} "
-              f"({sign}{delta:.6f}); {len(active) - 1} models remain")
-        active.remove(drop_name)
-        baseline_rmse = best_rmse
-        elimination_history.append((list(active), baseline_rmse))
-    else:
-        print(f"  Stop: best candidate removal ('{drop_name}' -> {best_rmse:.6f}) "
-              f"is worse than current {baseline_rmse:.6f} by more than tolerance")
-        break
-    
-best_active, best_rmse = min(elimination_history, key=lambda item: item[1])
-if best_rmse < baseline_rmse:
-    print(f"\n[Recursive Elimination] Rolling back to best-seen configuration: "
-          f"RMSE {baseline_rmse:.6f} -> {best_rmse:.6f}")
-    active = list(best_active)
-    baseline_rmse = best_rmse
-
-print(f"\n[Recursive Elimination] Final RMSE: {baseline_rmse:.6f}")
-print(f"[Recursive Elimination] Surviving {len(active)} models: {active}")
-
-
-# -------------------- Refit + save final meta-learner --------------------
-final_rmse, meta_learner_ols = fit_meta_and_score(active)
-print(f"\nStacking Performance (after elimination):")
-print(f"Root Mean Squared Error: {final_rmse:.4f}")
-
-with open("models/meta_learner_ols.pkl", "wb") as f:
-    pickle.dump(meta_learner_ols, f)
-print("Meta-learner saved to models/meta_learner_ols.pkl")
+# -------------------- Save for s4_prediction --------------------
+# Weights are keyed by name so s4 stays correct regardless of column ordering.
+with open("models/meta_learner_nnls.json", "w") as f:
+    json.dump({"intercept": float(meta_learner.intercept_),
+               "weights": {name: float(weights[name]) for name in active}}, f, indent=2)
+print("Meta-learner saved to models/meta_learner_nnls.json")
 
 with open("models/meta_learner_active_models.txt", "w") as f:
     for name in active:

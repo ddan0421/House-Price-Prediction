@@ -5,7 +5,6 @@ import duckdb
 from sklearn.model_selection import GridSearchCV, KFold
 import xgboost as xgb
 from bayes_opt import BayesianOptimization
-import pickle
 
 from s1_data.db_utils import load_df, save_df
 from s3_validation.model_evaluation import evaluate_model
@@ -28,48 +27,25 @@ y_val = load_df(conn, "y_val")
 
 ############################################## XGBoost Regressor Model ############################################################
 
-xgb_features = [
-    "LotFrontage", "LotArea", "OverallQual", "OverallCond", "MasVnrArea", "BsmtFinSF1", 
-    "BsmtFinSF2", "BsmtUnfSF", "TotalBsmtSF", "1stFlrSF", "2ndFlrSF", "GrLivArea", 
-    "BsmtFullBath", "FullBath", "HalfBath", "TotRmsAbvGrd", "Fireplaces", "GarageCars", 
-    "GarageArea", "WoodDeckSF", "OpenPorchSF", "EnclosedPorch", "ScreenPorch", "Age_House", 
-    "Yrs_Since_Remodel", "Age_Garage", "ExterQual_encoded", "BsmtQual_encoded", 
-    "BsmtCond_encoded", "BsmtExposure_encoded", "BsmtFinType1_encoded", "KitchenQual_encoded", 
-    "FireplaceQu_encoded", "GarageFinish_encoded", "GarageQual_encoded", "GarageCond_encoded", 
-    "PoolQC_encoded", "Functional_encoded", "FinishedAreaPct", "Living_Rooms", "Garage_Space", 
-    "Garage_AgeCars", "Ratio_Bedroom_Rooms", "Ratio_2ndFlr_Living", "MSSubClass_MSZoning_20_RL", 
-    "MSSubClass_MSZoning_50_RL", "MSSubClass_MSZoning_60_RL", "MSSubClass_MSZoning_70_RL", 
-    "MSSubClass_MSZoning_120_RL", "MSSubClass_MSZoning_160_RL", "Neighborhood_Condition_CollgCr_Norm", 
-    "Neighborhood_Condition_Crawfor_Norm", "Neighborhood_Condition_Gilbert_Norm", 
-    "Neighborhood_Condition_NAmes_Norm", "Neighborhood_Condition_NoRidge_Norm", 
-    "Neighborhood_Condition_NridgHt_Norm", "Neighborhood_Condition_OldTown_Norm", 
-    "Neighborhood_Condition_Somerst_Norm", "Neighborhood_Condition_StoneBr_Norm", 
-    "GarageType_Attchd", "GarageType_BuiltIn", "GarageType_Detchd", "CentralAir_Electrical_N_SBrkr", 
-    "CentralAir_Electrical_Y_SBrkr", "PavedDrive_N", "PavedDrive_Y", "SaleCondition_Abnorml", 
-    "SaleCondition_Normal", "SaleCondition_Partial", "Foundation_CBlock", "Foundation_PConc", 
-    "Season_Sold_Spring", "Season_Sold_Summer"
-]
-
-
-X_train_xgb = X_train_tree_raw[xgb_features]
-X_val_xgb = X_val_tree_raw[xgb_features]
-test_xgb = test_tree_raw[xgb_features]
+X_train_xgb = X_train_tree_raw.copy()
+X_val_xgb = X_val_tree_raw.copy()
+test_xgb = test_tree_raw.copy()
                            
 xgb_model = xgb.XGBRegressor(
     random_state=random_state, 
     objective="reg:squarederror",
     n_jobs=1,
-    tree_method="hist")
+    tree_method="hist",
+    n_estimators=200,
+    subsample=0.8,
+    colsample_bytree=0.75)
 
 param_grid = {
-    "n_estimators": [180, 200],  
-    "learning_rate": [0.07, 0.10], 
+    "learning_rate": [0.05, 0.07, 0.10], 
     "max_depth": [2, 3, 4],  
     "min_child_weight": [2, 3], 
-    "subsample": [0.78, 0.8,],  
-    "colsample_bytree": [0.728, 0.75],  
     "reg_alpha": [0, 0.5],  
-    "reg_lambda": [0.281, 1]  
+    "reg_lambda": [0.281, 1, 3]  
 }
 
 gs_xgb = GridSearchCV(
@@ -91,6 +67,7 @@ final_model_xgb = gs_xgb.best_estimator_
 
 selected_features_xgb = X_train_xgb.columns[np.array(final_model_xgb.feature_importances_) > 0]
 
+# Diagnostic only -- the model above trains on all features, and nothing reads this file.
 with open("models/selected_features_xgb.txt", "w") as f:
     for feat in selected_features_xgb:
         f.write(f"{feat}\n")
@@ -102,52 +79,54 @@ print("xgboost model saved to models/final_model_xgb.pkl")
 
 
 ############################################## XGB Models with Bayesian Optimization ############################################################
-# Best boosting round (from xgb.cv early stopping) recorded per BO call so we can refit
-best_rounds_per_call = {}
-MAX_BOOST_ROUNDS = 5000
+max_boost_rounds = 5000
+
+dtrain_xgb = xgb.DMatrix(data=X_train_xgb, label=y_train.values.ravel())
 
 
-def bayesian_opt_xgb(X, y, init_iter=10, n_iters=40, random_state=random_state, seed=seed):
-    dtrain = xgb.DMatrix(data=X, label=y)
+def tuned_params(learning_rate, max_depth, min_child_weight, subsample,
+                 colsample_bytree, reg_alpha, reg_lambda, gamma):
+    """Map raw BayesianOptimization output onto valid XGBoost parameters."""
+    return {
+        "learning_rate": learning_rate,
+        "max_depth": int(round(max_depth)),
+        "min_child_weight": min_child_weight,
+        "subsample": max(min(subsample, 1), 0),
+        "colsample_bytree": max(min(colsample_bytree, 1), 0),
+        "reg_alpha": max(reg_alpha, 0),
+        "reg_lambda": max(reg_lambda, 0),
+        "gamma": max(gamma, 0),
+    }
 
+
+def xgb_cv(params):
+    """Return (best CV RMSE, boosting round that achieved it) for one parameter set."""
+    cv_results = xgb.cv(
+        {**params,
+         "objective": "reg:squarederror",
+         "eval_metric": "rmse",
+         "seed": seed,
+         "n_jobs": -1,
+         "booster": "gbtree"},
+        dtrain_xgb,
+        num_boost_round=max_boost_rounds,
+        nfold=10,
+        seed=seed,
+        shuffle=True,
+        stratified=False,
+        early_stopping_rounds=50,
+        metrics="rmse",
+    )
+    curve = cv_results["test-rmse-mean"]
+    return curve.min(), int(curve.idxmin()) + 1
+
+
+def bayesian_opt_xgb(init_iter=10, n_iters=40, random_state=random_state):
     def hyp_xgb(learning_rate, max_depth, min_child_weight, subsample,
                 colsample_bytree, reg_alpha, reg_lambda, gamma):
-        params = {
-            "objective": "reg:squarederror",
-            "eval_metric": "rmse",
-            "seed": seed,
-            "n_jobs": -1,
-            "booster": "gbtree",
-            "learning_rate": learning_rate,
-            "max_depth": int(round(max_depth)),
-            "min_child_weight": min_child_weight,
-            "subsample": max(min(subsample, 1), 0),
-            "colsample_bytree": max(min(colsample_bytree, 1), 0),
-            "reg_alpha": max(reg_alpha, 0),
-            "reg_lambda": max(reg_lambda, 0),
-            "gamma": max(gamma, 0),
-        }
-
-        cv_results = xgb.cv(
-            params,
-            dtrain,
-            num_boost_round=MAX_BOOST_ROUNDS,
-            nfold=10,
-            seed=seed,
-            shuffle=True,
-            stratified=False,
-            early_stopping_rounds=50,
-            metrics="rmse",
-        )
-        best_rmse = cv_results["test-rmse-mean"].min()
-        best_round = int(cv_results["test-rmse-mean"].idxmin()) + 1
-        # Key params by their float repr so we can look up best_round after BO finishes
-        key = (
-            round(learning_rate, 6), int(round(max_depth)), round(min_child_weight, 6),
-            round(subsample, 6), round(colsample_bytree, 6),
-            round(reg_alpha, 6), round(reg_lambda, 6), round(gamma, 6),
-        )
-        best_rounds_per_call[key] = best_round
+        best_rmse, _ = xgb_cv(tuned_params(
+            learning_rate, max_depth, min_child_weight, subsample,
+            colsample_bytree, reg_alpha, reg_lambda, gamma))
         return -best_rmse
 
     pds = {
@@ -166,21 +145,15 @@ def bayesian_opt_xgb(X, y, init_iter=10, n_iters=40, random_state=random_state, 
     return optimizer
 
 
-results = bayesian_opt_xgb(X_train_xgb, y_train.values.ravel())
+results = bayesian_opt_xgb()
 print("Best Parameters:", results.max["params"])
-print("Best RMSE Score:", -results.max["target"])
 
-best_params = results.max["params"].copy()
-best_params["max_depth"] = int(round(best_params["max_depth"]))
-
-# Look up the best boosting round captured during the optimal BO call
-best_key = (
-    round(best_params["learning_rate"], 6), best_params["max_depth"],
-    round(best_params["min_child_weight"], 6), round(best_params["subsample"], 6),
-    round(best_params["colsample_bytree"], 6), round(best_params["reg_alpha"], 6),
-    round(best_params["reg_lambda"], 6), round(best_params["gamma"], 6),
-)
-best_n_estimators = best_rounds_per_call.get(best_key, MAX_BOOST_ROUNDS)
+# Re-run the winning configuration so the round count comes from the same call as the
+# score. BayesianOptimization only returns a scalar, so the alternative is caching each
+# call's round count under a key rebuilt from the params, which silently mismatches.
+best_params = tuned_params(**results.max["params"])
+best_rmse, best_n_estimators = xgb_cv(best_params)
+print("Best RMSE Score:", best_rmse)
 print(f"Best boosting round from CV: {best_n_estimators}")
 
 best_params.update({

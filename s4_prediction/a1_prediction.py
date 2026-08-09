@@ -1,4 +1,5 @@
 import os
+import json
 import pickle
 import warnings
 
@@ -6,7 +7,6 @@ import catboost as cb
 import duckdb
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
 from sklearn.base import clone
 
 from s1_data.db_utils import load_df
@@ -18,24 +18,21 @@ database = "AmesHousePrice.duckdb"
 database_path = os.path.join(base_folder, database)
 conn = duckdb.connect(database=database_path, read_only=False)
 
-random_state = 42
 
 ################################################# Final Prediction #######################################################
 """
 Pipeline:
-1. Load the list of surviving base models from a8 elimination
+1. Load the list of base models the a8 meta-learner gave non-zero weight
    (models/meta_learner_active_models.txt)
 2. Load each base model's train, val, and test data from duckdb
-   - Feature-selected test matrices are saved in a1..a7 (e.g. test_reg_lr, test_xgb)
-   - Tree models (a4) use full test_ml from s1_data (no extra save)
 3. Concatenate train + val for the final fit, then refit each surviving base
    model (using the loaded pkl as a hyperparameter template via sklearn.clone)
 4. Predict on test with each refit base model
-5. Pass the test base predictions through the saved OLS meta-learner
+5. Combine the test base predictions with the saved NNLS meta-learner weights
 6. Inverse log-transform and emit data/submission.csv keyed on real Kaggle Id
 """
 
-# -------------------- Surviving models from elimination --------------------
+# -------------------- Base models with non-zero meta-learner weight --------------------
 with open("models/meta_learner_active_models.txt") as f:
     active_models = [line.strip() for line in f if line.strip()]
 print(f"Active models for stacking ({len(active_models)}): {active_models}")
@@ -68,7 +65,7 @@ X_train_knn = load_df(conn, "X_train_knn_final")
 X_val_knn = load_df(conn, "X_val_knn_final")
 test_knn = load_df(conn, "test_knn_final")
 
-# Trees (DT / RF / ET) — full test_ml from s1_data only (a4 has no feature selection / no test save)
+# Trees (DT / RF / ET) — saved by s1_data/a8_general_ml_data_prep; a4 only reads them
 X_train_ml = load_df(conn, "X_train_ml")
 X_val_ml = load_df(conn, "X_val_ml")
 test_ml = load_df(conn, "test_ml")
@@ -108,6 +105,11 @@ X_val_cat = load_df(conn, "X_val_cat")
 test_cat = load_df(conn, "test_cat")
 cat_cat_columns = [c for c in X_train_cat.columns if c in all_cat_columns]
 
+# Tuned in a7_catboost. Read here so the refit below matches the model whose OOF
+# predictions trained the meta-learner, instead of CatBoost's defaults.
+with open("models/catboost_best_params.json") as f:
+    cat_params = json.load(f)
+
 
 # -------------------- Combine train + val for the final fit --------------------
 def _combine(a, b):
@@ -135,7 +137,7 @@ for col in lgbm_cat_columns:
 
 # -------------------- Per-model train+val and test registry --------------------
 # Each entry: (full_X, test_X)
-DATA = {
+model_data = {
     "xgb":         (X_full_xgb,        test_xgb),
     "xgb_bayes":   (X_full_xgb,        test_xgb),
     "ridge":       (X_full_reg,        test_reg),
@@ -182,11 +184,10 @@ models_pkl = {name: load_pkl(path) for name, path in pkl_paths.items() if name i
 print(f"\nRefitting {len(active_models)} base models on train + val...")
 trained = {}
 for name in active_models:
-    X_full, _ = DATA[name]
+    X_full, _ = model_data[name]
     if name == "cat_basic":
         model = cb.CatBoostRegressor(
-            loss_function="RMSE",
-            random_seed=random_state,
+            **cat_params,
             verbose=False,
             cat_features=cat_cat_columns,
             allow_writing_files=False,
@@ -206,26 +207,27 @@ for name in active_models:
 n_test = int(conn.execute("SELECT COUNT(*) FROM test").fetchone()[0])
 test_preds = np.zeros((n_test, len(active_models)))
 for i, name in enumerate(active_models):
-    _, X_test = DATA[name]
+    _, X_test = model_data[name]
     test_preds[:, i] = np.asarray(trained[name].predict(X_test)).ravel()
 
 
-# -------------------- Apply OLS meta-learner --------------------
-with open("models/meta_learner_ols.pkl", "rb") as f:
-    meta_learner_ols = pickle.load(f)
+# -------------------- Apply NNLS meta-learner --------------------
+# Written by a8_stacking as {"intercept": float, "weights": {model_name: weight}}.
+# Looking weights up by name keeps this correct even if active_models is reordered.
+with open("models/meta_learner_nnls.json") as f:
+    meta_learner = json.load(f)
 
 test_preds_df = pd.DataFrame(test_preds, columns=active_models)
-test_preds_const = sm.add_constant(test_preds_df, has_constant="add")
-final_preds_log = np.asarray(meta_learner_ols.predict(test_preds_const)).ravel()
+missing = set(meta_learner["weights"]) - set(test_preds_df.columns)
+if missing:
+    raise KeyError(f"Meta-learner expects base models absent from the test predictions: {missing}")
+
+final_preds_log = np.full(n_test, meta_learner["intercept"], dtype=float)
+for name, weight in meta_learner["weights"].items():
+    final_preds_log += weight * test_preds_df[name].to_numpy()
 
 
 # -------------------- Build submission with real Kaggle Id --------------------
-"""
-The duckdb tables produced by save_df use a synthetic Id (range(len(df))) that
-load_df excludes. The real Kaggle test Id is only kept in the raw `test` table
-(loaded from CSV in s1_data/a1_load_raw_data.py). Both orderings are sorted
-by Id, so positional alignment holds.
-"""
 test_ids = conn.execute("SELECT Id FROM test ORDER BY Id").fetch_df()["Id"]
 
 submission = pd.DataFrame({

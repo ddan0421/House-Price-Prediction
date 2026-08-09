@@ -5,7 +5,6 @@ import duckdb
 from sklearn.model_selection import GridSearchCV, KFold
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor, ExtraTreesRegressor
-import pickle
 
 from s1_data.db_utils import load_df
 from s3_validation.model_evaluation import evaluate_model
@@ -18,13 +17,11 @@ conn = duckdb.connect(database=database_path, read_only=False)
 cv = KFold(n_splits=10, shuffle=True, random_state=42)
 
 random_state = 42
-seed = 42
 
 
 ############################################## Decision Tree Regressor Model ############################################################
 X_train_tree_raw = load_df(conn, "X_train_ml")
 X_val_tree_raw = load_df(conn, "X_val_ml")
-test_tree_raw = load_df(conn, "test_ml")
 y_train = load_df(conn, "y_train")
 y_val = load_df(conn, "y_val")
 
@@ -55,6 +52,7 @@ final_model_dt = gs_dt.best_estimator_
 
 selected_features_dt = X_train_tree_raw.columns[np.array(final_model_dt.feature_importances_) > 0]
 
+# Diagnostic only -- nothing downstream reads this file.
 with open("models/selected_features_dt.txt", "w") as f:
     for feat in selected_features_dt:
         f.write(f"{feat}\n")
@@ -95,6 +93,7 @@ final_model_rf = gs_rf.best_estimator_
 
 selected_features_rf = X_train_tree_raw.columns[np.array(final_model_rf.feature_importances_) > 0]
 
+# Diagnostic only -- nothing downstream reads this file.
 with open("models/selected_features_rf.txt", "w") as f:
     for feat in selected_features_rf:
         f.write(f"{feat}\n")
