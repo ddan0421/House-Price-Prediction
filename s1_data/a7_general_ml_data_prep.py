@@ -33,6 +33,18 @@ y = train["SalePrice"]
 
 X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
+# Neighbourhood medians behind Area_vs_Nbhd, built from the training split alone and then
+# applied unchanged to val and test, the same way the scaler at the end of this script is
+# fit on train only. Temp table, so it dies with the connection.
+conn.register("train_split_df", X_train)
+conn.execute("""
+    CREATE OR REPLACE TEMP TABLE nbhd_median_area AS
+    SELECT Neighborhood, MEDIAN(GrLivArea) AS median_area
+    FROM train_split_df
+    GROUP BY Neighborhood;
+""")
+conn.unregister("train_split_df")
+
 
 
 
@@ -92,7 +104,7 @@ def feature_engineering(conn, df):
     FROM input_df)
     
     SELECT * EXCLUDE ("MSSubClass", "MSZoning", "LotConfig", "LandSlope", 
-        "Condition1", "Condition2", "Neighborhood", 
+        "Condition1", "Condition2", 
         "BldgType", "HouseStyle", 
         "Exterior1st", "Exterior2nd", 
         "CentralAir", "Electrical", 
@@ -291,15 +303,18 @@ def add_interaction_terms(conn, data):
     conn.register("input_df", data)
     query = """
     SELECT
-        *,
+        i.* EXCLUDE ("Neighborhood"),
         "GrLivArea" / ("TotalBsmtSF" + "1stFlrSF" + "2ndFlrSF") AS FinishedAreaPct,
         "GrLivArea" * "TotRmsAbvGrd" AS Living_Rooms,
         "GarageArea" * "GarageCars" AS Garage_Space,
         "Age_Garage" * "GarageCars" AS Garage_AgeCars,
         "EnclosedPorch" * "Age_House" AS Porch_Age,
         "BedroomAbvGr" / "TotRmsAbvGrd" AS Ratio_Bedroom_Rooms,
-        "2ndFlrSF" / "GrLivArea" AS Ratio_2ndFlr_Living
-    FROM input_df;
+        "2ndFlrSF" / "GrLivArea" AS Ratio_2ndFlr_Living,
+        i."GrLivArea" / COALESCE(m.median_area,
+            (SELECT MEDIAN(median_area) FROM nbhd_median_area)) AS Area_vs_Nbhd
+    FROM input_df AS i
+    LEFT JOIN nbhd_median_area AS m ON i."Neighborhood" = m."Neighborhood";
     """
     result = conn.query(query).fetchdf()
     conn.unregister("input_df")
@@ -308,6 +323,7 @@ def add_interaction_terms(conn, data):
 X_train_transformed = add_interaction_terms(conn, X_train_encoded)
 X_val_transformed = add_interaction_terms(conn, X_val_encoded)
 test_transformed = add_interaction_terms(conn, test_encoded)
+conn.execute("DROP TABLE nbhd_median_area")
 
 
 # Register pandas DataFrames as DuckDB tables

@@ -35,6 +35,18 @@ y = train["SalePrice"]
 
 X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
+# Neighbourhood medians behind Area_vs_Nbhd, built from the training split alone and then
+# applied unchanged to val and test, the same way the scaler at the end of this script is
+# fit on train only. Temp table, so it dies with the connection.
+conn.register("train_split_df", X_train)
+conn.execute("""
+    CREATE OR REPLACE TEMP TABLE nbhd_median_area AS
+    SELECT Neighborhood, MEDIAN(GrLivArea) AS median_area
+    FROM train_split_df
+    GROUP BY Neighborhood;
+""")
+conn.unregister("train_split_df")
+
 
 
 
@@ -94,7 +106,7 @@ def feature_engineering(conn, df):
     FROM input_df)
     
     SELECT * EXCLUDE ("MSSubClass", "MSZoning", "LotConfig", "LandSlope", 
-        "Condition1", "Condition2", "Neighborhood", 
+        "Condition1", "Condition2", 
         "BldgType", "HouseStyle", 
         "Exterior1st", "Exterior2nd", 
         "CentralAir", "Electrical", 
@@ -294,7 +306,7 @@ def log_transform(conn, data):
     query = """
     WITH cte AS (
         SELECT
-            *,
+            i.*,
             -- Log transformations
             LOG(1 + "LotFrontage") AS log_LotFrontage,
             LOG(1 + "LotArea") AS log_LotArea,
@@ -322,16 +334,19 @@ def log_transform(conn, data):
             LOG(1+ "Age_Garage" * "GarageCars") AS Garage_AgeCars,
             LOG(1 + CBRT("EnclosedPorch") * "Age_House") AS Porch_Age,
             "BedroomAbvGr" / "TotRmsAbvGrd" AS Ratio_Bedroom_Rooms,
-            "2ndFlrSF" / "GrLivArea" AS Ratio_2ndFlr_Living
+            "2ndFlrSF" / "GrLivArea" AS Ratio_2ndFlr_Living,
+            i."GrLivArea" / COALESCE(m.median_area,
+                (SELECT MEDIAN(median_area) FROM nbhd_median_area)) AS Area_vs_Nbhd
 
         
-        FROM input_df
+        FROM input_df AS i
+        LEFT JOIN nbhd_median_area AS m ON i."Neighborhood" = m."Neighborhood"
     )
     SELECT * EXCLUDE (
         "LotFrontage", "LotArea", "1stFlrSF", "2ndFlrSF", "LowQualFinSF", "GrLivArea",
         "Yrs_Since_Remodel", "Age_Garage",
         "TotalBsmtSF", "WoodDeckSF", "BsmtUnfSF", "BsmtFinSF1",
-        "MasVnrArea", "OpenPorchSF"
+        "MasVnrArea", "OpenPorchSF", "Neighborhood"
     )
     FROM cte;
     """
@@ -342,6 +357,7 @@ def log_transform(conn, data):
 X_train_transformed = log_transform(conn, X_train_encoded)
 X_val_transformed = log_transform(conn, X_val_encoded)
 test_transformed = log_transform(conn, test_encoded)
+conn.execute("DROP TABLE nbhd_median_area")
 
 
 # Step 6: Standardization
@@ -354,7 +370,7 @@ numerical_variables = [
     "TotRmsAbvGrd", "Fireplaces", "GarageCars", "GarageArea", "EnclosedPorch", "3SsnPorch",
     "ScreenPorch", "PoolArea", "MiscVal", "Age_House",
     "FinishedAreaPct", "Living_Rooms", "Garage_Space", "Garage_AgeCars", "Porch_Age", "Ratio_Bedroom_Rooms", "Ratio_2ndFlr_Living",
-    "sqrt_BsmtUnfSF", "sqrt_BsmtFinSF1", "BsmtFinSF2",
+    "sqrt_BsmtUnfSF", "sqrt_BsmtFinSF1", "BsmtFinSF2", "Area_vs_Nbhd",
 ]
 
 
