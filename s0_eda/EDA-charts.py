@@ -282,10 +282,9 @@ for col in con_numeric_transformed + discrete_numeric:
     plt.close()
 
 
-# 5. Outlier detection: the partial sales dropped in s1_data/a2_drop_outliers
+# 5. Outlier detection
 """
-Reads train.csv directly instead of train_after_imputation_EDA.csv, because the
-latter is exported by a4 after a2 has already dropped these rows.
+Reads train.csv directly instead of train_after_imputation_EDA.csv
 
 Influence diagnostics from an OLS of log(SalePrice) on log(GrLivArea) and
 OverallQual. The three metrics answer different questions, and a row is only
