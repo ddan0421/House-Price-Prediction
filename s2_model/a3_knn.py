@@ -24,7 +24,7 @@ y_train = load_df(conn, "y_train")
 y_val = load_df(conn, "y_val")
 
 
-knn_features = [
+knn_features = sorted([
     "log_LotFrontage", "log_LotArea", "OverallQual", "OverallCond", "cbrt_MasVnrArea",
     "sqrt_BsmtFinSF1",
     "BsmtFinSF2", "sqrt_BsmtUnfSF", "sqrt_TotalBsmtSF", "log_1stFlrSF", "log_2ndFlrSF", "log_GrLivArea",
@@ -46,7 +46,7 @@ knn_features = [
     "CentralAir_Electrical_Y_SBrkr", "PavedDrive_N", "PavedDrive_Y", "SaleCondition_Abnorml",
     "SaleCondition_Normal", "SaleCondition_Partial", "Foundation_CBlock", "Foundation_PConc",
     "Season_Sold_Spring", "Season_Sold_Summer"
-]
+])
 
 X_train_knn = X_train_knn_raw[knn_features]
 X_val_knn = X_val_knn_raw[knn_features]

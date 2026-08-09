@@ -22,7 +22,7 @@ y_val = load_df(conn, "y_val")
 
 random_state = 42
 
-lr_features = [
+lr_features = sorted([
     "Age_House", "Area_vs_Nbhd", "BedroomAbvGr", "BsmtExposure_encoded", "BsmtFullBath",
     "CentralAir_Electrical_N_SBrkr", "EnclosedPorch", "ExterQual_encoded",
     "Exterior1st_Exterior2nd_BrkFace", "Exterior1st_Exterior2nd_BrkFace_Wd Sdng",
@@ -40,7 +40,7 @@ lr_features = [
     "log_1stFlrSF", "log_2ndFlrSF", "log_GrLivArea", "log_LotArea",
     "log_Yrs_Since_Remodel", "sqrt_BsmtFinSF1", "sqrt_TotalBsmtSF",
     "sqrt_WoodDeckSF"
-]
+])
 
 X_train_reg = X_train[lr_features]
 X_val_reg = X_val[lr_features]

@@ -22,5 +22,5 @@ def load_df(conn, table_name):
         ORDER BY Id;
     """
     
-    return conn.execute(query).fetch_df()
+    return conn.execute(query).fetch_df().sort_index(axis=1)
 

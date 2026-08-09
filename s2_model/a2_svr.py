@@ -22,7 +22,8 @@ test_svr_raw = load_df(conn, "test_svr")
 y_train_svr = load_df(conn, "y_train")
 y_val_svr = load_df(conn, "y_val")
 
-rbf_svr_features = [
+# sorted() so the fitted column order matches what load_df returns in a8 and s4.
+rbf_svr_features = sorted([
     "log_LotFrontage", "log_LotArea", "OverallQual", "OverallCond", "cbrt_MasVnrArea",
     "sqrt_BsmtFinSF1",
     "BsmtFinSF2", "sqrt_BsmtUnfSF", "sqrt_TotalBsmtSF", "log_1stFlrSF", "log_2ndFlrSF", "log_GrLivArea",
@@ -44,7 +45,7 @@ rbf_svr_features = [
     "CentralAir_Electrical_Y_SBrkr", "PavedDrive_N", "PavedDrive_Y", "SaleCondition_Abnorml",
     "SaleCondition_Normal", "SaleCondition_Partial", "Foundation_CBlock", "Foundation_PConc",
     "Season_Sold_Spring", "Season_Sold_Summer"
-]
+])
 
 
 X_train_rbf_svr = X_train_svr_raw[rbf_svr_features]
@@ -89,7 +90,7 @@ test_linear_raw = load_df(conn, "test_reg")
 y_train_linear = load_df(conn, "y_train")
 y_val_linear = load_df(conn, "y_val")
 
-linear_svr_features = [
+linear_svr_features = sorted([
     "Age_House", "Area_vs_Nbhd", "BedroomAbvGr", "BsmtExposure_encoded", "BsmtFullBath", "CentralAir_Electrical_N_SBrkr",
     "EnclosedPorch", "ExterQual_encoded", "Exterior1st_Exterior2nd_BrkFace", "Exterior1st_Exterior2nd_BrkFace_Wd Sdng", "FinishedAreaPct",
     "Fireplaces", "Foundation_PConc", "FullBath", "Functional_encoded", "GarageArea",
@@ -100,7 +101,7 @@ linear_svr_features = [
     "SaleCondition_Normal", "SaleType_New", "ScreenPorch", "TotRmsAbvGrd", "cbrt_MasVnrArea",
     "cbrt_OpenPorchSF", "log_1stFlrSF", "log_2ndFlrSF", "log_GrLivArea", "log_LotArea",
     "log_Yrs_Since_Remodel", "sqrt_BsmtFinSF1", "sqrt_TotalBsmtSF", "sqrt_WoodDeckSF",
-]
+])
 X_train_linear_svr = X_train_linear_raw[linear_svr_features]
 X_val_linear_svr = X_val_linear_raw[linear_svr_features]
 test_linear_svr = test_linear_raw[linear_svr_features]
