@@ -3,7 +3,7 @@ name = "house-price-prediction"
 version = "0.1.0"
 description = "Ames House Price Prediction"
 readme = "README.md"
-requires-python = ">=3.12.5,<3.13"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "bayesian-optimization==2.0.3",
     "catboost==1.2.8",
