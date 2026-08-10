@@ -52,12 +52,17 @@ X_train_rbf_svr = X_train_svr_raw[rbf_svr_features]
 X_val_rbf_svr = X_val_svr_raw[rbf_svr_features]
 test_rbf_svr = test_svr_raw[rbf_svr_features]
 
-rbf_svr_estimator = SVR(kernel="rbf")
+# gamma is searched as multiples of sklearn's 'scale' heuristic, which anchors the grid to the
+# data's variance; multiplier 1.0 reproduces 'scale'. tol is a convergence tolerance, not a
+# hyperparameter, so it is pinned rather than searched.
+gamma_scale = 1.0 / (X_train_rbf_svr.shape[1] * X_train_rbf_svr.to_numpy(dtype=float).var())
+print(f"RBF SVR gamma='scale' resolves to {gamma_scale:.5f}")
+
+rbf_svr_estimator = SVR(kernel="rbf", tol=1e-5)
 rbf_svr_param_grid = {
-    "C": [0.01, 0.1, 1, 10, 50, 100, 200, 500],
-    "epsilon": [0.001, 0.01, 0.05, 0.1, 0.5, 1.0],
-    "gamma": ["scale", "auto", 0.001, 0.01, 0.05, 0.1, 0.5, 1.0],
-    "tol": [1e-5, 1e-4, 1e-3],
+    "C": [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 5, 10],
+    "epsilon": [0.005, 0.01, 0.02, 0.04, 0.06, 0.08, 0.12],
+    "gamma": [m * gamma_scale for m in (0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0)],
 }
 
 rbf_svr_grid = GridSearchCV(
