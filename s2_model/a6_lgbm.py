@@ -1,10 +1,11 @@
+import itertools
 import os
 import pickle
 import numpy as np
 import duckdb
-from sklearn.model_selection import GridSearchCV, KFold
 import lightgbm as lgb
 from bayes_opt import BayesianOptimization, acquisition
+from joblib import Parallel, delayed
 
 from s1_data.db_utils import load_df, save_df
 from s3_validation.model_evaluation import evaluate_model
@@ -14,7 +15,6 @@ database = "AmesHousePrice.duckdb"
 database_path = os.path.join(base_folder, database)
 
 conn = duckdb.connect(database=database_path, read_only=False)
-cv = KFold(n_splits=10, shuffle=True, random_state=42)
 
 random_state = 42
 seed = 42
@@ -51,40 +51,79 @@ test_lgbm = test_cat.copy()
 
 
 ############################################## LightGBM Regressor Model ############################################################
-lgbm = lgb.LGBMRegressor(random_state=random_state, 
-                         objective="regression", 
-                         verbose=-1,
-                         n_jobs=1,
-                         n_estimators=200,
-                         subsample=0.85,
-                         subsample_freq=1,
-                         colsample_bytree=0.85,
-                         reg_alpha=0.0,
-                         min_split_gain=0.0)
+max_boost_rounds = 5000
 
+
+def lgbm_cv(params, n_jobs=-1):
+    """
+    Return (best CV RMSE, boosting round that achieved it) for one parameter set.
+
+    The Dataset is built per call so candidates can be scored concurrently without sharing
+    one across parallel lgb.cv runs.
+    """
+    dtrain_lgbm = lgb.Dataset(data=X_train_lgbm, label=y_train.values.ravel(),
+                              categorical_feature=cat_columns, free_raw_data=False)
+    cv_results = lgb.cv(
+        {**params,
+         "objective": "regression",
+         "metric": "rmse",
+         "verbosity": -1,
+         "feature_pre_filter": False,
+         "seed": seed,
+         "n_jobs": n_jobs,
+         "boosting_type": "gbdt"},
+        dtrain_lgbm,
+        num_boost_round=max_boost_rounds,
+        nfold=10,
+        seed=seed,
+        shuffle=True,
+        stratified=False,
+        callbacks=[lgb.early_stopping(stopping_rounds=50, verbose=False),
+                   lgb.log_evaluation(0)],
+    )
+    curve = np.array(cv_results["valid rmse-mean"])
+    return curve.min(), int(curve.argmin()) + 1
+
+
+# Scored with the same early-stopped CV as the Bayesian search below. A smaller learning_rate needs
+# more trees to reach the same fit, so early stopping gives each candidate the number of rounds it
+# needs. One fixed count for all of them would just reward the fastest-learning rate.
+grid_fixed = {"subsample": 0.85, "subsample_freq": 1, "colsample_bytree": 0.85,
+              "reg_alpha": 0.0, "min_split_gain": 0.0}
 param_grid = {
-    "learning_rate": [0.08, 0.11, 0.15],
-    "num_leaves": [4, 8, 16],
+    "learning_rate": [0.03, 0.05],
+    "num_leaves": [4, 8, 16, 31],
     "min_child_samples": [10, 15, 20],
     "reg_lambda": [1.1, 3.0],
 }
 
-gs_lgbm = GridSearchCV(
-    estimator=lgbm,
-    param_grid=param_grid,
-    scoring="neg_root_mean_squared_error",
-    cv=cv,
+candidates = [{**grid_fixed, **dict(zip(param_grid, values))}
+              for values in itertools.product(*param_grid.values())]
+
+# Candidates run in separate processes, each with n_jobs=1. With so few rows, most of a boosting
+# round is Python overhead inside lgb.cv rather than C++ work, and the GIL lets only one thread run
+# Python at a time, so a process per candidate is what actually keeps the cores busy.
+scores = Parallel(n_jobs=-1)(
+    delayed(lgbm_cv)(candidate, 1) for candidate in candidates)
+
+best_grid_rmse, best_grid_rounds, best_grid_params = min(
+    ((rmse, rounds, candidate) for (rmse, rounds), candidate in zip(scores, candidates)),
+    key=lambda item: item[0])
+
+print("10-Fold CV RMSE:", best_grid_rmse)
+print("Optimal Parameters:", best_grid_params)
+print("Best boosting round from CV:", best_grid_rounds)
+
+final_model_lgbm = lgb.LGBMRegressor(
+    **best_grid_params,
+    n_estimators=best_grid_rounds,
+    objective="regression",
+    random_state=random_state,
     n_jobs=-1,
-    verbose=1,
-    refit=True)
-
-gs_lgbm.fit(X_train_lgbm, y_train.values.ravel(), categorical_feature=cat_columns)
-
-print("10-Fold CV RMSE:", -gs_lgbm.best_score_) 
-print("Optimal Parameters:", gs_lgbm.best_params_)
-print("Optimal Estimator:", gs_lgbm.best_estimator_)
-
-final_model_lgbm = gs_lgbm.best_estimator_
+    verbose=-1,
+)
+final_model_lgbm.fit(X_train_lgbm, y_train.values.ravel(), categorical_feature=cat_columns)
+print("Optimal Estimator:", final_model_lgbm)
 
 selected_features_lgbm = X_train_lgbm.columns[np.array(final_model_lgbm.feature_importances_) > 0]
 
@@ -103,12 +142,6 @@ print("lgbm model saved to models/final_model_lgbm.pkl")
 
 
 ############################################## LGBM Models with Bayesian Optimization ############################################################
-max_boost_rounds = 5000
-
-dtrain_lgbm = lgb.Dataset(data=X_train_lgbm, label=y_train.values.ravel(),
-                          categorical_feature=cat_columns, free_raw_data=False)
-
-
 def tuned_params(learning_rate, num_leaves, min_child_samples, reg_alpha, reg_lambda,
                  colsample_bytree, subsample, subsample_freq):
     """Map raw BayesianOptimization output onto valid LightGBM parameters."""
@@ -122,30 +155,6 @@ def tuned_params(learning_rate, num_leaves, min_child_samples, reg_alpha, reg_la
         "subsample": max(min(subsample, 1), 0),
         "subsample_freq": int(round(subsample_freq)),
     }
-
-
-def lgbm_cv(params):
-    """Return (best CV RMSE, boosting round that achieved it) for one parameter set."""
-    cv_results = lgb.cv(
-        {**params,
-         "objective": "regression",
-         "metric": "rmse",
-         "verbosity": -1,
-         "feature_pre_filter": False,
-         "seed": seed,
-         "n_jobs": -1,
-         "boosting_type": "gbdt"},
-        dtrain_lgbm,
-        num_boost_round=max_boost_rounds,
-        nfold=10,
-        seed=seed,
-        shuffle=True,
-        stratified=False,
-        callbacks=[lgb.early_stopping(stopping_rounds=50, verbose=False),
-                   lgb.log_evaluation(0)],
-    )
-    curve = np.array(cv_results["valid rmse-mean"])
-    return curve.min(), int(curve.argmin()) + 1
 
 
 def bayesian_opt_lgbm(init_iter=20, n_iters=80, random_state=random_state):

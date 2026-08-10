@@ -1,10 +1,11 @@
+import itertools
 import os
 import pickle
 import numpy as np
 import duckdb
-from sklearn.model_selection import GridSearchCV, KFold
 import xgboost as xgb
 from bayes_opt import BayesianOptimization
+from joblib import Parallel, delayed
 
 from s1_data.db_utils import load_df, save_df
 from s3_validation.model_evaluation import evaluate_model
@@ -14,7 +15,6 @@ database = "AmesHousePrice.duckdb"
 database_path = os.path.join(base_folder, database)
 
 conn = duckdb.connect(database=database_path, read_only=False)
-cv = KFold(n_splits=10, shuffle=True, random_state=42)
 
 random_state = 42
 seed = 42
@@ -31,39 +31,75 @@ X_train_xgb = X_train_tree_raw.copy()
 X_val_xgb = X_val_tree_raw.copy()
 test_xgb = test_tree_raw.copy()
                            
-xgb_model = xgb.XGBRegressor(
-    random_state=random_state, 
-    objective="reg:squarederror",
-    n_jobs=1,
-    tree_method="hist",
-    n_estimators=200,
-    subsample=0.8,
-    colsample_bytree=0.75)
+max_boost_rounds = 5000
 
+
+def xgb_cv(params, n_jobs=-1):
+    """
+    Return (best CV RMSE, boosting round that achieved it) for one parameter set.
+
+    The DMatrix is built per call so candidates can be scored concurrently without sharing
+    one across parallel xgb.cv runs.
+    """
+    dtrain_xgb = xgb.DMatrix(data=X_train_xgb, label=y_train.values.ravel())
+    cv_results = xgb.cv(
+        {**params,
+         "objective": "reg:squarederror",
+         "eval_metric": "rmse",
+         "seed": seed,
+         "n_jobs": n_jobs,
+         "booster": "gbtree"},
+        dtrain_xgb,
+        num_boost_round=max_boost_rounds,
+        nfold=10,
+        seed=seed,
+        shuffle=True,
+        stratified=False,
+        early_stopping_rounds=50,
+        metrics="rmse",
+    )
+    curve = cv_results["test-rmse-mean"]
+    return curve.min(), int(curve.idxmin()) + 1
+
+
+# Scored with the same early-stopped CV as the Bayesian search below. A smaller learning_rate needs
+# more trees to reach the same fit, so early stopping gives each candidate the number of rounds it
+# needs. One fixed count for all of them would just reward the fastest-learning rate.
+grid_fixed = {"tree_method": "hist", "subsample": 0.8, "colsample_bytree": 0.75}
 param_grid = {
-    "learning_rate": [0.05, 0.07, 0.10], 
-    "max_depth": [2, 3, 4],  
-    "min_child_weight": [2, 3], 
-    "reg_alpha": [0, 0.5],  
-    "reg_lambda": [0.281, 1, 3]  
+    "learning_rate": [0.03, 0.05],
+    "max_depth": [2, 3, 4],
+    "min_child_weight": [2, 3],
+    "reg_alpha": [0, 0.5],
+    "reg_lambda": [0.281, 1, 3],
 }
 
-gs_xgb = GridSearchCV(
-    estimator=xgb_model,
-    param_grid=param_grid,
-    scoring="neg_root_mean_squared_error",
-    cv=cv,
+candidates = [{**grid_fixed, **dict(zip(param_grid, values))}
+              for values in itertools.product(*param_grid.values())]
+
+# Candidates run in separate processes, each with n_jobs=1. With so few rows, most of a boosting
+# round is Python overhead inside xgb.cv rather than C++ work, and the GIL lets only one thread run
+# Python at a time, so a process per candidate is what actually keeps the cores busy.
+scores = Parallel(n_jobs=-1)(
+    delayed(xgb_cv)(candidate, 1) for candidate in candidates)
+
+best_grid_rmse, best_grid_rounds, best_grid_params = min(
+    ((rmse, rounds, candidate) for (rmse, rounds), candidate in zip(scores, candidates)),
+    key=lambda item: item[0])
+
+print("10-Fold CV RMSE:", best_grid_rmse)
+print("Optimal Parameters:", best_grid_params)
+print("Best boosting round from CV:", best_grid_rounds)
+
+final_model_xgb = xgb.XGBRegressor(
+    **best_grid_params,
+    n_estimators=best_grid_rounds,
+    objective="reg:squarederror",
+    random_state=random_state,
     n_jobs=-1,
-    verbose=1,
-    refit=True)
-
-gs_xgb.fit(X_train_xgb, y_train.values.ravel())
-
-print("10-Fold CV RMSE:", -gs_xgb.best_score_)  
-print("Optimal Parameters:", gs_xgb.best_params_)
-print("Optimal Estimator:", gs_xgb.best_estimator_)
-
-final_model_xgb = gs_xgb.best_estimator_
+)
+final_model_xgb.fit(X_train_xgb, y_train.values.ravel())
+print("Optimal Estimator:", final_model_xgb)
 
 selected_features_xgb = X_train_xgb.columns[np.array(final_model_xgb.feature_importances_) > 0]
 
@@ -79,11 +115,6 @@ print("xgboost model saved to models/final_model_xgb.pkl")
 
 
 ############################################## XGB Models with Bayesian Optimization ############################################################
-max_boost_rounds = 5000
-
-dtrain_xgb = xgb.DMatrix(data=X_train_xgb, label=y_train.values.ravel())
-
-
 def tuned_params(learning_rate, max_depth, min_child_weight, subsample,
                  colsample_bytree, reg_alpha, reg_lambda, gamma):
     """Map raw BayesianOptimization output onto valid XGBoost parameters."""
@@ -97,28 +128,6 @@ def tuned_params(learning_rate, max_depth, min_child_weight, subsample,
         "reg_lambda": max(reg_lambda, 0),
         "gamma": max(gamma, 0),
     }
-
-
-def xgb_cv(params):
-    """Return (best CV RMSE, boosting round that achieved it) for one parameter set."""
-    cv_results = xgb.cv(
-        {**params,
-         "objective": "reg:squarederror",
-         "eval_metric": "rmse",
-         "seed": seed,
-         "n_jobs": -1,
-         "booster": "gbtree"},
-        dtrain_xgb,
-        num_boost_round=max_boost_rounds,
-        nfold=10,
-        seed=seed,
-        shuffle=True,
-        stratified=False,
-        early_stopping_rounds=50,
-        metrics="rmse",
-    )
-    curve = cv_results["test-rmse-mean"]
-    return curve.min(), int(curve.idxmin()) + 1
 
 
 def bayesian_opt_xgb(init_iter=10, n_iters=40, random_state=random_state):
