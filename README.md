@@ -1,7 +1,5 @@
 # House Price Prediction
 
-Project Status: Work in Progress
-
 This project is a personal exercise used to practice and demonstrate a structured data science modeling workflow. The goal is to predict housing prices in Ames, Iowa, while maintaining disciplined coding and modeling habits.
 
 ## Key Objectives
@@ -14,6 +12,8 @@ This project is a personal exercise used to practice and demonstrate a structure
 ## Data Preparation
 
 All intermediate data lives in a single `data/AmesHousePrice.duckdb` file. Each `s1_data` script reads the upstream tables, applies one transformation step (raw load, imputation, feature engineering, model-specific prep), and writes the result back as a new table via `save_df` in `s1_data/db_utils.py`. Downstream `s2_model` and `s4_prediction` scripts then pull the model-specific train/val/test tables (e.g. `X_train_xgb`, `test_lgbm`) with `load_df`, keeping every stage reproducible from the same DuckDB file.
+
+`load_df` returns columns in alphabetical order, and the feature lists in `a1` to `a3` are wrapped in `sorted()`. Trees and boosters sample features by position, so a model's layout would otherwise depend on the order the prep SQL happened to create columns in, and editing that SQL would shift their scores the way a seed change does. A fixed order keeps runs comparable, so a difference between two runs can be attributed to the change under test.
 
 Two partial sales of homes over 4,000 sq ft sold far below market and dominate the influence diagnostics in `s0_eda/EDA-charts.py` (leverage, studentized residual, Cook's distance). They are deliberately **kept** in the training data, because dropping them costs more than it saves: the test set contains a 5,095 sq ft quality-10 partial sale, and with both training examples of that profile gone the model extrapolates past every price it has ever seen. Keeping them leaves `GrLivArea` covered out to 5,642 sq ft.
 
@@ -28,7 +28,9 @@ Dataset: 80% of training data (1,168 records)
 
 * Baseline: OLS Linear Regression.
 * Machine Learning: L1/L2 regression, tree-based models, and gradient boosting (XGBoost, LightGBM, CatBoost).
-* Tuning: 10-fold cross-validation throughout, by grid search for the linear, kernel and tree models, and by grid search plus Bayesian optimization for XGBoost and LightGBM. CatBoost is left at library defaults — tuning it moved validation RMSE by less than the spread across seeds, so the search time bought nothing measurable.
+* Tuning: 10-fold cross-validation throughout, by grid search for the linear, kernel and tree models, and by grid search plus Bayesian optimization for XGBoost and LightGBM. CatBoost is left at library defaults.
+* Both booster grid searches score candidates with early-stopped cross-validation rather than a fixed tree count. A smaller `learning_rate` needs more trees to reach the same fit, so each candidate is given the number of rounds it needs; one shared count would reward whichever rate converges soonest instead of the best configuration. Candidates are dispatched to separate processes, since at this data size most of a boosting round is Python overhead inside the CV loop and the GIL allows only one thread to run Python at a time.
+* RBF SVR searches gamma as multiples of scikit-learn's `scale` heuristic, which keeps the grid anchored to the data's variance rather than to absolute values. `tol` is pinned at its tightest setting rather than searched, since it is a convergence threshold and not a hyperparameter.
 * The boosters train on the full feature set. The `models/selected_features_*.txt` files are written for inspection only; nothing reads them back.
 
 ### Phase 2: Validation
@@ -49,6 +51,13 @@ Dataset: Unseen test features (no SalePrice)
 The out-of-fold folds deliberately use a different seed from the one the base models were tuned against, so no model is scored on the same partition its hyperparameters were chosen to win.
 
 Results are reported two ways per model: `oof_rmse` over the 1,168 out-of-fold training rows and `val_rmse` over the 292 validation rows. Read the out-of-fold column when comparing small differences, since four times the rows means roughly half the standard error; the validation column is kept because it is the only figure measured on rows no base model saw in any fold. The stack's own out-of-fold figure comes from refitting the meta-learner ten times on nine-tenths of the out-of-fold matrix, because scoring the weights on the same rows that produced them would be in-sample.
+
+## Results
+
+Submitted to Kaggle's [House Prices - Advanced Regression Techniques](https://www.kaggle.com/competitions/house-prices-advanced-regression-techniques) competition as **dunkindonuts**, a one-person team.
+
+* Public [leaderboard](https://www.kaggle.com/competitions/house-prices-advanced-regression-techniques/leaderboard) score: **0.11745** root mean squared log error.
+* Approximately 100th out of 3,754 teams, or the top 3%, as of August 2026.
 
 ## Further Improvements
 
