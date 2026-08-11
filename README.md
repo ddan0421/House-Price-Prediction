@@ -71,6 +71,10 @@ Fixing it properly would mean moving every fitted transformation inside the fold
 
 Two smaller gains come with it. An Optuna trial can carry the boosting round its early-stopped CV selected as an attribute, so the round count is read off the best trial instead of being recovered by a second CV call at the winning parameters. Its TPE sampler also avoids re-proposing points it has already evaluated, which `bayes_opt` does occasionally. Changing sampler changes the search path, so the two Bayesian models would need to be re-measured rather than assumed to improve.
 
+**Models are pickled rather than saved in framework-native formats.** Every base model except CatBoost is written with `pickle`, which is kept for simplicity here: `s1` through `s3` run end to end in one environment, so the artifacts never cross a version or machine boundary. It is not what production would want. Pickle serializes the Python object graph rather than the model, so loading depends on the estimator class still existing in a compatible library version, and it executes code by design. The native formats — `.ubj` or `.json` for XGBoost, `.txt` for LightGBM, `.cbm` for CatBoost — store only the trees, splits and leaf values under a documented schema, load across versions and languages, and carry no executable payload.
+
+The natural place to adopt them is `s4_prediction`, where the surviving base models are refit on train plus val. Those are the deployable artifacts, distinct from the `s2` models fit on the training split alone, and the script currently discards them after predicting. The switch would only ever be partial, since the scikit-learn estimators have no native format and a mixed bundle is unavoidable short of an ONNX conversion. Writing the library versions alongside the exported files would do more for reloading them safely than the format change on its own.
+
 ## Tools Used
 
 * Database: DuckDB
