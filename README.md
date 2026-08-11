@@ -67,6 +67,10 @@ The effect is small and mostly harmless for the way these numbers are used. Scal
 
 Fixing it properly would mean moving every fitted transformation inside the fold loop, so that each fold derives its own scaler, imputer and neighbourhood medians. That reshapes the boundary between `s1_data` and `s2_model`: the prep scripts would have to become reusable transformers rather than scripts that write finished tables to DuckDB. That is a large restructuring for a small correction to a diagnostic number, so it is skipped for now.
 
+**The booster searches could move to Optuna.** The Bayesian tuning in `a5_xgb.py` and `a6_lgbm.py` uses `bayes_opt`, which optimizes over continuous bounds only. Integer parameters such as `max_depth`, `num_leaves` and `min_child_samples` are therefore declared as ranges and rounded inside the objective, so the surrogate fits a smooth surface over what is really a staircase and spends trials separating values that train identical models. Optuna's `suggest_int` treats them as genuinely discrete.
+
+Two smaller gains come with it. An Optuna trial can carry the boosting round its early-stopped CV selected as an attribute, so the round count is read off the best trial instead of being recovered by a second CV call at the winning parameters. Its TPE sampler also avoids re-proposing points it has already evaluated, which `bayes_opt` does occasionally. Changing sampler changes the search path, so the two Bayesian models would need to be re-measured rather than assumed to improve.
+
 ## Tools Used
 
 * Database: DuckDB
